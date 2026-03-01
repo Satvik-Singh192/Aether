@@ -1,0 +1,65 @@
+# =========================
+# Build directories
+# =========================
+build/
+Build/
+cmake-build-*/
+out/
+bin/
+lib/
+
+# =========================
+# CMake generated files
+# =========================
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+compile_commands.json
+CTestTestfile.cmake
+Testing/
+
+# =========================
+# Visual Studio
+# =========================
+.vs/
+*.vcxproj*
+*.sln
+*.user
+*.filters
+*.pdb
+*.ilk
+
+# =========================
+# CLion / JetBrains
+# =========================
+.idea/
+*.iml
+
+# =========================
+# VS Code
+# =========================
+.vscode/
+
+# =========================
+# MacOS
+# =========================
+.DS_Store
+
+# =========================
+# Linux
+# =========================
+*.out
+
+# =========================
+# Logs
+# =========================
+*.log
+
+# =========================
+# Temporary files
+# =========================
+*.tmp
+*.temp
+workflow.md
+*.exe
