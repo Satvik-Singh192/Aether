@@ -8,6 +8,13 @@ Vec3 Vec3::operator+(const Vec3& other) const {
     return Vec3(x+other.x, y+other.y, z+other.z);
 }
 
+Vec3& Vec3::operator+=(const Vec3& other) {
+    x+=other.x;
+    y+=other.y;
+    z+=other.z;
+    return *this; 
+}
+
 Vec3 Vec3::operator-(const Vec3& other) const {
     return Vec3(x-other.x, y-other.y,z-other.z);
 }
