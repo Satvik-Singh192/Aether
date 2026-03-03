@@ -1,10 +1,10 @@
 #include <iostream>
 #include<chrono>
 #include<thread>
-#include "vec3.hpp"
-#include "rigidbody.hpp"
-#include "physicsengine.hpp"
-#include "collision.hpp"
+#include "math/vec3.hpp"
+#include "core/rigidbody.hpp"
+#include "engine/physicsworld.hpp"
+#include "collision/collision.hpp"
 using namespace std;
 int main(){
     cout << "Hello Worlds\n";
