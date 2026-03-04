@@ -5,6 +5,7 @@
 #include "core/rigidbody.hpp"
 #include "engine/physicsworld.hpp"
 #include "collision/collision.hpp"
+#include "../renderer/opengl_test.hpp"
 using namespace std;
 int main(){
     cout << "Hello Worlds\n";
@@ -36,6 +37,10 @@ int main(){
        std::cout<<"Time: "<<simulation_time<<"  Y Position: "<<world.getBodies()[0].position.y<<std::endl;
        std::this_thread::sleep_for(std::chrono::milliseconds(16));
     }
+
+    // Checking opengl
+    RunOpenGLTest();
+
     // PhysicsEngine engine;
     // Rigidbody body1(Vec3(0.0f, 0.0f, 0.0f), Vec3(1.0f, 0.0f, 0.0f), 1.0f);
 	// Rigidbody body2(Vec3(10.0f, 0.0f, 0.0f), Vec3(-1.0f, 0.0f, 0.0f), 1.0f);
