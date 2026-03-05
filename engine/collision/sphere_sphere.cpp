@@ -9,7 +9,7 @@ void resolveSphereSphere(Rigidbody&a,Rigidbody&b){
     so we have to tell the compiler that we know for sure that this is a pointer to SphereCollider otherwise we cant access
     special things like radius which belong to the sphere collider and not the general collider directly
 
-    this is called downcasting
+    this is called downcasting //okay padh lia bhai smjh gaya//
     */
     auto* sa=static_cast<SphereCollider*>(a.collider);
     auto* sb=static_cast<SphereCollider*>(b.collider);

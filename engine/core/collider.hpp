@@ -1,6 +1,7 @@
 #pragma once
 enum class ShapeType{
-    Sphere
+    Sphere,
+    Box
 };
 class Collider{
 public:
