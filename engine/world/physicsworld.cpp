@@ -33,7 +33,13 @@ void PhysicsWorld::step(float dt) {
 
 	for(int i=0;i<bodies_size-1;i++){
 		for(int j=i+1;j<bodies_size;j++){
-			resolveSphereSphere(bodies[i],bodies[j]);
+			Collider* ca=bodies[i].collider;
+			Collider* cb=bodies[j].collider;
+			if(!ca||!cb)continue;
+			if(ca->type==ShapeType::Sphere&&cb->type==ShapeType::Sphere)
+				resolveSphereSphere(bodies[i],bodies[j]);
+			else if(ca->type==ShapeType::Box&&cb->type==ShapeType::Box)
+				resolveBoxBox(bodies[i],bodies[j]);
 		}
 	}
 

@@ -7,6 +7,7 @@
 #include "collision/collision.hpp"
 #include "core/sphere_collider.hpp"
 #include "../renderer/opengl_test.hpp"
+#include "core/box_collider.hpp" 
 using namespace std;
 int main(){
     cout << "Hello Worlds\n";
@@ -20,7 +21,12 @@ int main(){
     Rigidbody b(Vec3(2,5,0),Vec3(-3,0,0),&sphere2,1.0f);
     world.addBody(a);
     world.addBody(b);
-
+    BoxCollider box1(Vec3(0.5f, 0.5f, 0.5f));
+    BoxCollider box2(Vec3(0.5f, 0.5f, 0.5f));
+    Rigidbody c(Vec3(-2, 0, 0), Vec3(3, 0, 0), &box1, 1.0f);
+    Rigidbody d(Vec3(2, 0, 0), Vec3(-3, 0, 0), &box2, 1.0f);
+    world.addBody(c);
+    world.addBody(d);
     const float dt=1.0f/60.0f;
 
     float simulation_time=0.0f;
@@ -42,13 +48,13 @@ int main(){
             simulation_time+=dt;
             accumulator-=dt;
             std::cout<<"Time: "<<simulation_time<<"  Frame: "<<frame<<'\n';
-            std::cout<<"First Sphere: \n Position: ";
-            std::cout<<world.getBodies()[0].position.x<<", "<<world.getBodies()[0].position.y<<", "<<world.getBodies()[0].position.z<<"\n Velocity: ";
-            std::cout<<world.getBodies()[0].velocity.x<<", "<<world.getBodies()[0].velocity.y<<", "<<world.getBodies()[0].velocity.z<<"\n \n";
+            std::cout<<"First Box: \n Position: ";
+            std::cout<<world.getBodies()[2].position.x<<", "<<world.getBodies()[2].position.y<<", "<<world.getBodies()[2].position.z<<"\n Velocity: ";
+            std::cout<<world.getBodies()[2].velocity.x<<", "<<world.getBodies()[2].velocity.y<<", "<<world.getBodies()[2].velocity.z<<"\n \n";
             
-            std::cout<<"Second Sphere: \n Position: ";
-            std::cout<<world.getBodies()[1].position.x<<", "<<world.getBodies()[1].position.y<<", "<<world.getBodies()[1].position.z<<"\n Velocity: ";
-            std::cout<<world.getBodies()[1].velocity.x<<", "<<world.getBodies()[1].velocity.y<<", "<<world.getBodies()[1].velocity.z<<"\n \n";
+            std::cout<<"Second Box: \n Position: ";
+            std::cout<<world.getBodies()[3].position.x<<", "<<world.getBodies()[3].position.y<<", "<<world.getBodies()[3].position.z<<"\n Velocity: ";
+            std::cout<<world.getBodies()[3].velocity.x<<", "<<world.getBodies()[3].velocity.y<<", "<<world.getBodies()[3].velocity.z<<"\n \n";
 
        }
        
