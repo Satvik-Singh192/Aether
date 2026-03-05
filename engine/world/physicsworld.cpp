@@ -1,10 +1,12 @@
-#include "engine/physicsworld.hpp"
+#include "world/physicsworld.hpp"
+#include "collision/collision.hpp"
 #include<vector>
 
 PhysicsWorld::PhysicsWorld():gravity(0.0f,-9.8f,0.0f){}
 
 void PhysicsWorld::addBody(const Rigidbody& body) {
 	bodies.push_back(body);
+	bodies_size++;
 }
 
 std::vector<Rigidbody>& PhysicsWorld::getBodies(){
@@ -13,10 +15,14 @@ std::vector<Rigidbody>& PhysicsWorld::getBodies(){
 
 void PhysicsWorld::step(float dt) {
 	for (auto& body:bodies) {
-		if(body.inverse_mass==0.0f)continue;// skipping immovable objects jaise ground or some terrain
+		if(body.inverse_mass==0.0f)continue;
 
 		Vec3 GravityForce=gravity*(1.0f/body.inverse_mass);
 		body.applyForce(GravityForce);
+	}
+
+	for (auto& body:bodies) {
+		if(body.inverse_mass==0.0f)continue;
 
 		Vec3 acceleration=body.force_accum*body.inverse_mass;
 		body.velocity+=acceleration*dt;
@@ -24,4 +30,12 @@ void PhysicsWorld::step(float dt) {
 
 		body.clearForces();
 	}
+
+	for(int i=0;i<bodies_size-1;i++){
+		for(int j=i+1;j<bodies_size;j++){
+			resolveSphereSphere(bodies[i],bodies[j]);
+		}
+	}
+
+
 }

@@ -1,4 +1,4 @@
 #pragma once
 #include "core/rigidbody.hpp"
 
-bool checkCollision(const Rigidbody& a, const Rigidbody& b, float radius);
+void resolveSphereSphere(Rigidbody&a,Rigidbody&b);
