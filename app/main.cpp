@@ -5,6 +5,7 @@
 #include "core/rigidbody.hpp"
 #include "engine/physicsworld.hpp"
 #include "collision/collision.hpp"
+#include "core/sphere_collider.hpp"
 #include "../renderer/opengl_test.hpp"
 using namespace std;
 int main(){
@@ -12,7 +13,8 @@ int main(){
     cout << "Testing\n";
 
     PhysicsWorld world;
-    Rigidbody test_body(Vec3(0.0f,16.0f,0.0f),Vec3(2.0f,0.0f,0.0f),4.0f);
+    SphereCollider sphere(0.5);
+    Rigidbody test_body(Vec3(0.0f,16.0f,0.0f),Vec3(2.0f,0.0f,0.0f),&sphere,4.0f);
     world.addBody(test_body);
     const float dt=1.0f/60.0f;
 
