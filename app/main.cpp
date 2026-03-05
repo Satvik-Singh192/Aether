@@ -3,7 +3,7 @@
 #include<thread>
 #include "math/vec3.hpp"
 #include "core/rigidbody.hpp"
-#include "engine/physicsworld.hpp"
+#include "world/physicsworld.hpp"
 #include "collision/collision.hpp"
 #include "core/sphere_collider.hpp"
 #include "../renderer/opengl_test.hpp"
@@ -13,9 +13,14 @@ int main(){
     cout << "Testing\n";
 
     PhysicsWorld world;
-    SphereCollider sphere(0.5);
-    Rigidbody test_body(Vec3(0.0f,16.0f,0.0f),Vec3(2.0f,0.0f,0.0f),&sphere,4.0f);
-    world.addBody(test_body);
+    SphereCollider sphere1(0.5);
+    SphereCollider sphere2(0.5);
+
+    Rigidbody a(Vec3(-2,5,0),Vec3(3,0,0),&sphere1,1.0f);
+    Rigidbody b(Vec3(2,5,0),Vec3(-3,0,0),&sphere2,1.0f);
+    world.addBody(a);
+    world.addBody(b);
+
     const float dt=1.0f/60.0f;
 
     float simulation_time=0.0f;
@@ -23,7 +28,7 @@ int main(){
 
     auto last_time=std::chrono::high_resolution_clock::now();
     float accumulator=0.0f;
-
+    int frame=0;
     while(simulation_time<total_runtime){
        auto current_time=std::chrono::high_resolution_clock::now();
        float frametime=std::chrono::duration<float>(current_time-last_time).count();
@@ -31,12 +36,22 @@ int main(){
 
        accumulator+=frametime;
        while(accumulator>=dt){
-           world.step(dt);
+            world.step(dt);
+            frame++;
 
-           simulation_time+=dt;
-           accumulator-=dt;
+            simulation_time+=dt;
+            accumulator-=dt;
+            std::cout<<"Time: "<<simulation_time<<"  Frame: "<<frame<<'\n';
+            std::cout<<"First Sphere: \n Position: ";
+            std::cout<<world.getBodies()[0].position.x<<", "<<world.getBodies()[0].position.y<<", "<<world.getBodies()[0].position.z<<"\n Velocity: ";
+            std::cout<<world.getBodies()[0].velocity.x<<", "<<world.getBodies()[0].velocity.y<<", "<<world.getBodies()[0].velocity.z<<"\n \n";
+            
+            std::cout<<"Second Sphere: \n Position: ";
+            std::cout<<world.getBodies()[1].position.x<<", "<<world.getBodies()[1].position.y<<", "<<world.getBodies()[1].position.z<<"\n Velocity: ";
+            std::cout<<world.getBodies()[1].velocity.x<<", "<<world.getBodies()[1].velocity.y<<", "<<world.getBodies()[1].velocity.z<<"\n \n";
+
        }
-       std::cout<<"Time: "<<simulation_time<<"  Y Position: "<<world.getBodies()[0].position.y<<std::endl;
+       
        std::this_thread::sleep_for(std::chrono::milliseconds(16));
     }
 

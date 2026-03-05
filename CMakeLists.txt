@@ -30,8 +30,8 @@ add_executable(Aether_Test
     app/main.cpp
     engine/math/vec3.cpp
     engine/core/rigidbody.cpp
-    engine/engine/physicsworld.cpp
-    engine/collision/collision.cpp
+    engine/world/physicsworld.cpp
+    engine/collision/sphere_sphere.cpp
     renderer/opengl_test.cpp
 )
 
