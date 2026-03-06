@@ -23,7 +23,7 @@ int main(){
     world.addBody(b);
     BoxCollider box1(Vec3(0.5f, 0.5f, 0.5f));
     BoxCollider box2(Vec3(0.5f, 0.5f, 0.5f));
-    Rigidbody c(Vec3(-2, 0, 0), Vec3(3, 0, 0), &box1, 1.0f);
+    Rigidbody c(Vec3(-2, 0, 0), Vec3(3, 0, 0), &sphere1, 1.0f);
     Rigidbody d(Vec3(2, 0, 0), Vec3(-3, 0, 0), &box2, 1.0f);
     world.addBody(c);
     world.addBody(d);
@@ -48,7 +48,7 @@ int main(){
             simulation_time+=dt;
             accumulator-=dt;
             std::cout<<"Time: "<<simulation_time<<"  Frame: "<<frame<<'\n';
-            std::cout<<"First Box: \n Position: ";
+            std::cout<<"First sphere: \n Position: ";
             std::cout<<world.getBodies()[2].position.x<<", "<<world.getBodies()[2].position.y<<", "<<world.getBodies()[2].position.z<<"\n Velocity: ";
             std::cout<<world.getBodies()[2].velocity.x<<", "<<world.getBodies()[2].velocity.y<<", "<<world.getBodies()[2].velocity.z<<"\n \n";
             

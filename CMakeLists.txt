@@ -32,7 +32,8 @@ add_executable(Aether_Test
     engine/core/rigidbody.cpp
     engine/world/physicsworld.cpp
     engine/collision/sphere_sphere.cpp
-    engine/collision/box.cpp
+    engine/collision/box_box.cpp
+    engine/collision/sphere_box.cpp
     renderer/opengl_test.cpp
 )
 
