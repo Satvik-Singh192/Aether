@@ -32,7 +32,7 @@ void resolveBoxBox(Rigidbody& a, Rigidbody& b) {
     float total_invmass = a.inverse_mass + b.inverse_mass;
     if (total_invmass == 0.0f) return;
 
-    Vec3 correction = normal * (penetration * total_invmass);
+    Vec3 correction = normal * (penetration / total_invmass);
     a.position -= correction * a.inverse_mass;
     b.position += correction * b.inverse_mass;
 

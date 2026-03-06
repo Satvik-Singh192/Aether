@@ -40,6 +40,8 @@ void PhysicsWorld::step(float dt) {
 				resolveSphereSphere(bodies[i],bodies[j]);
 			else if(ca->type==ShapeType::Box&&cb->type==ShapeType::Box)
 				resolveBoxBox(bodies[i],bodies[j]);
+			else if(((ca->type==ShapeType::Sphere&&cb->type==ShapeType::Box)))
+				resolveSphereBox(bodies[i],bodies[j]);
 		}
 	}
 

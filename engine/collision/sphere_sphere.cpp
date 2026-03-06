@@ -34,7 +34,7 @@ void resolveSphereSphere(Rigidbody&a,Rigidbody&b){
     if(total_invmass==0.0f)return;
 
     //teleporting the balls outside of each other so it doesnt register as collision again in next frame cuz it didnt get enought time to seprate
-    Vec3 correction=normal*(penetration_depth*total_invmass);
+    Vec3 correction=normal*(penetration_depth/total_invmass);
     a.position-=correction*a.inverse_mass;
     b.position+=correction*b.inverse_mass;
 
