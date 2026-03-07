@@ -27,6 +27,14 @@ int main(){
     Rigidbody d(Vec3(2, 0, 0), Vec3(-3, 0, 0), &box2, 1.0f);
     world.addBody(c);
     world.addBody(d);
+    BoxCollider floorsize(Vec3(100.0f, 0.1f,100.0f));
+    Rigidbody floor(
+        Vec3(0.0f, 0.0f, 0.0f),
+        Vec3(0.0f, 0.0f, 0.0f),
+        &floorsize,
+        0.0f
+    );
+    world.addBody(floor);
     const float dt=1.0f/60.0f;
 
     float simulation_time=0.0f;
