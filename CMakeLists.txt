@@ -34,7 +34,8 @@ add_executable(Aether_Test
     engine/collision/sphere_sphere.cpp
     engine/collision/box_box.cpp
     engine/collision/sphere_box.cpp
-    renderer/opengl_test.cpp
+    renderer/window.cpp 
+    renderer/drawbodies.cpp
 )
 
 target_include_directories(Aether_Test PRIVATE engine)
