@@ -49,4 +49,25 @@ void resolveSphereSphere(Rigidbody&a,Rigidbody&b){
     Vec3 impulse_force=normal*impulse_magnitude;
     a.velocity-=impulse_force*a.inverse_mass;
     b.velocity+=impulse_force*b.inverse_mass;
+
+    //for friction guyz
+    Vec3 rv=b.velocity -a.velocity ;// rel vel
+    Vec3 tangent=rv - normal*rv.dot(normal); //jis bhi axes (maybe mixed) aligned ho us jagah se dot prd lo for tangent
+    float tlength=tangent.length();
+    if(tlength > 1e-6f) {
+        tangent=tangent * (1.0f / tlength);
+        float fricvel=rv.dot(tangent);
+        float fricmag=-fricvel/total_invmass;
+        float mu=std::sqrt(a.friction*b.friction);
+        float max_friction   = mu * impulse_magnitude;
+        if (fricmag >  max_friction) fricmag =  max_friction;
+        if (fricmag < -max_friction) fricmag = -max_friction;
+
+        Vec3 friction_impulse = tangent * fricmag;
+        a.velocity -= friction_impulse * a.inverse_mass;
+        b.velocity += friction_impulse * b.inverse_mass;
+
+
+    }
+
 }
