@@ -17,14 +17,14 @@ int main(){
     SphereCollider sphere1(0.5);
     SphereCollider sphere2(0.5);
 
-    Rigidbody a(Vec3(-2,5,0),Vec3(3,0,0),&sphere1,1.0f);
-    Rigidbody b(Vec3(2,5,0),Vec3(-3,0,0),&sphere2,1.0f);
+    Rigidbody a(Vec3(-2,10,0),Vec3(3,0,0),&sphere1,1.0f);
+    Rigidbody b(Vec3(2,10,0),Vec3(-3,0,0),&sphere2,1.0f);
     world.addBody(a);
     world.addBody(b);
     BoxCollider box1(Vec3(0.5f, 0.5f, 0.5f));
     BoxCollider box2(Vec3(0.5f, 0.5f, 0.5f));
-    Rigidbody c(Vec3(-2, 0, 0), Vec3(3, 0, 0), &sphere1, 1.0f);
-    Rigidbody d(Vec3(2, 0, 0), Vec3(-3, 0, 0), &box2, 1.0f);
+    Rigidbody c(Vec3(-2, 5, 0), Vec3(3, 0, 0), &sphere1, 1.0f);
+    Rigidbody d(Vec3(2, 5, 0), Vec3(-3, 0, 0), &box2, 1.0f);
     world.addBody(c);
     world.addBody(d);
     BoxCollider floorsize(Vec3(100.0f, 0.1f,100.0f));
