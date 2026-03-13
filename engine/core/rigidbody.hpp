@@ -8,6 +8,7 @@ public:
 	Vec3 velocity;
 	Vec3 force_accum;
 	float inverse_mass;
+	float friction;
 
 	/*
 	- Collider is a pointer cuz if we just write "Collider collider;" then the collider will always be a generic one

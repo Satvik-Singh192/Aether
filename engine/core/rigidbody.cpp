@@ -5,7 +5,7 @@ Rigidbody::Rigidbody(const Vec3& pos,
                      Collider* col,
                      float mass
                     )
-    : position(pos), velocity(vel),collider(col), force_accum(0,0,0)
+    : position(pos), velocity(vel),collider(col), force_accum(0,0,0), friction(0.5f)
 {
     inverse_mass=(mass>0.0f)?1.0f/mass:0.0f;
 }

@@ -52,4 +52,21 @@ void resolveSphereBox(Rigidbody&sphere_body,Rigidbody&box_body){
     Vec3 impulse=normal*impulse_mag;
     sphere_body.velocity+=impulse*sphere_body.inverse_mass;
     box_body.velocity-=impulse*box_body.inverse_mass;
+    //for friction guyz
+    Vec3 rv=sphere_body.velocity - box_body.velocity;// rel vel
+    Vec3 tangent=rv - normal*rv.dot(normal); //jis bhi axes (maybe mixed) aligned ho us jagah se dot prd lo for tangent
+    float tlength=tangent.length();
+    if(tlength > 1e-6f) {
+        tangent=tangent * (1.0f / tlength);
+        float fricvel=rv.dot(tangent);
+        float fricmag=-fricvel/total_invmass;
+        float mu=std::sqrt(sphere_body.friction * box_body.friction);
+        float max_friction = mu * impulse_mag;
+        if (fricmag >  max_friction) fricmag =  max_friction;
+        if (fricmag < -max_friction) fricmag = -max_friction;
+
+        Vec3 friction_impulse = tangent * fricmag;
+        sphere_body.velocity += friction_impulse * sphere_body.inverse_mass;
+        box_body.velocity   -= friction_impulse * box_body.inverse_mass;
+    }
 }
