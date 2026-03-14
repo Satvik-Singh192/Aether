@@ -4,14 +4,16 @@
 #include <chrono>
 
 #include "../engine/world/physicsworld.hpp"
+#include "camera.hpp"
 #include "drawbodies.hpp"
 
 #include <iostream>
 
-void framebuffer_size_callback(GLFWwindow* window, int width, int height);
-void processInput(GLFWwindow* window);
+void framebuffer_size_callback(GLFWwindow *window, int width, int height);
+void processInput(GLFWwindow *window, float deltaTime, Camera &camera);
 
-void CreateWindow(PhysicsWorld& world) {
+void CreateWindow(PhysicsWorld &world)
+{
 	// Initialize and configure GLFW
 	glfwInit();
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -24,8 +26,9 @@ void CreateWindow(PhysicsWorld& world) {
 #endif
 
 	// Window creation
-	GLFWwindow* window = glfwCreateWindow(800, 600, "Window", NULL, NULL);
-	if (window == NULL) {
+	GLFWwindow *window = glfwCreateWindow(800, 600, "Window", NULL, NULL);
+	if (window == NULL)
+	{
 		std::cout << "Failed to create window" << std::endl;
 		glfwTerminate();
 		return;
@@ -34,7 +37,8 @@ void CreateWindow(PhysicsWorld& world) {
 	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
 	// GLAD OpenGL function pointers
-	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
+	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
+	{
 		std::cout << "Failed to initialise GLAD" << std::endl;
 		return;
 	}
@@ -42,6 +46,7 @@ void CreateWindow(PhysicsWorld& world) {
 	glViewport(0, 0, 800, 600);
 	// Allow renderer to control point size
 	glEnable(GL_PROGRAM_POINT_SIZE);
+	glEnable(GL_DEPTH_TEST);
 
 	// Initialize the body renderer
 	initDrawBodies();
@@ -54,18 +59,20 @@ void CreateWindow(PhysicsWorld& world) {
 	auto last_time = std::chrono::high_resolution_clock::now();
 	float accumulator = 0.0f;
 	int frame = 0;
+	Camera camera;
 
 	// Loop to render frames
-	while (!glfwWindowShouldClose(window)) {
-		// Process incoming inputs
-		processInput(window);
-
+	while (!glfwWindowShouldClose(window))
+	{
 		auto current_time = std::chrono::high_resolution_clock::now();
 		float frametime =
 			std::chrono::duration<float>(current_time - last_time).count();
 
 		last_time = current_time;
 		accumulator += frametime;
+
+		// Process incoming inputs with frame-rate independent movement.
+		processInput(window, frametime, camera);
 
 		while (accumulator >= dt)
 		{
@@ -76,22 +83,29 @@ void CreateWindow(PhysicsWorld& world) {
 			accumulator -= dt;
 
 			std::cout << "Time: " << simulation_time
-				<< " Frame: " << frame << '\n';
+					  << " Frame: " << frame << '\n';
 
 			std::cout << "First sphere:\n Position: ";
 			std::cout << world.getBodies()[2].position.x << ", "
-				<< world.getBodies()[2].position.y << ", "
-				<< world.getBodies()[2].position.z << "\n Velocity: ";
+					  << world.getBodies()[2].position.y << ", "
+					  << world.getBodies()[2].position.z << "\n Velocity: ";
 
 			std::cout << world.getBodies()[2].velocity.x << ", "
-				<< world.getBodies()[2].velocity.y << ", "
-				<< world.getBodies()[2].velocity.z << "\n\n";
+					  << world.getBodies()[2].velocity.y << ", "
+					  << world.getBodies()[2].velocity.z << "\n\n";
 		}
 
 		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		RenderBodies(world);
+		int framebufferWidth = 0;
+		int framebufferHeight = 0;
+		glfwGetFramebufferSize(window, &framebufferWidth, &framebufferHeight);
+		float aspectRatio = framebufferHeight > 0
+								? static_cast<float>(framebufferWidth) / static_cast<float>(framebufferHeight)
+								: 1.0f;
+
+		RenderBodies(world, camera, aspectRatio);
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();
@@ -101,12 +115,32 @@ void CreateWindow(PhysicsWorld& world) {
 	return;
 }
 
-void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
+void framebuffer_size_callback(GLFWwindow *window, int width, int height)
+{
 	glViewport(0, 0, width, height);
 }
 
-void processInput(GLFWwindow* window) {
-	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
+void processInput(GLFWwindow *window, float deltaTime, Camera &camera)
+{
+	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+	{
 		glfwSetWindowShouldClose(window, true);
+	}
+
+	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+	{
+		camera.moveForward(deltaTime);
+	}
+	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+	{
+		camera.moveBackward(deltaTime);
+	}
+	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+	{
+		camera.moveLeft(deltaTime);
+	}
+	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+	{
+		camera.moveRight(deltaTime);
 	}
 }

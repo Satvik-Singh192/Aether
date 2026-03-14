@@ -22,7 +22,14 @@ FetchContent_Declare(
     GIT_TAG v0.1.36
 )
 
+FetchContent_Declare(
+    glm
+    GIT_REPOSITORY https://github.com/g-truc/glm.git
+    GIT_TAG 0.9.9.8
+)
+
 FetchContent_MakeAvailable(glad)
+FetchContent_MakeAvailable(glm)
 
 find_package(OpenGL REQUIRED)
 
@@ -35,6 +42,7 @@ add_executable(Aether_Test
     engine/collision/box_box.cpp
     engine/collision/sphere_box.cpp
     renderer/window.cpp 
+    renderer/camera.cpp
     renderer/drawbodies.cpp
 )
 
@@ -44,4 +52,5 @@ target_link_libraries(Aether_Test
     glfw
     glad
     OpenGL::GL
+    glm
 )
