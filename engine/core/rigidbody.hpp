@@ -1,6 +1,7 @@
 #pragma once
 #include "math/vec3.hpp"
 #include "collider.hpp"
+#include <iostream>
 
 class Rigidbody {
 public: 

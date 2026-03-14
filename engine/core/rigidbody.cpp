@@ -7,7 +7,21 @@ Rigidbody::Rigidbody(const Vec3& pos,
                     )
     : position(pos), velocity(vel),collider(col), force_accum(0,0,0), friction(0.5f)
 {
+    const float MIN_MASS=1e-4f;
+    if(mass<0){
+        std::cerr<<"tried to create a rigidbody with negative, clamping to 0\n";
+    }
+    else if(mass<MIN_MASS){
+        std::cerr<<"tried to create a rigidbody with too small mass, clamping to min mass: "<<MIN_MASS<<'\n';
+    }
+    if(mass==0.0f){
+        inverse_mass=0.0f;
+    }
+    else{
+        inverse_mass=1.0f/mass;
+    }
     inverse_mass=(mass>0.0f)?1.0f/mass:0.0f;
+    
 }
 
 void Rigidbody::applyForce(const Vec3& force) {

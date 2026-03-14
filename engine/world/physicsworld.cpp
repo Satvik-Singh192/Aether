@@ -27,7 +27,6 @@ PhysicsWorld::PhysicsWorld():gravity(0.0f,-9.8f,0.0f){}
 
 void PhysicsWorld::addBody(const Rigidbody& body) {
 	bodies.push_back(body);
-	bodies_size++;
 }
 
 std::vector<Rigidbody>& PhysicsWorld::getBodies(){
@@ -52,8 +51,8 @@ void PhysicsWorld::step(float dt) {
 		body.clearForces();
 	}
 
-	for(int i=0;i<bodies_size-1;i++){
-		for(int j=i+1;j<bodies_size;j++){
+	for(int i=0;i<bodies.size()-1;i++){
+		for(int j=i+1;j<bodies.size();j++){
 			Collider* ca=bodies[i].collider;
 			Collider* cb=bodies[j].collider;
 			if(!ca||!cb)continue;
