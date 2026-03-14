@@ -20,9 +20,6 @@ void resolveSphereSphere(Rigidbody&a,Rigidbody&b){
 
     if(dist>=radius_sum)return;
 
-    std::cout<<"COLLISION DETECTED, RESOLVING...\n";
-
-
     if(dist==0.0f){
         dist=1.0f;
         diff=Vec3(1.0f,0.0f,0.0f);
