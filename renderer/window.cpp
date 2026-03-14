@@ -47,6 +47,7 @@ void CreateWindow(PhysicsWorld& world) {
 	initDrawBodies();
 
 	const float dt = 1.0f / 60.0f;
+	const int MAX_SUBSTEPS=8; 
 
 	float simulation_time = 0.0f;
 	float total_runtime = 3.0f; // we will run the simulation for 3 seconds in the startung testing phase
@@ -63,29 +64,23 @@ void CreateWindow(PhysicsWorld& world) {
 		auto current_time = std::chrono::high_resolution_clock::now();
 		float frametime =
 			std::chrono::duration<float>(current_time - last_time).count();
-
+		frametime=std::min(frametime,0.25f);
 		last_time = current_time;
 		accumulator += frametime;
 
-		while (accumulator >= dt)
+		int substeps=0;
+
+		while (accumulator >= dt&&substeps<=MAX_SUBSTEPS)
 		{
 			world.step(dt);
 
 			frame++;
 			simulation_time += dt;
 			accumulator -= dt;
+		}
 
-			std::cout << "Time: " << simulation_time
-				<< " Frame: " << frame << '\n';
-
-			std::cout << "First sphere:\n Position: ";
-			std::cout << world.getBodies()[2].position.x << ", "
-				<< world.getBodies()[2].position.y << ", "
-				<< world.getBodies()[2].position.z << "\n Velocity: ";
-
-			std::cout << world.getBodies()[2].velocity.x << ", "
-				<< world.getBodies()[2].velocity.y << ", "
-				<< world.getBodies()[2].velocity.z << "\n\n";
+		if(substeps==MAX_SUBSTEPS){
+			accumulator=dt;
 		}
 
 		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);

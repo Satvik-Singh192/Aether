@@ -10,9 +10,6 @@
 #include "core/box_collider.hpp" 
 using namespace std;
 int main(){
-    cout << "Hello Worlds\n";
-    cout << "Testing\n";
-
     PhysicsWorld world;
     SphereCollider sphere1(0.5);
     SphereCollider sphere2(0.5);
@@ -58,12 +55,19 @@ int main(){
     // Spawn many additional bodies for stress testing
     for (int x = -20; x <= 20; x += 2) {
         int z = 0;
-            float height = 5.0f + float((x + 20) % 7);
+            float height = 15.0f + float((x + 20) % 7);
             Vec3 pos((float)x, height, (float)z);
             Vec3 vel((x % 2 == 0) ? 3.0f : -3.0f, 0.0f, 0.0f);
             Rigidbody stressBody(pos, vel, &sphere1, 1.0f);
             world.addBody(stressBody);
-        
+    }
+    for (int x = -20; x <= 20; x += 2) {
+        int z = 0;
+            float height = 30.0f + float((x + 20) % 7);
+            Vec3 pos((float)x, height, (float)z);
+            Vec3 vel((x % 2 == 0) ? 3.0f : -3.0f, 0.0f, 0.0f);
+            Rigidbody stressBody(pos, vel, &sphere1, 1.0f);
+            world.addBody(stressBody);
     }
 
     CreateWindow(world);
