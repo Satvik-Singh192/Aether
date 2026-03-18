@@ -63,3 +63,19 @@ Testing/
 *.temp
 workflow.md
 *.exe
+
+# CMake FetchContent dependencies
+_deps/
+build/_deps/
+
+# Compiled objects
+*.o
+*.obj
+*.dll
+*.lib
+
+# Architecture build folders
+Debug/
+Release/
+x64/
+x86/
