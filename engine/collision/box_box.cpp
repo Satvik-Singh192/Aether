@@ -36,7 +36,7 @@ bool buildBoxBoxContact(Rigidbody& a, Rigidbody& b, Contact& outContact){
 
     outContact.contact_point = (a.position + b.position) * 0.5f;
 
-    outContact.restituion = (a.restituion + b.restituion) * 0.5f;
+    outContact.restitution = (a.restitution + b.restitution) * 0.5f;
     outContact.friction_coeff = std::sqrt(a.friction * b.friction);
 
     return true;
@@ -65,7 +65,7 @@ bool buildBoxBoxContact(Rigidbody& a, Rigidbody& b, Contact& outContact){
     // float velocity_along_normal = relative_velocity.dot(normal);
     // if (velocity_along_normal > 0) return;
 
-    // float restitution = PHYSICS_DEFAULT_RESTITUION;
+    // float restitution = PHYSICS_DEFAULT_RESTITUTION;
     // float impulse_magnitude = -(1 + restitution) * velocity_along_normal / total_invmass;
 
     // Vec3 impulse_force = normal * impulse_magnitude;

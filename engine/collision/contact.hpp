@@ -10,7 +10,7 @@ struct Contact{
 
     float penetration=0.0f;
     
-    float restituion=0.0f;
+    float restitution=0.0f;
     float friction_coeff=0.0f;
 
     float accumulated_impulse=0.0f;

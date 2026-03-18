@@ -115,7 +115,7 @@ void PhysicsWorld::solve_contacts(){
 
 		if(relvel_along_normal>-PHYSICS_EPSILON)continue; //skip already seprating thingies
 
-		float e=c.restituion;
+		float e=c.restitution;
 		float j=-(1.0+e)*relvel_along_normal;
 		j/=total_invmass;
 

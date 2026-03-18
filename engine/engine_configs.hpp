@@ -7,7 +7,7 @@ constexpr float PHYSICS_EPSILON=1e-4f; //to check if 2 floats are equal if their
 
 constexpr float PHYSICS_GRAVITY=-9.8f;
 
-constexpr float PHYSICS_DEFAULT_RESTITUION=0.5f;
+constexpr float PHYSICS_DEFAULT_RESTITUTION=0.5f;
 constexpr float PHYSICS_DEFAULT_FRICTION=0.5f;
 
 constexpr float PHYSICS_PENETRATION_SLOP=0.03f; //small tolerance for overlap so engine doesnt jitter the object resting on a surface to solve mircroscopic overlapp
