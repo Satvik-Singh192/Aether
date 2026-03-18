@@ -1,6 +1,7 @@
 #include"collision.hpp"
 #include"core/sphere_collider.hpp"
 #include"core/box_collider.hpp"
+#include"core/rigidbody.hpp"
 #include<algorithm>
 
 float clamp(float v, float min, float max) {
