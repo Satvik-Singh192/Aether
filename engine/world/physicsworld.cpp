@@ -101,6 +101,8 @@ void PhysicsWorld::clear_contacts(){
 }
 
 void PhysicsWorld::solve_contacts(){
+	const int iterations=PHYSICS_VEL_SOLVER_ITERATION;
+	for(int i=0;i<iterations;i++){
 	for(auto&c:contacts){
 		Rigidbody& a=*c.a;
 		Rigidbody& b=*c.b;
@@ -121,10 +123,12 @@ void PhysicsWorld::solve_contacts(){
 
         a.velocity-=impulse*a.inverse_mass;
         b.velocity+=impulse*b.inverse_mass;
-	}
+	}}
 }
 
 void PhysicsWorld::solve_position(){
+	const int iterations=PHYSICS_POS_SOLVER_ITERATION;
+	for(int i=0;i<iterations;i++){
 	for(auto&c:contacts){
 		Rigidbody&a=*c.a;
 		Rigidbody&b=*c.b;
@@ -144,7 +148,6 @@ void PhysicsWorld::solve_position(){
 
 		a.position-=correction * a.inverse_mass;
         b.position+=correction * b.inverse_mass;
-
-
+	}
 	}
 }
