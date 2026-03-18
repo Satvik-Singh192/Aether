@@ -39,14 +39,19 @@ void resolveSphereBox(Rigidbody&sphere_body,Rigidbody&box_body){
     float total_invmass=sphere_body.inverse_mass+box_body.inverse_mass;
     if(total_invmass==0)return;
 
+    Vec3 relative_vel=sphere_body.velocity-box_body.velocity;
+    float relvel_normal=relative_vel.dot(normal);
+
+    if(relvel_normal>-PHYSICS_EPSILON)return;
+
     Vec3 correction=normal*(penetration/total_invmass);
     sphere_body.position+=correction*sphere_body.inverse_mass;
     box_body.position-=correction*box_body.inverse_mass;
 
-    Vec3 relative_vel=sphere_body.velocity-box_body.velocity;
-    float relvel_normal=relative_vel.dot(normal);
-
-    float restituion=PHYSICS_DEFAULT_RESTITUION;
+    float restituion=(sphere_body.restitution+box_body.restitution)*0.5f;
+    if(fabs(relvel_normal)<0.5f){
+        restituion=0.0f;
+    }
     float impulse_mag=-(1+restituion)*relvel_normal*(1.0/total_invmass);
 
     Vec3 impulse=normal*impulse_mag;

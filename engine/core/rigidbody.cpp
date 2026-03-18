@@ -5,7 +5,7 @@ Rigidbody::Rigidbody(const Vec3& pos,
                      Collider* col,
                      float mass
                     )
-    : position(pos), velocity(vel),collider(col), force_accum(0,0,0), friction(PHYSICS_DEFAULT_FRICTION)
+    : position(pos), velocity(vel),collider(col), force_accum(0,0,0), friction(PHYSICS_DEFAULT_FRICTION),restitution(PHYSICS_DEFAULT_RESTITUION)
 {
     const float MIN_MASS=PHYSICS_EPSILON;
     if(mass<0){
@@ -21,6 +21,10 @@ Rigidbody::Rigidbody(const Vec3& pos,
         inverse_mass=1.0f/mass;
     }
     inverse_mass=(mass>0.0f)?1.0f/mass:0.0f;
+
+    friction=std::max(0.0f,friction);
+    restitution=std::max(0.0f,restitution);
+    restitution=std::min(1.0f,restitution);
     
 }
 
