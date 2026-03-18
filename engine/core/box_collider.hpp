@@ -1,6 +1,6 @@
 #pragma once
 #include "collider.hpp"
-#include "math/vec3.hpp"
+#include "common_header.hpp"
 class BoxCollider : public Collider {
     public : 
         Vec3 halfsize;

@@ -23,7 +23,7 @@ const std::unordered_map<CollisionKey, CollisionResolver, CollisionKeyHash> coll
 	{{ShapeType::Sphere, ShapeType::Sphere}, resolveSphereSphere},
 };
 
-PhysicsWorld::PhysicsWorld():gravity(0.0f,-9.8f,0.0f){}
+PhysicsWorld::PhysicsWorld():gravity(0.0f,PHYSICS_GRAVITY,0.0f){}
 
 void PhysicsWorld::addBody(const Rigidbody& body) {
 	bodies.push_back(body);

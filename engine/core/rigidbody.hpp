@@ -1,5 +1,5 @@
 #pragma once
-#include "math/vec3.hpp"
+#include "common_header.hpp"
 #include "collider.hpp"
 #include <iostream>
 

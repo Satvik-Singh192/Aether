@@ -41,6 +41,7 @@ FetchContent_MakeAvailable(glm)
 find_package(OpenGL REQUIRED)
 
 add_executable(Aether_Test
+    engine/engine_configs.cpp
     app/main.cpp
     engine/math/vec3.cpp
     engine/core/rigidbody.cpp

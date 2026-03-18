@@ -5,9 +5,9 @@ Rigidbody::Rigidbody(const Vec3& pos,
                      Collider* col,
                      float mass
                     )
-    : position(pos), velocity(vel),collider(col), force_accum(0,0,0), friction(0.5f)
+    : position(pos), velocity(vel),collider(col), force_accum(0,0,0), friction(PHYSICS_DEFAULT_FRICTION)
 {
-    const float MIN_MASS=1e-4f;
+    const float MIN_MASS=PHYSICS_EPSILON;
     if(mass<0){
         std::cerr<<"tried to create a rigidbody with negative, clamping to 0\n";
     }

@@ -40,7 +40,7 @@ void resolveSphereSphere(Rigidbody&a,Rigidbody&b){
     float velocity_along_normal=relative_velocity.dot(normal);
     if(velocity_along_normal>0)return;
 
-    float restitution=0.5f;
+    float restitution=PHYSICS_DEFAULT_RESTITUION;
     float impulse_magnitude=-(1+restitution)*velocity_along_normal/total_invmass;
 
     Vec3 impulse_force=normal*impulse_magnitude;
