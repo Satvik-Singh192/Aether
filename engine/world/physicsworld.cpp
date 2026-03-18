@@ -33,6 +33,21 @@ std::vector<Rigidbody>& PhysicsWorld::getBodies(){
 	return bodies;
 }
 
+void PhysicsWorld::validate_body(Rigidbody& body){
+	if(is_corrupt(body.position)){
+		std::cout << "body position corrupted: " <<body.position<<'\n';
+		body.position=Vec3();
+	}
+	if(is_corrupt(body.velocity)){
+		std::cout << "body velocity corrupted: " <<body.velocity<<'\n';
+		body.velocity=Vec3();
+	}
+	if(is_corrupt(body.force_accum)){
+		std::cout << "body force accumulator corrupted: " <<body.force_accum<<'\n';
+		body.force_accum=Vec3();
+	}
+}
+
 void PhysicsWorld::step(float dt) {
 	for (auto& body:bodies) {
 		if(body.inverse_mass==0.0f)continue;
@@ -72,6 +87,9 @@ void PhysicsWorld::step(float dt) {
 				resolver_it->second(*first_body, *second_body);
 			}
 		}
+	}
+	for(auto& body:bodies){
+		validate_body(body);
 	}
 
 

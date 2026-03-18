@@ -1,5 +1,6 @@
 #pragma once
 #include <cmath>
+#include<iostream>
 
 class Vec3 {
 public:
@@ -18,3 +19,6 @@ public:
     float length() const;
     Vec3 normalized() const;
 };
+std::ostream& operator<<(std::ostream& os,const Vec3& vector3); 
+
+bool is_corrupt(const Vec3& vector3);
