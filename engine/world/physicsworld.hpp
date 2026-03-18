@@ -17,4 +17,5 @@ public:
 
 	void clear_contacts();
 	void generate_contacts();
+	void solve_contacts();
 };

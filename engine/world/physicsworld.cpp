@@ -47,6 +47,7 @@ void PhysicsWorld::step(float dt) {
 
 	clear_contacts();
 	generate_contacts();
+	solve_contacts();
 	//std::cout<<"Contacts: "<<contacts.size()<<'\n';
 	for(auto& body:bodies){
 		validate_body(body);
@@ -96,4 +97,28 @@ void PhysicsWorld::generate_contacts(){
 }
 void PhysicsWorld::clear_contacts(){
 	contacts.clear();
+}
+
+void PhysicsWorld::solve_contacts(){
+	for(auto&c:contacts){
+		Rigidbody a=*c.a;
+		Rigidbody b=*c.b;
+
+		float total_invmass=a.inverse_mass+b.inverse_mass;
+		if(total_invmass==0.0f)continue; //contact bw 2 imovable objects must be ignoreeded
+
+		Vec3 rel_vel=b.velocity-a.velocity; //following the A to B convention
+		float relvel_along_normal=rel_vel.dot(c.normal);
+
+		if(relvel_along_normal>-PHYSICS_EPSILON)continue; //skip already seprating thingies
+
+		float e=c.restituion;
+		float j=-(1.0+e)*relvel_along_normal;
+		j/=total_invmass;
+
+		Vec3 impulse=c.normal*j;
+
+        a.velocity-=impulse*a.inverse_mass;
+        b.velocity+=impulse*b.inverse_mass;
+	}
 }
