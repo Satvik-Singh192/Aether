@@ -1,27 +1,6 @@
 #include "world/physicsworld.hpp"
-#include "collision/collision.hpp"
-#include <unordered_map>
 #include <utility>
 #include <vector>
-
-using CollisionKey = std::pair<ShapeType, ShapeType>;
-using CollisionResolver = void(*)(Rigidbody&, Rigidbody&);
-
-struct CollisionKeyHash {
-	size_t operator()(const CollisionKey& key) const {
-		return (static_cast<size_t>(key.first) << 8) ^ static_cast<size_t>(key.second);
-	}
-};
-
-void resolveBoxSphere(Rigidbody& box_body, Rigidbody& sphere_body) {
-	resolveSphereBox(sphere_body, box_body);
-}
-
-const std::unordered_map<CollisionKey, CollisionResolver, CollisionKeyHash> collision_resolvers = {
-	{{ShapeType::Box, ShapeType::Box}, resolveBoxBox},
-	{{ShapeType::Box, ShapeType::Sphere}, resolveBoxSphere},
-	{{ShapeType::Sphere, ShapeType::Sphere}, resolveSphereSphere},
-};
 
 PhysicsWorld::PhysicsWorld():gravity(0.0f,PHYSICS_GRAVITY,0.0f){}
 
@@ -66,31 +45,109 @@ void PhysicsWorld::step(float dt) {
 		body.clearForces();
 	}
 
-	for(int i=0;i<bodies.size()-1;i++){
-		for(int j=i+1;j<bodies.size();j++){
-			Collider* ca=bodies[i].collider;
-			Collider* cb=bodies[j].collider;
-			if(!ca||!cb)continue;
-
-			Rigidbody* first_body=&bodies[i];
-			Rigidbody* second_body=&bodies[j];
-			ShapeType first_type=ca->type;
-			ShapeType second_type=cb->type;
-
-			if(static_cast<int>(first_type)>static_cast<int>(second_type)){
-				std::swap(first_type, second_type);
-				std::swap(first_body, second_body);
-			}
-
-			auto resolver_it=collision_resolvers.find({first_type, second_type});
-			if(resolver_it!=collision_resolvers.end()){
-				resolver_it->second(*first_body, *second_body);
-			}
-		}
-	}
+	clear_contacts();
+	generate_contacts();
+	solve_contacts();
+	solve_position();
+	//std::cout<<"Contacts: "<<contacts.size()<<'\n';
 	for(auto& body:bodies){
 		validate_body(body);
 	}
 
 
+}
+
+void PhysicsWorld::generate_contacts(){
+	for(int i=0;i<bodies.size()-1;i++){
+		for(int j=i+1;j<bodies.size();j++){
+			Rigidbody& a=bodies[i];
+			Rigidbody& b=bodies[j];
+
+			if(!a.collider||!b.collider)continue;
+			Contact c;
+			if (a.collider->type == ShapeType::Sphere &&
+                b.collider->type == ShapeType::Sphere)
+            {
+                if (buildSphereSphereContact(a, b, c))
+                    contacts.push_back(c);
+            }
+            else if (a.collider->type == ShapeType::Sphere &&
+                     b.collider->type == ShapeType::Box)
+            {
+                if (buildSphereBoxContact(a, b, c))
+                    contacts.push_back(c);
+            }
+            else if (a.collider->type == ShapeType::Box &&
+                     b.collider->type == ShapeType::Sphere)
+            {
+                if (buildSphereBoxContact(b, a, c))
+                {
+                    std::swap(c.a, c.b);
+                    c.normal = c.normal * -1.0f;
+                    contacts.push_back(c);
+                }
+            }
+            else if (a.collider->type == ShapeType::Box &&
+                     b.collider->type == ShapeType::Box)
+            {
+                if (buildBoxBoxContact(a, b, c))
+                    contacts.push_back(c);
+            }
+		}
+	}
+}
+void PhysicsWorld::clear_contacts(){
+	contacts.clear();
+}
+
+void PhysicsWorld::solve_contacts(){
+	const int iterations=PHYSICS_VEL_SOLVER_ITERATION;
+	for(int i=0;i<iterations;i++){
+	for(auto&c:contacts){
+		Rigidbody& a=*c.a;
+		Rigidbody& b=*c.b;
+
+		float total_invmass=a.inverse_mass+b.inverse_mass;
+		if(total_invmass==0.0f)continue; //contact bw 2 imovable objects must be ignoreeded
+
+		Vec3 rel_vel=b.velocity-a.velocity; //following the A to B convention
+		float relvel_along_normal=rel_vel.dot(c.normal);
+
+		if(relvel_along_normal>-PHYSICS_EPSILON)continue; //skip already seprating thingies
+
+		float e=c.restitution;
+		float j=-(1.0+e)*relvel_along_normal;
+		j/=total_invmass;
+
+		Vec3 impulse=c.normal*j;
+
+        a.velocity-=impulse*a.inverse_mass;
+        b.velocity+=impulse*b.inverse_mass;
+	}}
+}
+
+void PhysicsWorld::solve_position(){
+	const int iterations=PHYSICS_POS_SOLVER_ITERATION;
+	for(int i=0;i<iterations;i++){
+	for(auto&c:contacts){
+		Rigidbody&a=*c.a;
+		Rigidbody&b=*c.b;
+
+		float total_invmass=a.inverse_mass+b.inverse_mass;
+		if(total_invmass==0.0f)continue; //contact bw 2 imovable objects must be ignoreeded
+
+		float slop=PHYSICS_PENETRATION_SLOP;
+		float percent=PHYSICS_CORRECTION_PERCENT;
+		
+		float penetration=c.penetration;
+
+		float correction_mag=std::max(penetration-slop,0.0f);
+		correction_mag=(correction_mag/total_invmass)*percent;
+
+		Vec3 correction=c.normal*correction_mag;
+
+		a.position-=correction * a.inverse_mass;
+        b.position+=correction * b.inverse_mass;
+	}
+	}
 }
