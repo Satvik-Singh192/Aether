@@ -7,6 +7,10 @@
 #include "camera.hpp"
 #include "drawbodies.hpp"
 
+#include "imgui.h"
+#include "backends/imgui_impl_glfw.h"
+#include "backends/imgui_impl_opengl3.h"
+
 #include <iostream>
 
 void framebuffer_size_callback(GLFWwindow *window, int width, int height);
@@ -53,6 +57,7 @@ void CreateWindow(PhysicsWorld &world)
 
 	const float dt = 1.0f / 60.0f;
 	const int MAX_SUBSTEPS = 8;
+	bool isSimulationPaused = false;
 
 	float simulation_time = 0.0f;
 	float total_runtime = 3.0f; // we will run the simulation for 3 seconds in the startung testing phase
@@ -62,6 +67,13 @@ void CreateWindow(PhysicsWorld &world)
 	int frame = 0;
 	Camera camera;
 
+	// initialize ImGui once after OpenGL context creation.
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	ImGui::StyleColorsDark();
+	ImGui_ImplGlfw_InitForOpenGL(window, true);
+	ImGui_ImplOpenGL3_Init("#version 330 core");
+
 	// Loop to render frames
 	while (!glfwWindowShouldClose(window))
 	{
@@ -70,28 +82,29 @@ void CreateWindow(PhysicsWorld &world)
 			std::chrono::duration<float>(current_time - last_time).count();
 		frametime = std::min(frametime, 0.25f);
 		last_time = current_time;
-		accumulator += frametime;
 
 		// Process incoming inputs with frame-rate independent movement.
 		processInput(window, frametime, camera);
 
-		// Process incoming inputs with frame-rate independent movement.
-		processInput(window, frametime, camera);
-
-		int substeps = 0;
-
-		while (accumulator >= dt && substeps <= MAX_SUBSTEPS)
+		if (!isSimulationPaused)
 		{
-			world.step(dt);
+			accumulator += frametime;
+			int substeps = 0;
 
-			frame++;
-			simulation_time += dt;
-			accumulator -= dt;
-		}
+			while (accumulator >= dt && substeps < MAX_SUBSTEPS)
+			{
+				world.step(dt);
+				++substeps;
 
-		if (substeps == MAX_SUBSTEPS)
-		{
-			accumulator = dt;
+				frame++;
+				simulation_time += dt;
+				accumulator -= dt;
+			}
+
+			if (substeps == MAX_SUBSTEPS)
+			{
+				accumulator = 0.0f;
+			}
 		}
 
 		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
@@ -106,9 +119,33 @@ void CreateWindow(PhysicsWorld &world)
 
 		RenderBodies(world, camera, aspectRatio);
 
+		ImGui_ImplOpenGL3_NewFrame();
+		ImGui_ImplGlfw_NewFrame();
+		ImGui::NewFrame();
+
+		ImGui::Begin("Simulation Controls");
+		if (ImGui::Button(isSimulationPaused ? "Resume Physics" : "Pause Physics"))
+		{
+			isSimulationPaused = !isSimulationPaused;
+			if (isSimulationPaused)
+			{
+				accumulator = 0.0f;
+			}
+		}
+		ImGui::Text("Bodies: %zu", world.getBodies().size());
+		ImGui::Text("Frame: %d", frame);
+		ImGui::End();
+
+		ImGui::Render();
+		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}
+
+	ImGui_ImplOpenGL3_Shutdown();
+	ImGui_ImplGlfw_Shutdown();
+	ImGui::DestroyContext();
 
 	glfwTerminate();
 	return;
