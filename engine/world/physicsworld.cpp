@@ -48,6 +48,7 @@ void PhysicsWorld::step(float dt) {
 	clear_contacts();
 	generate_contacts();
 	solve_contacts();
+	solve_position();
 	//std::cout<<"Contacts: "<<contacts.size()<<'\n';
 	for(auto& body:bodies){
 		validate_body(body);
@@ -101,8 +102,8 @@ void PhysicsWorld::clear_contacts(){
 
 void PhysicsWorld::solve_contacts(){
 	for(auto&c:contacts){
-		Rigidbody a=*c.a;
-		Rigidbody b=*c.b;
+		Rigidbody& a=*c.a;
+		Rigidbody& b=*c.b;
 
 		float total_invmass=a.inverse_mass+b.inverse_mass;
 		if(total_invmass==0.0f)continue; //contact bw 2 imovable objects must be ignoreeded
@@ -120,5 +121,30 @@ void PhysicsWorld::solve_contacts(){
 
         a.velocity-=impulse*a.inverse_mass;
         b.velocity+=impulse*b.inverse_mass;
+	}
+}
+
+void PhysicsWorld::solve_position(){
+	for(auto&c:contacts){
+		Rigidbody&a=*c.a;
+		Rigidbody&b=*c.b;
+
+		float total_invmass=a.inverse_mass+b.inverse_mass;
+		if(total_invmass==0.0f)continue; //contact bw 2 imovable objects must be ignoreeded
+
+		float slop=PHYSICS_PENETRATION_SLOP;
+		float percent=PHYSICS_CORRECTION_PERCENT;
+		
+		float penetration=c.penetration;
+
+		float correction_mag=std::max(penetration-slop,0.0f);
+		correction_mag=(correction_mag/total_invmass)*percent;
+
+		Vec3 correction=c.normal*correction_mag;
+
+		a.position-=correction * a.inverse_mass;
+        b.position+=correction * b.inverse_mass;
+
+
 	}
 }

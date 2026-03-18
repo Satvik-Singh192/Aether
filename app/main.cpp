@@ -19,13 +19,12 @@ int main(){
     world.addBody(a);
     world.addBody(b);
    
-    Rigidbody c(Vec3(2, 15, 15), Vec3(0, 0, 0), &box1, 1.0f);
+    Rigidbody c(Vec3(2, 15, 0), Vec3(0, 0, 0), &box1, 1.0f);
     Rigidbody d(Vec3(2, 25, -20), Vec3(0, 0, 0), &box2, 1.0f);
 
 
     world.addBody(a);
-    world.addBody(b);
-    // world.addBody(c);
+    world.addBody(b); world.addBody(c);
     // world.addBody(d);
     BoxCollider floorsize(Vec3(100.0f, 0.1f,100.0f));
     Rigidbody floor(

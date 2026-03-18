@@ -17,5 +17,6 @@ public:
 
 	void clear_contacts();
 	void generate_contacts();
-	void solve_contacts();
+	void solve_contacts(); //solves for vel
+	void solve_position();//tis solves for position overlap
 };
