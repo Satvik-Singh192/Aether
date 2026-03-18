@@ -13,7 +13,7 @@ bool buildBoxBoxContact(Rigidbody& a, Rigidbody& b, Contact& outContact){
     float overlapZ = (ba->halfsize.z + bb->halfsize.z) - std::abs(delta.z);
 
     // no collision if any axis is separating
-    if (overlapX <= 0 || overlapY <= 0 || overlapZ <= 0) return;
+    if (overlapX <= 0 || overlapY <= 0 || overlapZ <= 0) return false;
 
     // sabse kam waali ko pkdo
     Vec3 normal;
