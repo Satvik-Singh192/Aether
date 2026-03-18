@@ -132,8 +132,11 @@ void CreateWindow(PhysicsWorld &world)
 				accumulator = 0.0f;
 			}
 		}
+		const ImGuiIO &io = ImGui::GetIO();
 		ImGui::Text("Bodies: %zu", world.getBodies().size());
 		ImGui::Text("Frame: %d", frame);
+		ImGui::Text("FPS: %.1f", io.Framerate);
+		ImGui::Text("Frame time: %.3f ms", io.Framerate > 0.0f ? (1000.0f / io.Framerate) : 0.0f);
 		ImGui::End();
 
 		ImGui::Render();
