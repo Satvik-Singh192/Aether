@@ -43,6 +43,19 @@ bool buildBoxBoxContact(Rigidbody& a, Rigidbody& b, Contact& outContact){
 
     // float total_invmass = a.inverse_mass + b.inverse_mass;
     // if (total_invmass == 0.0f) return;
+//     Vec3 relative_velocity = b.velocity - a.velocity;
+//     float velocity_along_normal = relative_velocity.dot(normal);
+//     if (velocity_along_normal > -PHYSICS_EPSILON) return;
+
+//     Vec3 correction = normal * (penetration / total_invmass);
+//     a.position -= correction * a.inverse_mass;
+//     b.position += correction * b.inverse_mass;
+
+//     float restitution = (a.restitution+b.restitution)*0.5f;
+//     if(fabs(velocity_along_normal)<0.5f){
+//         restitution=0.0f;
+//     }
+//     float impulse_magnitude = -(1 + restitution) * velocity_along_normal / total_invmass;
 
     // Vec3 correction = normal * (penetration / total_invmass);
     // a.position -= correction * a.inverse_mass;
