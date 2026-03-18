@@ -23,7 +23,7 @@ const std::unordered_map<CollisionKey, CollisionResolver, CollisionKeyHash> coll
 	{{ShapeType::Sphere, ShapeType::Sphere}, resolveSphereSphere},
 };
 
-PhysicsWorld::PhysicsWorld():gravity(0.0f,-9.8f,0.0f){}
+PhysicsWorld::PhysicsWorld():gravity(0.0f,PHYSICS_GRAVITY,0.0f){}
 
 void PhysicsWorld::addBody(const Rigidbody& body) {
 	bodies.push_back(body);
@@ -31,6 +31,21 @@ void PhysicsWorld::addBody(const Rigidbody& body) {
 
 std::vector<Rigidbody>& PhysicsWorld::getBodies(){
 	return bodies;
+}
+
+void PhysicsWorld::validate_body(Rigidbody& body){
+	if(is_corrupt(body.position)){
+		std::cout << "body position corrupted: " <<body.position<<'\n';
+		body.position=Vec3();
+	}
+	if(is_corrupt(body.velocity)){
+		std::cout << "body velocity corrupted: " <<body.velocity<<'\n';
+		body.velocity=Vec3();
+	}
+	if(is_corrupt(body.force_accum)){
+		std::cout << "body force accumulator corrupted: " <<body.force_accum<<'\n';
+		body.force_accum=Vec3();
+	}
 }
 
 void PhysicsWorld::step(float dt) {
@@ -72,6 +87,9 @@ void PhysicsWorld::step(float dt) {
 				resolver_it->second(*first_body, *second_body);
 			}
 		}
+	}
+	for(auto& body:bodies){
+		validate_body(body);
 	}
 
 

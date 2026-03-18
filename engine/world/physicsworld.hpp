@@ -10,6 +10,6 @@ public:
 	PhysicsWorld();
 	void addBody(const Rigidbody& body);
 	void step(float dt);
-
+	void validate_body(Rigidbody& body);
 	std::vector<Rigidbody>& getBodies();
 };

@@ -43,3 +43,12 @@ Vec3 Vec3::normalized() const {
     if (len == 0.0f) return Vec3();
     return (*this) * (1.0f / len);
 }
+
+std::ostream& operator<<(std::ostream& os,const Vec3& vector3){
+    os<<'('<<vector3.x<<vector3.y<<vector3.z<<')';
+    return os;
+}
+
+bool is_corrupt(const Vec3& vector3){
+    return (!isfinite(vector3.x)||!isfinite(vector3.y)||!isfinite(vector3.z));
+}

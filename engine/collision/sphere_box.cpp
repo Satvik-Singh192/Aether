@@ -46,7 +46,7 @@ void resolveSphereBox(Rigidbody&sphere_body,Rigidbody&box_body){
     Vec3 relative_vel=sphere_body.velocity-box_body.velocity;
     float relvel_normal=relative_vel.dot(normal);
 
-    float restituion=0.5f;
+    float restituion=PHYSICS_DEFAULT_RESTITUION;
     float impulse_mag=-(1+restituion)*relvel_normal*(1.0/total_invmass);
 
     Vec3 impulse=normal*impulse_mag;
