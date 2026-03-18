@@ -48,15 +48,14 @@ bool buildSphereBoxContact(Rigidbody& sphere_body, Rigidbody& box_body, Contact&
     outContact.penetration = radius - dist;
     outContact.contactpoint = closest;
 
-<<<<<<< Updated upstream
     Vec3 correction=normal*(penetration/total_invmass);
     sphere_body.position+=correction*sphere_body.inverse_mass;
     box_body.position-=correction*box_body.inverse_mass;
 
-    Vec3 relative_vel=sphere_body.velocity-box_body.velocity;
-    float relvel_normal=relative_vel.dot(normal);
-
-    float restituion=PHYSICS_DEFAULT_RESTITUION;
+    float restituion=(sphere_body.restitution+box_body.restitution)*0.5f;
+    if(fabs(relvel_normal)<0.5f){
+        restituion=0.0f;
+    }
     float impulse_mag=-(1+restituion)*relvel_normal*(1.0/total_invmass);
 
     Vec3 impulse=normal*impulse_mag;
@@ -79,10 +78,8 @@ bool buildSphereBoxContact(Rigidbody& sphere_body, Rigidbody& box_body, Contact&
         sphere_body.velocity += friction_impulse * sphere_body.inverse_mass;
         box_body.velocity   -= friction_impulse * box_body.inverse_mass;
     }
-=======
     outContact.friction = std::sqrt(std::max(0.0f, sphere_body.friction) * std::max(0.0f, box_body.friction));
     outContact.restitution = std::max(sphere_body.restitution, box_body.restitution);
 
-    return true;
->>>>>>> Stashed changes
+     return true;
 }

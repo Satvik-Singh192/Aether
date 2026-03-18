@@ -42,16 +42,14 @@ bool buildBoxBoxContact(Rigidbody& a, Rigidbody& b, Contact& outContact) {
     outContact.penetration = penetration;
     outContact.contactpoint = (a.position + b.position) * 0.5f;
 
-<<<<<<< Updated upstream
     Vec3 correction = normal * (penetration / total_invmass);
     a.position -= correction * a.inverse_mass;
     b.position += correction * b.inverse_mass;
 
-    Vec3 relative_velocity = b.velocity - a.velocity;
-    float velocity_along_normal = relative_velocity.dot(normal);
-    if (velocity_along_normal > 0) return;
-
-    float restitution = PHYSICS_DEFAULT_RESTITUION;
+    float restitution = (a.restitution+b.restitution)*0.5f;
+    if(fabs(velocity_along_normal)<0.5f){
+        restitution=0.0f;
+    }
     float impulse_magnitude = -(1 + restitution) * velocity_along_normal / total_invmass;
 
     Vec3 impulse_force = normal * impulse_magnitude;
@@ -74,10 +72,9 @@ bool buildBoxBoxContact(Rigidbody& a, Rigidbody& b, Contact& outContact) {
         a.velocity -= friction_impulse * a.inverse_mass;
         b.velocity += friction_impulse * b.inverse_mass;
     }
-=======
+
     outContact.friction = std::sqrt(std::max(0.0f, a.friction) * std::max(0.0f, b.friction));
     outContact.restitution = std::max(a.restitution, b.restitution);
 
     return true;
->>>>>>> Stashed changes
 }
