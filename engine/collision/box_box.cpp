@@ -1,10 +1,14 @@
 #include "collision/collision.hpp"
 #include "core/box_collider.hpp"
 #include <cmath>
+#include <algorithm>
 
-void resolveBoxBox(Rigidbody& a, Rigidbody& b) {
+bool buildBoxBoxContact(Rigidbody& a, Rigidbody& b, Contact& outContact) {
     auto* ba = static_cast<BoxCollider*>(a.collider);
     auto* bb = static_cast<BoxCollider*>(b.collider); 
+    if (!ba || !bb) {
+        return false;
+    }
 
     Vec3 delta = b.position - a.position;
 
@@ -13,7 +17,9 @@ void resolveBoxBox(Rigidbody& a, Rigidbody& b) {
     float overlapZ = (ba->halfsize.z + bb->halfsize.z) - std::abs(delta.z);
 
     // no collision if any axis is separating
-    if (overlapX <= 0 || overlapY <= 0 || overlapZ <= 0) return;
+    if (overlapX <= 0 || overlapY <= 0 || overlapZ <= 0) {
+        return false;
+    }
 
     // sabse kam waali ko pkdo
     Vec3 normal;
@@ -29,9 +35,14 @@ void resolveBoxBox(Rigidbody& a, Rigidbody& b) {
         normal = Vec3(0, 0, delta.z < 0 ? -1.0f : 1.0f);
     }
 
-    float total_invmass = a.inverse_mass + b.inverse_mass;
-    if (total_invmass == 0.0f) return;
+    outContact = Contact{};
+    outContact.a = &a;
+    outContact.b = &b;
+    outContact.normal = normal;
+    outContact.penetration = penetration;
+    outContact.contactpoint = (a.position + b.position) * 0.5f;
 
+<<<<<<< Updated upstream
     Vec3 correction = normal * (penetration / total_invmass);
     a.position -= correction * a.inverse_mass;
     b.position += correction * b.inverse_mass;
@@ -63,4 +74,10 @@ void resolveBoxBox(Rigidbody& a, Rigidbody& b) {
         a.velocity -= friction_impulse * a.inverse_mass;
         b.velocity += friction_impulse * b.inverse_mass;
     }
+=======
+    outContact.friction = std::sqrt(std::max(0.0f, a.friction) * std::max(0.0f, b.friction));
+    outContact.restitution = std::max(a.restitution, b.restitution);
+
+    return true;
+>>>>>>> Stashed changes
 }

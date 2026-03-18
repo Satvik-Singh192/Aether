@@ -1,44 +1,54 @@
-#include"collision.hpp"
-#include"core/sphere_collider.hpp"
-#include"core/box_collider.hpp"
-#include<algorithm>
+#include "collision/collision.hpp"
+#include "core/sphere_collider.hpp"
+#include "core/box_collider.hpp"
+#include <algorithm>
+#include <cmath>
 
-float clamp(float v, float min, float max) {
+static float clamp(float v, float min, float max) {
     return std::max(min, std::min(v, max));
 }
 
-void resolveSphereBox(Rigidbody&sphere_body,Rigidbody&box_body){
-    auto* sphere=static_cast<SphereCollider*>(sphere_body.collider);
-    auto* box=static_cast<BoxCollider*>(box_body.collider);
+bool buildSphereBoxContact(Rigidbody& sphere_body, Rigidbody& box_body, Contact& outContact) {
+    auto* sphere = static_cast<SphereCollider*>(sphere_body.collider);
+    auto* box = static_cast<BoxCollider*>(box_body.collider);
+    if (!sphere || !box) {
+        return false;
+    }
 
-    Vec3 boxmin=box_body.position-box->halfsize;
-    Vec3 boxmax=box_body.position+box->halfsize;
+    Vec3 boxmin = box_body.position - box->halfsize;
+    Vec3 boxmax = box_body.position + box->halfsize;
 
     Vec3 closest;
 
-    closest.x=clamp(sphere_body.position.x, boxmin.x, boxmax.x);
-    closest.y=clamp(sphere_body.position.y, boxmin.y, boxmax.y);
-    closest.z=clamp(sphere_body.position.z, boxmin.z, boxmax.z);
+    closest.x = clamp(sphere_body.position.x, boxmin.x, boxmax.x);
+    closest.y = clamp(sphere_body.position.y, boxmin.y, boxmax.y);
+    closest.z = clamp(sphere_body.position.z, boxmin.z, boxmax.z);
 
-    Vec3 delta=sphere_body.position-closest;
-    float dist=delta.dot(delta);
-    float radius=sphere->radius;
+    Vec3 delta = sphere_body.position - closest;
+    float distSq = delta.dot(delta);
+    float radius = sphere->radius;
 
-    if(dist>radius*radius)return;
-    dist=std::sqrt(dist);
+    if (distSq > radius * radius) {
+        return false;
+    }
+
+    float dist = std::sqrt(std::max(0.0f, distSq));
     Vec3 normal;
 
-    if(dist==0){
-        normal=Vec3(0,1,0);
-    }
-    else{
-        normal=delta*(1.0/dist);
+    if (dist <= PHYSICS_EPSILON) {
+        normal = Vec3(0.0f, 1.0f, 0.0f);
+    } else {
+        normal = delta * (1.0f / dist);
     }
 
-    float penetration=radius-dist;
-    float total_invmass=sphere_body.inverse_mass+box_body.inverse_mass;
-    if(total_invmass==0)return;
+    outContact = Contact{};
+    outContact.a = &sphere_body;
+    outContact.b = &box_body;
+    outContact.normal = normal;
+    outContact.penetration = radius - dist;
+    outContact.contactpoint = closest;
 
+<<<<<<< Updated upstream
     Vec3 correction=normal*(penetration/total_invmass);
     sphere_body.position+=correction*sphere_body.inverse_mass;
     box_body.position-=correction*box_body.inverse_mass;
@@ -69,4 +79,10 @@ void resolveSphereBox(Rigidbody&sphere_body,Rigidbody&box_body){
         sphere_body.velocity += friction_impulse * sphere_body.inverse_mass;
         box_body.velocity   -= friction_impulse * box_body.inverse_mass;
     }
+=======
+    outContact.friction = std::sqrt(std::max(0.0f, sphere_body.friction) * std::max(0.0f, box_body.friction));
+    outContact.restitution = std::max(sphere_body.restitution, box_body.restitution);
+
+    return true;
+>>>>>>> Stashed changes
 }

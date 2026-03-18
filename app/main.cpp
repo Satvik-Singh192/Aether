@@ -52,22 +52,44 @@ int main(){
         0.0f
     );
     world.addBody(floor);
-    // Spawn many additional bodies for stress testing
+
+    // Original stress loops (kept for reference)
+    // for (int x = -20; x <= 20; x += 2) {
+    //     int z = 0;
+    //         float height = 15.0f + float((x + 20) % 7);
+    //         Vec3 pos((float)x, height, (float)z);
+    //         Vec3 vel((x % 2 == 0) ? 3.0f : -3.0f, 0.0f, 0.0f);
+    //         Rigidbody stressBody(pos, vel, &sphere1, 1.0f);
+    //         world.addBody(stressBody);
+    // }
+    // for (int x = -20; x <= 20; x += 2) {
+    //     int z = 0;
+    //         float height = 30.0f + float((x + 20) % 7);
+    //         Vec3 pos((float)x, height, (float)z);
+    //         Vec3 vel((x % 2 == 0) ? 3.0f : -3.0f, 0.0f, 0.0f);
+    //         Rigidbody stressBody(pos, vel, &sphere1, 1.0f);
+    //         world.addBody(stressBody);
+    // }
+
+    // Spawn many additional bodies for stress testing.
+    // Layer 1
     for (int x = -20; x <= 20; x += 2) {
-        int z = 0;
-            float height = 15.0f + float((x + 20) % 7);
-            Vec3 pos((float)x, height, (float)z);
-            Vec3 vel((x % 2 == 0) ? 3.0f : -3.0f, 0.0f, 0.0f);
-            Rigidbody stressBody(pos, vel, &sphere1, 1.0f);
-            world.addBody(stressBody);
+        float height = 15.0f + float((x + 20) % 7);
+        float z = float(((x + 20) / 2) % 3 - 1) * 1.5f;
+        Vec3 pos((float)x, height, z);
+        Vec3 vel((x % 4 == 0) ? 2.5f : -2.5f, 0.0f, (x % 6 == 0) ? 0.6f : -0.6f);
+        Rigidbody stressBody(pos, vel, &sphere1, 1.0f);
+        world.addBody(stressBody);
     }
+
+    // Layer 2
     for (int x = -20; x <= 20; x += 2) {
-        int z = 0;
-            float height = 30.0f + float((x + 20) % 7);
-            Vec3 pos((float)x, height, (float)z);
-            Vec3 vel((x % 2 == 0) ? 3.0f : -3.0f, 0.0f, 0.0f);
-            Rigidbody stressBody(pos, vel, &sphere1, 1.0f);
-            world.addBody(stressBody);
+        float height = 30.0f + float((x + 20) % 7);
+        float z = float(((x + 20) / 2) % 3 - 1) * 1.5f;
+        Vec3 pos((float)x * 0.9f, height, -z);
+        Vec3 vel((x % 4 == 0) ? -2.5f : 2.5f, 0.0f, (x % 6 == 0) ? -0.6f : 0.6f);
+        Rigidbody stressBody(pos, vel, &sphere1, 1.0f);
+        world.addBody(stressBody);
     }
 
     CreateWindow(world);

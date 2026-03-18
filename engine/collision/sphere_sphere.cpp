@@ -1,30 +1,16 @@
 #include "collision/collision.hpp"
 #include "core/sphere_collider.hpp"
-#include<iostream>
+#include <algorithm>
+#include <cmath>
 
-void resolveSphereSphere(Rigidbody&a,Rigidbody&b){
-
-    /*
-    b.collider contains the pointer to its special collider but the type of b.collider is Collider* (general collider)
-    so we have to tell the compiler that we know for sure that this is a pointer to SphereCollider otherwise we cant access
-    special things like radius which belong to the sphere collider and not the general collider directly
-
-    this is called downcasting //okay padh lia bhai smjh gaya//
-    */
-    auto* sa=static_cast<SphereCollider*>(a.collider);
-    auto* sb=static_cast<SphereCollider*>(b.collider);
-
-    Vec3 diff=b.position-a.position;
-    float dist=diff.length();
-    float radius_sum=sa->radius+sb->radius;
-
-    if(dist>=radius_sum)return;
-
-    if(dist==0.0f){
-        dist=1.0f;
-        diff=Vec3(1.0f,0.0f,0.0f);
+bool buildSphereSphereContact(Rigidbody& a, Rigidbody& b, Contact& outContact) {
+    auto* sa = static_cast<SphereCollider*>(a.collider);
+    auto* sb = static_cast<SphereCollider*>(b.collider);
+    if (!sa || !sb) {
+        return false;
     }
 
+<<<<<<< Updated upstream
     Vec3 normal=diff*(1.0/dist);
     float penetration_depth=radius_sum-dist;
     float total_invmass=a.inverse_mass+b.inverse_mass;
@@ -64,7 +50,33 @@ void resolveSphereSphere(Rigidbody&a,Rigidbody&b){
         a.velocity -= friction_impulse * a.inverse_mass;
         b.velocity += friction_impulse * b.inverse_mass;
 
+=======
+    Vec3 diff = b.position - a.position;
+    float dist = diff.length();
+    float radiusSum = sa->radius + sb->radius;
+>>>>>>> Stashed changes
 
+    if (dist >= radiusSum) {
+        return false;
     }
 
+    Vec3 normal;
+    if (dist <= PHYSICS_EPSILON) {
+        normal = Vec3(1.0f,0.0f, 0.0f);
+        dist = 0.0f;
+    } else {
+        normal = diff * (1.0f / dist);
+    }
+
+    outContact = Contact{};
+    outContact.a = &a;
+    outContact.b = &b;
+    outContact.normal = normal;
+    outContact.penetration = radiusSum - dist;
+    outContact.contactpoint = a.position + normal * (sa->radius - 0.5f * outContact.penetration);
+
+    outContact.friction = std::sqrt(std::max(0.0f, a.friction) * std::max(0.0f, b.friction));
+    outContact.restitution = std::max(a.restitution, b.restitution);
+
+    return true;
 }
