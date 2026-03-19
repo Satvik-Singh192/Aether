@@ -1,10 +1,13 @@
 #pragma once
 #include "common_header.hpp"
+#include "bodyid.hpp"
 #include "collider.hpp"
 #include <iostream>
 
 class Rigidbody {
 public: 
+	BodyID id;
+	
 	Vec3 position;
 	Vec3 velocity;
 	Vec3 force_accum;
@@ -20,10 +23,13 @@ public:
 	Collider* collider;
 
 
-	Rigidbody(const Vec3& position,
+	Rigidbody(
+		//BodyID body_id,
+		const Vec3& position,
 		const Vec3& velocity,
 		Collider* col=nullptr,
-		float mass=1.0f);
+		float mass=1.0f
+		);
 
 	void applyForce(const Vec3& force);
 	void clearForces();

@@ -6,6 +6,8 @@ bool buildBoxBoxContact(Rigidbody& a, Rigidbody& b, Contact& outContact){
     auto* ba = static_cast<BoxCollider*>(a.collider);
     auto* bb = static_cast<BoxCollider*>(b.collider); 
 
+    if (!ba || !bb) return false;
+
     Vec3 delta = b.position - a.position;
 
     float overlapX = (ba->halfsize.x + bb->halfsize.x) - std::abs(delta.x);

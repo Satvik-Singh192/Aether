@@ -12,6 +12,8 @@ bool buildSphereBoxContact(Rigidbody& sphere_body, Rigidbody& box_body, Contact&
     auto* sphere=static_cast<SphereCollider*>(sphere_body.collider);
     auto* box=static_cast<BoxCollider*>(box_body.collider);
 
+    if (!sphere || !box) return false;
+
     Vec3 boxmin=box_body.position-box->halfsize; //boootoom left back corner
     Vec3 boxmax=box_body.position+box->halfsize; // topp right front corner
 
@@ -27,8 +29,8 @@ bool buildSphereBoxContact(Rigidbody& sphere_body, Rigidbody& box_body, Contact&
     float dist=delta.dot(delta);
     float radius=sphere->radius;
 
-    if(dist>radius*radius)return false;
-    dist=std::sqrt(dist);
+    if (dist > radius * radius) return false;
+    dist = std::sqrt(std::max(0.0f, dist));
     Vec3 normal;
 
     if(dist<=PHYSICS_EPSILON){

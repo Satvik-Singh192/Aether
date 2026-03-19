@@ -210,8 +210,8 @@ void RenderBodies(PhysicsWorld &world, const Camera &camera, float aspectRatio)
         {
             glBufferData(GL_ARRAY_BUFFER, bodyVertices.size() * sizeof(float), bodyVertices.data(), GL_DYNAMIC_DRAW);
 
-            // Adding colour to wireframe based on the body address
-            std::uintptr_t key = reinterpret_cast<std::uintptr_t>(&body);
+            // Adding colour to wireframe based on stable body id
+            BodyID key = body.id;
             float r = ((key * 73u) % 100) / 100.0f;
             float g = ((key * 37u) % 100) / 100.0f;
             float b = ((key * 19u) % 100) / 100.0f;
