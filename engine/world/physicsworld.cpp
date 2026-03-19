@@ -123,6 +123,27 @@ void PhysicsWorld::solve_contacts(){
 
         a.velocity-=impulse*a.inverse_mass;
         b.velocity+=impulse*b.inverse_mass;
+
+
+		// lets handle friction now
+		rel_vel=b.velocity-a.velocity; //recompute cuz it was updated during normal resolution
+		Vec3 tangent=rel_vel-c.normal*rel_vel.dot(c.normal);
+
+		float tangent_length=tangent.length();
+		if(tangent_length<=PHYSICS_EPSILON) continue;
+		tangent=tangent*(1.0f/tangent_length); //converting to unit vec
+
+		float jt=-rel_vel.dot(tangent);
+		jt/=total_invmass;
+
+		float mu=c.friction_coeff;
+		float maxfriction=mu*j; //j is the normal impulse 
+		jt = std::max(-maxfriction, std::min(jt, maxfriction));   
+
+		Vec3 friction_impulse=tangent*jt;
+		a.velocity-=friction_impulse*a.inverse_mass;
+		b.velocity+=friction_impulse*b.inverse_mass;
+
 	}}
 }
 

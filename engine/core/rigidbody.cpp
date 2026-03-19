@@ -11,11 +11,11 @@ Rigidbody::Rigidbody(const Vec3& pos,
     if(mass<0){
         std::cerr<<"tried to create a rigidbody with negative, clamping to 0\n";
     }
+    else if(mass==0.0f){
+        inverse_mass=0.0f;
+    }
     else if(mass<MIN_MASS){
         std::cerr<<"tried to create a rigidbody with too small mass, clamping to min mass: "<<MIN_MASS<<'\n';
-    }
-    if(mass==0.0f){
-        inverse_mass=0.0f;
     }
     else{
         inverse_mass=1.0f/mass;
