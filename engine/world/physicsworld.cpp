@@ -3,16 +3,22 @@
 #include <vector>
 
 PhysicsWorld::PhysicsWorld():gravity(0.0f,PHYSICS_GRAVITY,0.0f){}
-
+std::uint32_t bid=1;
 void PhysicsWorld::addBody(const Rigidbody& body) {
-	bodies.push_back(body);
+	
+	Rigidbody copy = body;
+    copy.id = bid++;
+    bodies.push_back(copy);
+
 }
 
 std::vector<Rigidbody>& PhysicsWorld::getBodies(){
+
 	return bodies;
 }
 
 void PhysicsWorld::validate_body(Rigidbody& body){
+	 
 	if(is_corrupt(body.position)){
 		std::cout << "body position corrupted: " <<body.position<<'\n';
 		body.position=Vec3();
