@@ -24,7 +24,7 @@ public:
 
 
 	Rigidbody(
-		BodyID body_id,
+		//BodyID body_id,
 		const Vec3& position,
 		const Vec3& velocity,
 		Collider* col=nullptr,

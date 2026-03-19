@@ -2,19 +2,26 @@
 #include <utility>
 #include <vector>
 
-PhysicsWorld::PhysicsWorld():gravity(0.0f,PHYSICS_GRAVITY,0.0f){}
-std::uint32_t bid=1;
-void PhysicsWorld::addBody(const Rigidbody& body) {
-	
-	Rigidbody copy = body;
-    copy.id = bid++;
-    bodies.push_back(copy);
+PhysicsWorld::PhysicsWorld():gravity(0.0f,PHYSICS_GRAVITY,0.0f),next_body_id(1){}
 
+void PhysicsWorld::addBody(const Rigidbody& body) {
+	Rigidbody copy = body;
+	copy.id = next_body_id++;
+	bodies.push_back(copy);
+}
+
+void PhysicsWorld::addBody(Rigidbody&& body) {
+	body.id = next_body_id++;
+	bodies.push_back(std::move(body));
 }
 
 std::vector<Rigidbody>& PhysicsWorld::getBodies(){
 
 	return bodies;
+}
+
+std::size_t PhysicsWorld::getContactCount() const {
+	return contacts.size();
 }
 
 void PhysicsWorld::validate_body(Rigidbody& body){
@@ -64,8 +71,8 @@ void PhysicsWorld::step(float dt) {
 }
 
 void PhysicsWorld::generate_contacts(){
-	for(int i=0;i<bodies.size()-1;i++){
-		for(int j=i+1;j<bodies.size();j++){
+	for (std::size_t i = 0; i + 1 < bodies.size(); ++i) {
+		for (std::size_t j = i + 1; j < bodies.size(); ++j) {
 			Rigidbody& a=bodies[i];
 			Rigidbody& b=bodies[j];
 

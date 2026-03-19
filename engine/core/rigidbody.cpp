@@ -1,22 +1,22 @@
 #include "core/rigidbody.hpp"
 
 Rigidbody::Rigidbody(
-    BodyID body_id,
+    
     const Vec3& position,
     const Vec3& velocity,
     Collider* col,
     float mass
 )
-    : id(body_id),position(position),velocity(velocity),force_accum(0,0,0),inverse_mass(0.0f),friction(PHYSICS_DEFAULT_FRICTION),restitution(PHYSICS_DEFAULT_RESTITUTION),collider(col)
+    : position(position),velocity(velocity),force_accum(0,0,0),inverse_mass(0.0f),friction(PHYSICS_DEFAULT_FRICTION),restitution(PHYSICS_DEFAULT_RESTITUTION),collider(col)
 {
     const float MIN_MASS = PHYSICS_EPSILON;
     float effective_mass = mass;
 
-    if(mass<0){
-        std::cerr<<"tried to create a rigidbody with negative, clamping to 0\n";
+    if (mass <= 0.0f) {
+        std::cerr << "tried to create a rigidbody with non-positive mass, treating as static body\n";
         effective_mass = 0.0f;
     }
-    else if(mass<MIN_MASS){
+    else if (mass < MIN_MASS) {
         std::cerr<<"tried to create a rigidbody with too small mass, clamping to min mass: "<<MIN_MASS<<'\n';
         effective_mass = MIN_MASS;
     }
