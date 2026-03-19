@@ -106,6 +106,18 @@ void PhysicsWorld::generate_contacts(){
                 if (buildBoxBoxContact(a, b, c))
                     contacts.push_back(c);
             }
+			else if (a.collider->type == ShapeType::Box &&
+					 b.collider->type == ShapeType::Ramp)
+			{
+				if (buildBoxRampContact(a, b, c))
+					contacts.push_back(c);
+			}
+			else if (a.collider->type == ShapeType::Ramp &&
+					 b.collider->type == ShapeType::Box)
+			{
+				if (buildRampBoxContact(a, b, c))
+					contacts.push_back(c);
+			}
 		}
 	}
 }
