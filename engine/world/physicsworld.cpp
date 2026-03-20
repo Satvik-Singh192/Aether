@@ -4,19 +4,29 @@
 
 PhysicsWorld::PhysicsWorld() : gravity(0.0f, PHYSICS_GRAVITY, 0.0f), next_body_id(1) {}
 
-void PhysicsWorld::addBody(const Rigidbody &body)
+std::uint32_t PhysicsWorld::addBody(const Rigidbody &body)
 {
 	Rigidbody copy = body;
 	copy.id = next_body_id++;
 	bodies.push_back(copy);
+	return copy.id;
 }
 
-void PhysicsWorld::addBody(Rigidbody &&body)
+std::uint32_t PhysicsWorld::addBody(Rigidbody &&body)
 {
 	body.id = next_body_id++;
 	bodies.push_back(std::move(body));
+	return body.id;
 }
 
+void PhysicsWorld::addforce(const Vec3 &force, std::uint32_t id){
+	for(auto &it: bodies){
+		if(it.id == id){
+			it.applyForce(force);
+			return;
+		}
+	}
+}
 std::vector<Rigidbody> &PhysicsWorld::getBodies()
 {
 
