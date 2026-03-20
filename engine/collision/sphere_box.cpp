@@ -47,7 +47,7 @@ bool buildSphereBoxContact(Rigidbody& sphere_body, Rigidbody& box_body, Contact&
     outContact.penetration=radius-dist;
     outContact.contact_point=closest;
 
-    outContact.restitution=(sphere_body.restitution+box_body.restitution)*0.5f;
+    outContact.restitution=(sphere_body.restitution+ box_body.restitution)*0.5f;
     outContact.friction_coeff=std::sqrt(sphere_body.friction*box_body.friction);
     return true;
 

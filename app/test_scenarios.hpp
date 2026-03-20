@@ -9,7 +9,17 @@ enum class TestCase
     SphereBox,
     BoxRamp,
     SphereRamp,
-    BoxSphereRamp
+    BoxSphereRamp,
+    BoxStack,
+    PyramidStack,
+    ManySpheres,
+    ManyBoxes,
+    MixedPile,
+    BouncyBalls,
+    SlidingRampRow,
+    ChainCollide,
+    RandomScatter,
+    StressTestLarge
 };
 
 void LoadSingleTestScenario(PhysicsWorld &world, TestCase test_case);

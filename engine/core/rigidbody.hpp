@@ -12,8 +12,8 @@ public:
 	Vec3 velocity;
 	Vec3 force_accum;
 	float inverse_mass;
-	float friction;
-	float restitution;
+	float friction=PHYSICS_DEFAULT_FRICTION;
+	float restitution=PHYSICS_DEFAULT_RESTITUTION;
 
 	/*
 	- Collider is a pointer cuz if we just write "Collider collider;" then the collider will always be a generic one
@@ -28,7 +28,9 @@ public:
 		const Vec3& position,
 		const Vec3& velocity,
 		Collider* col=nullptr,
-		float mass=1.0f
+		float mass=1.0f,
+		float fric=PHYSICS_DEFAULT_FRICTION,
+    	float res=PHYSICS_DEFAULT_RESTITUTION
 		);
 
 	void applyForce(const Vec3& force);

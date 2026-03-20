@@ -5,9 +5,11 @@ Rigidbody::Rigidbody(
     const Vec3& position,
     const Vec3& velocity,
     Collider* col,
-    float mass
+    float mass,
+    float fric,
+    float res
 )
-    : position(position),velocity(velocity),force_accum(0,0,0),inverse_mass(0.0f),friction(PHYSICS_DEFAULT_FRICTION),restitution(PHYSICS_DEFAULT_RESTITUTION),collider(col)
+    : position(position),velocity(velocity),force_accum(0,0,0),inverse_mass(0.0f),friction(fric),restitution(res),collider(col)
 {
     const float MIN_MASS = PHYSICS_EPSILON;
     float effective_mass = mass;
