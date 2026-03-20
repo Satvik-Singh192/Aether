@@ -43,6 +43,7 @@ find_package(OpenGL REQUIRED)
 add_executable(Aether_Test
     engine/engine_configs.cpp
     app/main.cpp
+    app/test_scenarios.cpp
     engine/math/vec3.cpp
     engine/core/rigidbody.cpp
     engine/world/physicsworld.cpp
