@@ -15,5 +15,6 @@ struct Contact{
 
     float accumulated_normal_impulse=0.0f;
     float accumulated_tangent_impulse=0.0f;
-    
+
+    Vec3 tangent=Vec3();
 };

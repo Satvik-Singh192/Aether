@@ -80,9 +80,11 @@ void PhysicsWorld::step(float dt)
 
 		body.clearForces();
 	}
-
+	prev_contacts=contacts;
 	clear_contacts();
 	generate_contacts();
+	match_contacts();
+	warm_start_contacts();
 	solve_contacts();
 	solve_position();
 	// std::cout<<"Contacts: "<<contacts.size()<<'\n';
@@ -164,6 +166,34 @@ void PhysicsWorld::clear_contacts()
 	contacts.clear();
 }
 
+void PhysicsWorld::match_contacts(){
+	for(auto&c:contacts){
+		for(auto&old:prev_contacts){
+			if(c.a==old.a&&c.b==old.b){
+				float dist=(old.contact_point-c.contact_point).length();
+				if(dist<=PHSYICS_CONTACT_SLOP){
+					c.accumulated_normal_impulse=old.accumulated_normal_impulse;
+					c.accumulated_tangent_impulse=old.accumulated_tangent_impulse;
+					break;
+				}
+			}
+		}
+	}
+}
+void PhysicsWorld::warm_start_contacts(){
+	for(auto&c:contacts){
+		Rigidbody& a=*c.a;
+		Rigidbody&b=*c.b;
+
+		Vec3 pn=c.normal*c.accumulated_normal_impulse;
+		Vec3 pt=c.tangent*c.accumulated_tangent_impulse;
+
+		Vec3 impulse=pn+pt;
+		a.velocity-=impulse*a.inverse_mass;
+		b.velocity+=impulse*b.inverse_mass;
+	}
+}
+
 void PhysicsWorld::solve_contacts()
 {
 	const int iterations = PHYSICS_VEL_SOLVER_ITERATION;
@@ -188,14 +218,20 @@ void PhysicsWorld::solve_contacts()
 			float j = -(1.0 + e) * relvel_along_normal;
 			j /= total_invmass;
 
-			Vec3 impulse = c.normal * j;
+			float prev_normal_impulse=c.accumulated_normal_impulse;
+			c.accumulated_normal_impulse=std::max(prev_normal_impulse+j,0.0f);
+			
+			float delta_impulse=c.accumulated_normal_impulse-prev_normal_impulse;
+
+			Vec3 impulse = c.normal * delta_impulse;
 
 			a.velocity -= impulse * a.inverse_mass;
 			b.velocity += impulse * b.inverse_mass;
 
 			// lets handle friction now
 			rel_vel = b.velocity - a.velocity; // recompute cuz it was updated during normal resolution
-			Vec3 tangent = rel_vel - c.normal * rel_vel.dot(c.normal);
+			Vec3 tangent = rel_vel-c.normal*rel_vel.dot(c.normal);
+			c.tangent=tangent;
 
 			float tangent_length = tangent.length();
 			if (tangent_length <= PHYSICS_EPSILON)
@@ -205,11 +241,16 @@ void PhysicsWorld::solve_contacts()
 			float jt = -rel_vel.dot(tangent);
 			jt /= total_invmass;
 
-			float mu = c.friction_coeff;
-			float maxfriction = mu * j; // j is the normal impulse
-			jt = std::max(-maxfriction, std::min(jt, maxfriction));
+			float prev_tangent_impulse=c.accumulated_tangent_impulse;
 
-			Vec3 friction_impulse = tangent * jt;
+			float mu = c.friction_coeff;
+			float maxfriction = mu * c.accumulated_normal_impulse;
+			float new_tangent_impulse=prev_tangent_impulse+jt;
+			c.accumulated_tangent_impulse=std::max(-maxfriction,std::min(new_tangent_impulse,maxfriction));
+			
+			float delta_tangent=c.accumulated_tangent_impulse-prev_tangent_impulse;
+
+			Vec3 friction_impulse = tangent * delta_tangent;
 			a.velocity -= friction_impulse * a.inverse_mass;
 			b.velocity += friction_impulse * b.inverse_mass;
 		}

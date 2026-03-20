@@ -25,7 +25,7 @@ bool buildSphereBoxContact(Rigidbody& sphere_body, Rigidbody& box_body, Contact&
     closest.y=clamp(sphere_body.position.y, boxmin.y, boxmax.y);
     closest.z=clamp(sphere_body.position.z, boxmin.z, boxmax.z);
 
-    Vec3 delta=sphere_body.position-closest;
+    Vec3 delta=closest-sphere_body.position;
     float dist=delta.dot(delta);
     float radius=sphere->radius;
 
