@@ -10,6 +10,7 @@ constexpr float PHYSICS_GRAVITY=-9.8f;
 constexpr float PHYSICS_DEFAULT_RESTITUTION=0.5f;
 constexpr float PHYSICS_DEFAULT_FRICTION=0.3f;
 
+constexpr float PHSYICS_CONTACT_SLOP=0.02f; //if contacts difference less than this then new contact will be treated the same as old contact, called in file physics world::match_contacts()
 constexpr float PHYSICS_PENETRATION_SLOP=0.01f; //small tolerance for overlap so engine doesnt jitter the object resting on a surface to solve mircroscopic overlapp
 constexpr float PHYSICS_CORRECTION_PERCENT=0.45f; //percent of overlap resolved in 1 frame, if we resolved fully in 1 frame ....it looks like crazy teleport
 

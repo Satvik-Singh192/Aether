@@ -75,7 +75,7 @@ bool buildRampSphereContact(Rigidbody &ramp_body, Rigidbody &sphere_body, Contac
     outContact.normal = normal;
     outContact.penetration = radius - dist;
     outContact.contact_point = ramp_body.position + closestOnSlope;
-    outContact.restitution = (ramp_body.restitution + sphere_body.restitution) * 0.5f;
+    outContact.restitution = (ramp_body.restitution+ sphere_body.restitution)*0.5f;
     outContact.friction_coeff = std::sqrt(ramp_body.friction * sphere_body.friction);
 
     return true;

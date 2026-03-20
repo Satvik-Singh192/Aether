@@ -25,7 +25,7 @@ bool buildSphereBoxContact(Rigidbody& sphere_body, Rigidbody& box_body, Contact&
     closest.y=clamp(sphere_body.position.y, boxmin.y, boxmax.y);
     closest.z=clamp(sphere_body.position.z, boxmin.z, boxmax.z);
 
-    Vec3 delta=sphere_body.position-closest;
+    Vec3 delta=closest-sphere_body.position;
     float dist=delta.dot(delta);
     float radius=sphere->radius;
 
@@ -47,7 +47,7 @@ bool buildSphereBoxContact(Rigidbody& sphere_body, Rigidbody& box_body, Contact&
     outContact.penetration=radius-dist;
     outContact.contact_point=closest;
 
-    outContact.restitution=(sphere_body.restitution+box_body.restitution)*0.5f;
+    outContact.restitution=(sphere_body.restitution+ box_body.restitution)*0.5f;
     outContact.friction_coeff=std::sqrt(sphere_body.friction*box_body.friction);
     return true;
 

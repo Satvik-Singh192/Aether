@@ -71,7 +71,7 @@ bool buildRampBoxContact(Rigidbody &ramp_body, Rigidbody &box_body, Contact &out
     outContact.normal = rampNormal;
     outContact.penetration = penetration;
     outContact.contact_point = box_body.position - rampNormal * distance;
-    outContact.restitution = (ramp_body.restitution + box_body.restitution) * 0.5f;
+    outContact.restitution = (ramp_body.restitution+ box_body.restitution)*0.5f;
     outContact.friction_coeff = std::sqrt(ramp_body.friction * box_body.friction);
 
     return true;
