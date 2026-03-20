@@ -43,12 +43,17 @@ int main()
 
     for (int i = 0; i < 5; i++)
     {
+       
         Vec3 spawn_pos = Vec3(5.0f, 1.0f + i * 5.0f, 0.0f);
         Vec3 spawn_vel = Vec3(0.0f, 0.0f, 0.0f);
         Rigidbody body(spawn_pos, spawn_vel, &box, 1.0f);
-        world.addBody(body);
+         
+        std::uint32_t body_id = world.addBody(body);
+        if(i==4){
+            world.addforce(Vec3(100.0f, 100.0f, 0.0f),body_id);
+        }
     }
-
+     world.addforce(Vec3(-100.0f, 0.0f, 0.0f),4);
     BoxCollider floorsize(Vec3(100.0f, 0.1f, 100.0f));
     Vec3 floorpos = Vec3();
     Rigidbody floor(

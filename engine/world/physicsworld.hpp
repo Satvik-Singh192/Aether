@@ -12,8 +12,9 @@ private:
 	BodyID next_body_id;
 public: 
 	PhysicsWorld();
-	void addBody(const Rigidbody& body);
-	void addBody(Rigidbody&& body);
+	std::uint32_t addBody(const Rigidbody& body);
+	std::uint32_t addBody(Rigidbody&& body);
+	void addforce(const Vec3& force, std::uint32_t id);
 	void step(float dt);
 	void validate_body(Rigidbody& body);
 	std::vector<Rigidbody>& getBodies();
