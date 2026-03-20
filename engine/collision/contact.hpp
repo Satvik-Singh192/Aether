@@ -13,5 +13,7 @@ struct Contact{
     float restitution=0.0f;
     float friction_coeff=0.0f;
 
-    float accumulated_impulse=0.0f;
+    float accumulated_normal_impulse=0.0f;
+    float accumulated_tangent_impulse=0.0f;
+    
 };
