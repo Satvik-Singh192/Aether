@@ -20,141 +20,141 @@ namespace
     void add_floor(PhysicsWorld &world)
     {
         // Position Vec3() defaults to (0,0,0)
-        world.addBody(Rigidbody(Vec3(), Vec3(), &g_floor, 0.0f,PHYSICS_DEFAULT_FRICTION,0.0f));
+        world.addBody(Rigidbody(Vec3(), Vec3(), &g_floor, 0.0f, PHYSICS_DEFAULT_FRICTION, 0.0f));
     }
 
-void spawn_box_stack(PhysicsWorld &world)
-{
-    // stack of boxes: spawn each box higher so they fall into place one-by-one
-    const int count = 8;
-    const float base_spawn_y = 2.0f;      // start a little above the ground so base layer falls first
-    const float layer_spacing = 2.05f;    // spacing between spawned boxes so they fall sequentially
-
-    for (int i = 0; i < count; ++i)
+    void spawn_box_stack(PhysicsWorld &world)
     {
-        float y = base_spawn_y + i * layer_spacing;
-        world.addBody(Rigidbody(Vec3(0.0f, y, 0.0f), Vec3(), &g_small_box, 1.0f));
-    }
-}
+        // stack of boxes: spawn each box higher so they fall into place one-by-one
+        const int count = 8;
+        const float base_spawn_y = 2.0f;   // start a little above the ground so base layer falls first
+        const float layer_spacing = 2.05f; // spacing between spawned boxes so they fall sequentially
 
-void spawn_pyramid_stack(PhysicsWorld &world)
-{
-    // pyramid of boxes: spawn layers at increasing heights so each layer falls onto the previous one
-    const int base = 9;
-    const float base_spawn_y = 2.0f;     // bottom layer spawn height (above ground)
-    const float layer_spacing = 2.2f;    // vertical spacing between layers to allow visible falling
-    const float horizontal_spacing = 1.05f;
-
-    for (int y = 0; y < base; ++y)
-    {
-        for (int x = 0; x < base - y; ++x)
+        for (int i = 0; i < count; ++i)
         {
-            float px = (x - (base - y - 1) * 0.5f) * horizontal_spacing;
-            float py = base_spawn_y + y * layer_spacing;
-            world.addBody(Rigidbody(Vec3(px, py, 0.0f), Vec3(), &g_small_box, 1.0f));
+            float y = base_spawn_y + i * layer_spacing;
+            world.addBody(Rigidbody(Vec3(0.0f, y, 0.0f), Vec3(), &g_small_box, 1.0f));
         }
     }
-}
 
-void spawn_many_spheres(PhysicsWorld &world)
-{
-    for (int i = 0; i < 60; ++i)
+    void spawn_pyramid_stack(PhysicsWorld &world)
     {
-        float x = (i % 10) - 4.5f;
-        float y = 3.0f + (i / 10) * 0.9f;
-        float z = ((i / 5) % 2) * 0.6f;
-        world.addBody(Rigidbody(Vec3(x, y, z), Vec3(), &g_small_sphere, 0.5f));
-    }
-}
+        // pyramid of boxes: spawn layers at increasing heights so each layer falls onto the previous one
+        const int base = 10;
+        const float base_spawn_y = 2.0f;  // bottom layer spawn height (above ground)
+        const float layer_spacing = 2.2f; // vertical spacing between layers to allow visible falling
+        const float horizontal_spacing = 1.05f;
 
-void spawn_many_boxes(PhysicsWorld &world)
-{
-    for (int i = 0; i < 80; ++i)
-    {
-        float x = (i % 8) - 3.5f;
-        float y = 0.6f + (i / 8) * 0.95f;
-        float z = ((i / 4) % 2) * 0.6f;
-        world.addBody(Rigidbody(Vec3(x, y, z), Vec3(), &g_small_box, 1.0f));
+        for (int y = 0; y < base; ++y)
+        {
+            for (int x = 0; x < base - y; ++x)
+            {
+                float px = (x - (base - y - 1) * 0.5f) * horizontal_spacing;
+                float py = base_spawn_y + y * layer_spacing;
+                world.addBody(Rigidbody(Vec3(px, py, 0.0f), Vec3(), &g_small_box, 1.0f));
+            }
+        }
     }
-}
 
-void spawn_mixed_pile(PhysicsWorld &world)
-{
-    for (int i = 0; i < 40; ++i)
+    void spawn_many_spheres(PhysicsWorld &world)
     {
-        float x = (rand() % 200 - 100) * 0.05f;
-        float y = 2.0f + (rand() % 50) * 0.06f;
-        float z = (rand() % 200 - 100) * 0.03f;
-        if (i % 2 == 0)
-            world.addBody(Rigidbody(Vec3(x, y, z), Vec3(), &g_small_sphere, 0.6f));
-        else
-            world.addBody(Rigidbody(Vec3(x, y, z), Vec3(), &g_small_box, 1.0f));
-    }
-}
-
-void spawn_bouncy_balls(PhysicsWorld &world)
-{
-    for (int i = 0; i < 24; ++i)
-    {
-        float x = (i % 6) - 2.5f;
-        float y = 4.0f + (i / 6) * 0.8f;
-        world.addBody(Rigidbody(Vec3(x, y, 0.0f), Vec3(), &g_small_sphere, 0.5f, 0.2f, 0.9f));
-    }
-}
-
-void spawn_sliding_ramp_row(PhysicsWorld &world)
-{
-    for (int i = 0; i < 6; ++i)
-    {
-        float x = -6.0f + i * 2.5f;
-        world.addBody(Rigidbody(Vec3(x, 0.0f, 0.0f), Vec3(), &g_gentle_ramp, 0.0f));
-        world.addBody(Rigidbody(Vec3(x + 0.6f, 4.0f, 0.0f), Vec3(), &g_small_sphere, 0.6f));
-    }
-}
-
-void spawn_chain_collide(PhysicsWorld &world)
-{
-    // a row of spheres that knock into a second row
-    for (int i = 0; i < 10; ++i)
-    {
-        world.addBody(Rigidbody(Vec3(-10.0f + i * 1.2f, 3.0f, 0.0f), Vec3(6.0f, 0.0f, 0.0f), &g_small_sphere, 0.5f));
-    }
-    for (int i = 0; i < 10; ++i)
-    {
-        world.addBody(Rigidbody(Vec3(2.0f + i * 1.2f, 3.0f, 0.0f), Vec3(), &g_small_sphere, 0.5f));
-    }
-}
-
-void spawn_random_scatter(PhysicsWorld &world)
-{
-    for (int i = 0; i < 100; ++i)
-    {
-        float x = (rand() % 400 - 200) * 0.05f;
-        float y = 2.0f + (rand() % 200) * 0.02f;
-        float z = (rand() % 400 - 200) * 0.02f;
-        if (rand() % 2)
-            world.addBody(Rigidbody(Vec3(x, y, z), Vec3(), &g_small_sphere, 0.4f));
-        else
-            world.addBody(Rigidbody(Vec3(x, y, z), Vec3(), &g_small_box, 0.9f));
-    }
-}
-
-void spawn_stress_test_large(PhysicsWorld &world)
-{
-    // large number of mixed objects to stress performance & solver
-    for (int i = 0; i < 300; ++i)
-    {
-        float x = (i % 20) - 9.5f;
-        float y = 1.0f + (i / 20) * 0.6f;
-        float z = ((i / 10) % 3) - 1.0f;
-        if (i % 3 == 0)
+        for (int i = 0; i < 60; ++i)
+        {
+            float x = (i % 10) - 4.5f;
+            float y = 3.0f + (i / 10) * 0.9f;
+            float z = ((i / 5) % 2) * 0.6f;
             world.addBody(Rigidbody(Vec3(x, y, z), Vec3(), &g_small_sphere, 0.5f));
-        else if (i % 3 == 1)
-            world.addBody(Rigidbody(Vec3(x + 0.3f, y, z), Vec3(), &g_small_box, 1.0f));
-        else
-            world.addBody(Rigidbody(Vec3(x - 0.3f, y, z), Vec3(), &g_wide_box, 1.5f));
+        }
     }
-}
+
+    void spawn_many_boxes(PhysicsWorld &world)
+    {
+        for (int i = 0; i < 80; ++i)
+        {
+            float x = (i % 8) - 3.5f;
+            float y = 0.6f + (i / 8) * 0.95f;
+            float z = ((i / 4) % 2) * 0.6f;
+            world.addBody(Rigidbody(Vec3(x, y, z), Vec3(), &g_small_box, 1.0f));
+        }
+    }
+
+    void spawn_mixed_pile(PhysicsWorld &world)
+    {
+        for (int i = 0; i < 40; ++i)
+        {
+            float x = (rand() % 200 - 100) * 0.05f;
+            float y = 2.0f + (rand() % 50) * 0.06f;
+            float z = (rand() % 200 - 100) * 0.03f;
+            if (i % 2 == 0)
+                world.addBody(Rigidbody(Vec3(x, y, z), Vec3(), &g_small_sphere, 0.6f));
+            else
+                world.addBody(Rigidbody(Vec3(x, y, z), Vec3(), &g_small_box, 1.0f));
+        }
+    }
+
+    void spawn_bouncy_balls(PhysicsWorld &world)
+    {
+        for (int i = 0; i < 24; ++i)
+        {
+            float x = (i % 6) - 2.5f;
+            float y = 4.0f + (i / 6) * 0.8f;
+            world.addBody(Rigidbody(Vec3(x, y, 0.0f), Vec3(), &g_small_sphere, 0.5f, 0.2f, 0.9f));
+        }
+    }
+
+    void spawn_sliding_ramp_row(PhysicsWorld &world)
+    {
+        for (int i = 0; i < 6; ++i)
+        {
+            float x = -6.0f + i * 2.5f;
+            world.addBody(Rigidbody(Vec3(x, 0.0f, 0.0f), Vec3(), &g_gentle_ramp, 0.0f));
+            world.addBody(Rigidbody(Vec3(x + 0.6f, 4.0f, 0.0f), Vec3(), &g_small_sphere, 0.6f));
+        }
+    }
+
+    void spawn_chain_collide(PhysicsWorld &world)
+    {
+        // a row of spheres that knock into a second row
+        for (int i = 0; i < 10; ++i)
+        {
+            world.addBody(Rigidbody(Vec3(-10.0f + i * 1.2f, 3.0f, 0.0f), Vec3(6.0f, 0.0f, 0.0f), &g_small_sphere, 0.5f));
+        }
+        for (int i = 0; i < 10; ++i)
+        {
+            world.addBody(Rigidbody(Vec3(2.0f + i * 1.2f, 3.0f, 0.0f), Vec3(), &g_small_sphere, 0.5f));
+        }
+    }
+
+    void spawn_random_scatter(PhysicsWorld &world)
+    {
+        for (int i = 0; i < 100; ++i)
+        {
+            float x = (rand() % 400 - 200) * 0.05f;
+            float y = 2.0f + (rand() % 200) * 0.02f;
+            float z = (rand() % 400 - 200) * 0.02f;
+            if (rand() % 2)
+                world.addBody(Rigidbody(Vec3(x, y, z), Vec3(), &g_small_sphere, 0.4f));
+            else
+                world.addBody(Rigidbody(Vec3(x, y, z), Vec3(), &g_small_box, 0.9f));
+        }
+    }
+
+    void spawn_stress_test_large(PhysicsWorld &world)
+    {
+        // large number of mixed objects to stress performance & solver
+        for (int i = 0; i < 300; ++i)
+        {
+            float x = (i % 20) - 9.5f;
+            float y = 1.0f + (i / 20) * 0.6f;
+            float z = ((i / 10) % 3) - 1.0f;
+            if (i % 3 == 0)
+                world.addBody(Rigidbody(Vec3(x, y, z), Vec3(), &g_small_sphere, 0.5f));
+            else if (i % 3 == 1)
+                world.addBody(Rigidbody(Vec3(x + 0.3f, y, z), Vec3(), &g_small_box, 1.0f));
+            else
+                world.addBody(Rigidbody(Vec3(x - 0.3f, y, z), Vec3(), &g_wide_box, 1.5f));
+        }
+    }
 
     void spawn_sphere_sphere_case(PhysicsWorld &world)
     {
@@ -182,8 +182,10 @@ void spawn_stress_test_large(PhysicsWorld &world)
 
     void spawn_sphere_ramp_case(PhysicsWorld &world)
     {
-        world.addBody(Rigidbody(Vec3(-2.0f, 0.0f, 0.0f), Vec3(0.0f, 0.0f, 0.0f), &g_steep_ramp, 0.0f));
-        world.addBody(Rigidbody(Vec3(-0.5f, 4.2f, 0.0f), Vec3(0.0f, 0.0f, 0.0f), &g_big_sphere, 1.2f));
+        world.addBody(Rigidbody(Vec3(-2.0f, 2.0f, 0.0f), Vec3(0.0f, 0.0f, 0.0f), &g_steep_ramp, 1.0f));
+        world.addBody(Rigidbody(Vec3(-2.0f, 5.0f, 0.0f), Vec3(0.0f, 0.0f, 0.0f), &g_steep_ramp, 1.2f));
+
+        world.addBody(Rigidbody(Vec3(-0.2f, 7.4f, 0.0f), Vec3(0.0f, 0.0f, 0.0f), &g_big_sphere, 1.2f));
     }
 
     void spawn_box_sphere_ramp_case(PhysicsWorld &world)
@@ -206,7 +208,7 @@ void spawn_stress_test_large(PhysicsWorld &world)
             world.addBody(Rigidbody(position, Vec3(0.0f, 0.0f, 0.0f), &g_small_box, 1.0f));
         }
     }
-    
+
 }
 
 void LoadSingleTestScenario(PhysicsWorld &world, TestCase test_case)
@@ -265,5 +267,4 @@ void LoadSingleTestScenario(PhysicsWorld &world, TestCase test_case)
         spawn_box_sphere_ramp_case(world);
         break;
     }
-
 }
