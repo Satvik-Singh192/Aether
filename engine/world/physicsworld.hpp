@@ -20,6 +20,8 @@ public:
 	void validate_body(Rigidbody& body);
 	std::vector<Rigidbody>& getBodies();
 	std::size_t getContactCount() const;
+	const Vec3& getGravity() const;
+	void setGravity(const Vec3& new_gravity);
 
 	void clear_contacts();
 	void generate_contacts();

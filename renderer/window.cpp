@@ -6,6 +6,7 @@
 #include "../engine/world/physicsworld.hpp"
 #include "camera.hpp"
 #include "drawbodies.hpp"
+#include "bodymenu.hpp"
 
 #include "imgui.h"
 #include "backends/imgui_impl_glfw.h"
@@ -139,6 +140,8 @@ void CreateWindow(PhysicsWorld &world)
 		ImGui::Text("FPS: %.1f", io.Framerate);
 		ImGui::Text("Frame time: %.3f ms", io.Framerate > 0.0f ? (1000.0f / io.Framerate) : 0.0f);
 		ImGui::End();
+
+		RenderBodyMenu(world);
 
 		ImGui::Render();
 		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
