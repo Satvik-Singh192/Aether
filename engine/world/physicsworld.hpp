@@ -1,6 +1,7 @@
 #pragma once
 #include "core/rigidbody.hpp"
 #include "collision/collision.hpp"
+#include "collision/contactmanifold.hpp"
 #include <vector>
 #include <cstddef>
 
@@ -9,6 +10,7 @@ private:
 	std::vector<Rigidbody> bodies;
 	std::vector<Contact>contacts;
 	std::vector<Contact>prev_contacts;
+	std::vector<ContactManifold> manifolds;
 	Vec3 gravity;
 	BodyID next_body_id;
 public: 
