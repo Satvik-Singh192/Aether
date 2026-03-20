@@ -19,9 +19,12 @@ std::uint32_t PhysicsWorld::addBody(Rigidbody &&body)
 	return body.id;
 }
 
-void PhysicsWorld::addforce(const Vec3 &force, std::uint32_t id){
-	for(auto &it: bodies){
-		if(it.id == id){
+void PhysicsWorld::addforce(const Vec3 &force, std::uint32_t id)
+{
+	for (auto &it : bodies)
+	{
+		if (it.id == id)
+		{
 			it.applyForce(force);
 			return;
 		}
@@ -80,31 +83,31 @@ void PhysicsWorld::step(float dt)
 
 		body.clearForces();
 	}
-	prev_contacts=contacts;
+	prev_contacts = contacts;
 	clear_contacts();
 	generate_contacts();
 	match_contacts();
-  for (auto &c : contacts)
+	for (auto &c : contacts)
 	{
 		c.pre_solve_normal_velocity = (c.b->velocity - c.a->velocity).dot(c.normal);
 	}
 	warm_start_contacts();
 	solve_contacts();
 	solve_position();
-	
+
 	const float SLEEP_VELOCITY_THRESHOLD = 0.001f;
 	for (auto &body : bodies)
 	{
 		if (body.inverse_mass == 0.0f)
 			continue;
-		
+
 		float vel_mag_sq = body.velocity.dot(body.velocity);
 		if (vel_mag_sq < SLEEP_VELOCITY_THRESHOLD * SLEEP_VELOCITY_THRESHOLD)
 		{
 			body.velocity = Vec3();
 		}
 	}
-	
+
 	for (auto &body : bodies)
 	{
 		validate_body(body);
@@ -206,6 +209,16 @@ void PhysicsWorld::generate_contacts()
 					contacts.push_back(c);
 				}
 			}
+			else if (a.collider->type == ShapeType::Ramp &&
+					 b.collider->type == ShapeType::Ramp)
+			{
+				if (buildRampRampContact(a, b, c))
+				{
+					c.a_id = a.id;
+					c.b_id = b.id;
+					contacts.push_back(c);
+				}
+			}
 		}
 	}
 }
@@ -214,44 +227,52 @@ void PhysicsWorld::clear_contacts()
 	contacts.clear();
 }
 
-void PhysicsWorld::match_contacts(){
-	for(auto&c:contacts){
-		for(auto&old:prev_contacts){
-			if(c.a_id==old.a_id && c.b_id==old.b_id){
-				float dist=(old.contact_point-c.contact_point).length();
+void PhysicsWorld::match_contacts()
+{
+	for (auto &c : contacts)
+	{
+		for (auto &old : prev_contacts)
+		{
+			if (c.a_id == old.a_id && c.b_id == old.b_id)
+			{
+				float dist = (old.contact_point - c.contact_point).length();
 				float normal_alignment = c.normal.dot(old.normal);
-				if(dist<=PHSYICS_CONTACT_SLOP && normal_alignment > 0.95f){
-					c.accumulated_normal_impulse=old.accumulated_normal_impulse;
-					c.accumulated_tangent_impulse=old.accumulated_tangent_impulse;
-					c.tangent=old.tangent;
+				if (dist <= PHSYICS_CONTACT_SLOP && normal_alignment > 0.95f)
+				{
+					c.accumulated_normal_impulse = old.accumulated_normal_impulse;
+					c.accumulated_tangent_impulse = old.accumulated_tangent_impulse;
+					c.tangent = old.tangent;
 					break;
 				}
 			}
 		}
 	}
 }
-void PhysicsWorld::warm_start_contacts(){
-	for(auto&c:contacts){
-		Rigidbody& a=*c.a;
-		Rigidbody&b=*c.b;
+void PhysicsWorld::warm_start_contacts()
+{
+	for (auto &c : contacts)
+	{
+		Rigidbody &a = *c.a;
+		Rigidbody &b = *c.b;
 
-		Vec3 pn=c.normal*c.accumulated_normal_impulse;
-		Vec3 pt=Vec3();
-		
-		if(c.tangent.length() > PHYSICS_EPSILON){
-			pt=c.tangent*c.accumulated_tangent_impulse;
+		Vec3 pn = c.normal * c.accumulated_normal_impulse;
+		Vec3 pt = Vec3();
+
+		if (c.tangent.length() > PHYSICS_EPSILON)
+		{
+			pt = c.tangent * c.accumulated_tangent_impulse;
 		}
 
-		Vec3 impulse=pn+pt;
-		a.velocity-=impulse*a.inverse_mass;
-		b.velocity+=impulse*b.inverse_mass;
+		Vec3 impulse = pn + pt;
+		a.velocity -= impulse * a.inverse_mass;
+		b.velocity += impulse * b.inverse_mass;
 	}
 }
 
 void PhysicsWorld::solve_contacts()
 {
 	const int iterations = PHYSICS_VEL_SOLVER_ITERATION;
-    const float RESTITUTION_VELOCITY_THRESHOLD = 0.1f;
+	const float RESTITUTION_VELOCITY_THRESHOLD = 0.1f;
 	for (int i = 0; i < iterations; i++)
 	{
 		for (auto &c : contacts)
@@ -264,7 +285,7 @@ void PhysicsWorld::solve_contacts()
 				continue; // contact bw 2 imovable objects must be ignoreeded
 
 			Vec3 rel_vel = b.velocity - a.velocity; // following the A to B convention
-            float relvel_along_normal = rel_vel.dot(c.normal);
+			float relvel_along_normal = rel_vel.dot(c.normal);
 
 			float target_post_normal_velocity = 0.0f;
 			if (c.pre_solve_normal_velocity < -RESTITUTION_VELOCITY_THRESHOLD)
@@ -274,10 +295,10 @@ void PhysicsWorld::solve_contacts()
 
 			float j = (target_post_normal_velocity - relvel_along_normal) / total_invmass;
 
-			float prev_normal_impulse=c.accumulated_normal_impulse;
-			c.accumulated_normal_impulse=std::max(prev_normal_impulse+j,0.0f);
-			
-			float delta_impulse=c.accumulated_normal_impulse-prev_normal_impulse;
+			float prev_normal_impulse = c.accumulated_normal_impulse;
+			c.accumulated_normal_impulse = std::max(prev_normal_impulse + j, 0.0f);
+
+			float delta_impulse = c.accumulated_normal_impulse - prev_normal_impulse;
 
 			Vec3 impulse = c.normal * delta_impulse;
 
@@ -286,13 +307,15 @@ void PhysicsWorld::solve_contacts()
 
 			// lets handle friction now
 			rel_vel = b.velocity - a.velocity; // recompute cuz it was updated during normal resolution
-			Vec3 tangent = rel_vel-c.normal*rel_vel.dot(c.normal);
+			Vec3 tangent = rel_vel - c.normal * rel_vel.dot(c.normal);
 			float tangent_length = tangent.length();
-			if (tangent_length > PHYSICS_EPSILON){
+			if (tangent_length > PHYSICS_EPSILON)
+			{
 				tangent = tangent * (1.0f / tangent_length);
-				c.tangent=tangent;
+				c.tangent = tangent;
 			}
-			else{
+			else
+			{
 				float cached_len = c.tangent.length();
 				if (cached_len <= PHYSICS_EPSILON)
 					continue;
@@ -302,14 +325,14 @@ void PhysicsWorld::solve_contacts()
 			float jt = -rel_vel.dot(tangent);
 			jt /= total_invmass;
 
-			float prev_tangent_impulse=c.accumulated_tangent_impulse;
+			float prev_tangent_impulse = c.accumulated_tangent_impulse;
 
 			float mu = c.friction_coeff;
 			float maxfriction = mu * c.accumulated_normal_impulse;
-			float new_tangent_impulse=prev_tangent_impulse+jt;
-			c.accumulated_tangent_impulse=std::max(-maxfriction,std::min(new_tangent_impulse,maxfriction));
-			
-			float delta_tangent=c.accumulated_tangent_impulse-prev_tangent_impulse;
+			float new_tangent_impulse = prev_tangent_impulse + jt;
+			c.accumulated_tangent_impulse = std::max(-maxfriction, std::min(new_tangent_impulse, maxfriction));
+
+			float delta_tangent = c.accumulated_tangent_impulse - prev_tangent_impulse;
 
 			Vec3 friction_impulse = tangent * delta_tangent;
 			a.velocity -= friction_impulse * a.inverse_mass;
