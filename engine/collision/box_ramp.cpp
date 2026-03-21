@@ -75,6 +75,8 @@ bool buildRampBoxContact(Rigidbody &ramp_body, Rigidbody &box_body, Contact &out
     outContact = Contact{};
     outContact.a = &ramp_body;
     outContact.b = &box_body;
+    outContact.a_id = ramp_body.id;
+    outContact.b_id = box_body.id;
     outContact.normal = rampNormal;
     outContact.penetration = penetration;
     outContact.contact_point = box_body.position - rampNormal * distance;
@@ -120,6 +122,8 @@ bool buildBoxRampContact(Rigidbody &box_body, Rigidbody &ramp_body, Contact &out
         outContact = Contact{};
         outContact.a = &box_body;
         outContact.b = &ramp_body;
+        outContact.a_id = box_body.id;
+        outContact.b_id = ramp_body.id;
         outContact.normal = Vec3(0.0f, 1.0f, 0.0f);
         outContact.penetration = penetration;
         outContact.contact_point = Vec3(ramp_body.position.x, boxMax.y, ramp_body.position.z);
@@ -132,6 +136,7 @@ bool buildBoxRampContact(Rigidbody &box_body, Rigidbody &ramp_body, Contact &out
         return false;
 
     std::swap(outContact.a, outContact.b);
+    std::swap(outContact.a_id, outContact.b_id);
     outContact.normal = outContact.normal * -1.0f;
     return true;
 }

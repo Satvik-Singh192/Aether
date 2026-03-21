@@ -43,6 +43,8 @@ bool buildSphereBoxContact(Rigidbody& sphere_body, Rigidbody& box_body, Contact&
     outContact=Contact{};
     outContact.a=&sphere_body;
     outContact.b=&box_body;
+    outContact.a_id = sphere_body.id;
+    outContact.b_id = box_body.id;
     outContact.normal=normal;
     outContact.penetration=radius-dist;
     outContact.contact_point=closest;
