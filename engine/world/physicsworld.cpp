@@ -36,6 +36,16 @@ std::vector<Rigidbody> &PhysicsWorld::getBodies()
 	return bodies;
 }
 
+const Vec3& PhysicsWorld::getGravity() const
+{
+	return gravity;
+}
+
+void PhysicsWorld::setGravity(const Vec3& new_gravity)
+{
+	gravity = new_gravity;
+}
+
 std::size_t PhysicsWorld::getContactCount() const
 {
 	return contacts.size();
