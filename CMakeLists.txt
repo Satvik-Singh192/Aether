@@ -43,15 +43,26 @@ find_package(OpenGL REQUIRED)
 add_executable(Aether_Test
     engine/engine_configs.cpp
     app/main.cpp
+    app/test_scenarios.cpp
     engine/math/vec3.cpp
     engine/core/rigidbody.cpp
     engine/world/physicsworld.cpp
     engine/collision/sphere_sphere.cpp
     engine/collision/box_box.cpp
     engine/collision/sphere_box.cpp
+    engine/collision/box_ramp.cpp
+    engine/collision/sphere_ramp.cpp
+    engine/collision/ramp_ramp.cpp
+    engine/collision/manifolds/buildBoxBoxManifold.cpp
+    engine/collision/manifolds/buildBoxSphereManifold.cpp
+    engine/collision/manifolds/buildSphereSphereManifold.cpp
+    engine/collision/manifolds/buildRampBoxManifold.cpp
+    engine/collision/manifolds/buildRampSphereManifold.cpp
+    engine/collision/manifolds/buildRampRampManifold.cpp
     renderer/window.cpp 
     renderer/camera.cpp
     renderer/drawbodies.cpp
+    renderer/bodymenu.cpp
 )
 
 add_library(imgui STATIC

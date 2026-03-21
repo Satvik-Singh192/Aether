@@ -1,96 +1,431 @@
 #include "world/physicsworld.hpp"
-#include "collision/collision.hpp"
-#include <unordered_map>
+#include "collision/manifolds/manifold_builders.hpp"
+#include <cmath>
 #include <utility>
 #include <vector>
 
-using CollisionKey = std::pair<ShapeType, ShapeType>;
-using CollisionResolver = void(*)(Rigidbody&, Rigidbody&);
+PhysicsWorld::PhysicsWorld() : gravity(0.0f, PHYSICS_GRAVITY, 0.0f), next_body_id(1) {}
 
-struct CollisionKeyHash {
-	size_t operator()(const CollisionKey& key) const {
-		return (static_cast<size_t>(key.first) << 8) ^ static_cast<size_t>(key.second);
+std::uint32_t PhysicsWorld::addBody(const Rigidbody &body)
+{
+	Rigidbody copy = body;
+	copy.id = next_body_id++;
+	bodies.push_back(copy);
+	return copy.id;
+}
+
+std::uint32_t PhysicsWorld::addBody(Rigidbody &&body)
+{
+	body.id = next_body_id++;
+	bodies.push_back(std::move(body));
+	return body.id;
+}
+
+void PhysicsWorld::addforce(const Vec3 &force, std::uint32_t id)
+{
+	for (auto &it : bodies)
+	{
+		if (it.id == id)
+		{
+			it.applyForce(force);
+			return;
+		}
 	}
-};
-
-void resolveBoxSphere(Rigidbody& box_body, Rigidbody& sphere_body) {
-	resolveSphereBox(sphere_body, box_body);
 }
+std::vector<Rigidbody> &PhysicsWorld::getBodies()
+{
 
-const std::unordered_map<CollisionKey, CollisionResolver, CollisionKeyHash> collision_resolvers = {
-	{{ShapeType::Box, ShapeType::Box}, resolveBoxBox},
-	{{ShapeType::Box, ShapeType::Sphere}, resolveBoxSphere},
-	{{ShapeType::Sphere, ShapeType::Sphere}, resolveSphereSphere},
-};
-
-PhysicsWorld::PhysicsWorld():gravity(0.0f,PHYSICS_GRAVITY,0.0f){}
-
-void PhysicsWorld::addBody(const Rigidbody& body) {
-	bodies.push_back(body);
-}
-
-std::vector<Rigidbody>& PhysicsWorld::getBodies(){
 	return bodies;
 }
 
-void PhysicsWorld::validate_body(Rigidbody& body){
-	if(is_corrupt(body.position)){
-		std::cout << "body position corrupted: " <<body.position<<'\n';
-		body.position=Vec3();
+const Vec3 &PhysicsWorld::getGravity() const
+{
+	return gravity;
+}
+
+void PhysicsWorld::setGravity(const Vec3 &new_gravity)
+{
+	gravity = new_gravity;
+}
+
+std::size_t PhysicsWorld::getContactCount() const
+{
+	std::size_t total = 0;
+	for (const auto &m : manifolds)
+	{
+		total += m.contact_count;
 	}
-	if(is_corrupt(body.velocity)){
-		std::cout << "body velocity corrupted: " <<body.velocity<<'\n';
-		body.velocity=Vec3();
+	return total;
+}
+
+void PhysicsWorld::validate_body(Rigidbody &body)
+{
+
+	if (is_corrupt(body.position))
+	{
+		std::cout << "body position corrupted: " << body.position << '\n';
+		body.position = Vec3();
 	}
-	if(is_corrupt(body.force_accum)){
-		std::cout << "body force accumulator corrupted: " <<body.force_accum<<'\n';
-		body.force_accum=Vec3();
+	if (is_corrupt(body.velocity))
+	{
+		std::cout << "body velocity corrupted: " << body.velocity << '\n';
+		body.velocity = Vec3();
+	}
+	if (is_corrupt(body.force_accum))
+	{
+		std::cout << "body force accumulator corrupted: " << body.force_accum << '\n';
+		body.force_accum = Vec3();
 	}
 }
 
-void PhysicsWorld::step(float dt) {
-	for (auto& body:bodies) {
-		if(body.inverse_mass==0.0f)continue;
+void PhysicsWorld::step(float dt)
+{
+	for (auto &body : bodies)
+	{
+		if (body.inverse_mass == 0.0f)
+			continue;
 
-		Vec3 GravityForce=gravity*(1.0f/body.inverse_mass);
+		Vec3 GravityForce = gravity * (1.0f / body.inverse_mass);
 		body.applyForce(GravityForce);
 	}
 
-	for (auto& body:bodies) {
-		if(body.inverse_mass==0.0f)continue;
+	for (auto &body : bodies)
+	{
+		if (body.inverse_mass == 0.0f)
+			continue;
 
-		Vec3 acceleration=body.force_accum*body.inverse_mass;
-		body.velocity+=acceleration*dt;
-		body.position+=body.velocity*dt;
+		Vec3 acceleration = body.force_accum * body.inverse_mass;
+		body.velocity += acceleration * dt;
+		body.position += body.velocity * dt;
 
 		body.clearForces();
 	}
+	prev_manifolds = manifolds;
+	clear_manifolds();
+	generate_manifolds();
+	match_manifolds();
+	for (auto &m : manifolds)
+	{
+		for (int i = 0; i < m.contact_count; i++)
+		{
+			Contact &c = m.contacts[i];
+			c.pre_solve_normal_velocity = (c.b->velocity - c.a->velocity).dot(c.normal);
+		}
+	}
+	warm_start_manifolds();
+	solve_manifold_velocities();
+	solve_manifold_positions();
 
-	for(int i=0;i<bodies.size()-1;i++){
-		for(int j=i+1;j<bodies.size();j++){
-			Collider* ca=bodies[i].collider;
-			Collider* cb=bodies[j].collider;
-			if(!ca||!cb)continue;
+	auto body_in_manifold = [this](BodyID id) {
+		for (const auto &m : manifolds)
+		{
+			if (m.a_id == id || m.b_id == id)
+			{
+				return true;
+			}
+		}
+		return false;
+	};
 
-			Rigidbody* first_body=&bodies[i];
-			Rigidbody* second_body=&bodies[j];
-			ShapeType first_type=ca->type;
-			ShapeType second_type=cb->type;
+	for (auto &body : bodies)
+	{
+		if (body.inverse_mass == 0.0f)
+			continue;
 
-			if(static_cast<int>(first_type)>static_cast<int>(second_type)){
-				std::swap(first_type, second_type);
-				std::swap(first_body, second_body);
+		body.velocity = body.velocity * PHYSICS_LINEAR_DAMPING;
+
+		if (body_in_manifold(body.id))
+		{
+			float tangent_speed_sq = body.velocity.x * body.velocity.x + body.velocity.z * body.velocity.z;
+			if (tangent_speed_sq < PHYSICS_RESTING_TANGENT_SLEEP_THRESHOLD * PHYSICS_RESTING_TANGENT_SLEEP_THRESHOLD)
+			{
+				body.velocity.x = 0.0f;
+				body.velocity.z = 0.0f;
 			}
 
-			auto resolver_it=collision_resolvers.find({first_type, second_type});
-			if(resolver_it!=collision_resolvers.end()){
-				resolver_it->second(*first_body, *second_body);
+			if (std::abs(body.velocity.y) < PHYSICS_RESTING_NORMAL_SLEEP_THRESHOLD)
+			{
+				body.velocity.y = 0.0f;
+			}
+		}
+
+		float vel_mag_sq = body.velocity.dot(body.velocity);
+		if (vel_mag_sq < PHYSICS_SLEEP_VELOCITY_THRESHOLD * PHYSICS_SLEEP_VELOCITY_THRESHOLD)
+		{
+			body.velocity = Vec3();
+		}
+	}
+
+	for (auto &body : bodies)
+	{
+		validate_body(body);
+	}
+}
+
+void PhysicsWorld::generate_manifolds()
+{
+	for (std::size_t i = 0; i + 1 < bodies.size(); ++i)
+	{
+		for (std::size_t j = i + 1; j < bodies.size(); ++j)
+		{
+			Rigidbody &a = bodies[i];
+			Rigidbody &b = bodies[j];
+
+			if (!a.collider || !b.collider)
+				continue;
+
+			Contact c;
+			ContactManifold m;
+
+			if (a.collider->type == ShapeType::Sphere &&
+				b.collider->type == ShapeType::Sphere)
+			{
+				if (buildSphereSphereManifold(a, b, m))
+				{
+					manifolds.push_back(m);
+				}
+			}
+			else if (a.collider->type == ShapeType::Sphere &&
+					 b.collider->type == ShapeType::Box)
+			{
+				if (buildBoxSphereManifold(b, a, m))
+				{
+					manifolds.push_back(m);
+				}
+			}
+			else if (a.collider->type == ShapeType::Box &&
+					 b.collider->type == ShapeType::Sphere)
+			{
+				if (buildBoxSphereManifold(a, b, m))
+				{
+					manifolds.push_back(m);
+				}
+			}
+			else if (a.collider->type == ShapeType::Box &&
+					 b.collider->type == ShapeType::Box)
+			{
+				if (buildBoxBoxManifold(a, b, m))
+				{
+					manifolds.push_back(m);
+				}
+			}
+			else if (a.collider->type == ShapeType::Box &&
+					 b.collider->type == ShapeType::Ramp)
+			{
+				if (buildRampBoxManifold(b,a,m))
+				{
+					manifolds.push_back(m);
+				}
+			}
+			else if (a.collider->type == ShapeType::Ramp &&
+					 b.collider->type == ShapeType::Box)
+			{
+				if (buildRampBoxManifold(a, b, m))
+				{
+					manifolds.push_back(m);
+				}
+			}
+			else if (a.collider->type == ShapeType::Sphere &&
+					 b.collider->type == ShapeType::Ramp)
+			{
+				if (buildRampSphereManifold(b,a,m))
+				{
+					manifolds.push_back(m);
+				}
+			}
+			else if (a.collider->type == ShapeType::Ramp &&
+					 b.collider->type == ShapeType::Sphere)
+			{
+				if (buildRampSphereManifold(a, b, m))
+				{
+					manifolds.push_back(m);
+				}
+			}
+			else if (a.collider->type == ShapeType::Ramp &&
+					 b.collider->type == ShapeType::Ramp)
+			{
+				if (buildRampRampManifold(a, b, m))
+				{
+					manifolds.push_back(m);
+				}
 			}
 		}
 	}
-	for(auto& body:bodies){
-		validate_body(body);
+}
+void PhysicsWorld::clear_manifolds()
+{
+	manifolds.clear();
+}
+
+void PhysicsWorld::match_manifolds()
+{
+	for (auto &m : manifolds)
+	{
+		// Find matching old manifold
+		for (const auto &old_m : prev_manifolds)
+		{
+			if (m.a_id == old_m.a_id && m.b_id == old_m.b_id)
+			{
+				// Found matching manifold pair, now match individual contacts
+				for (int i = 0; i < m.contact_count; i++)
+				{
+					Contact &new_c = m.contacts[i];
+
+					for (int j = 0; j < old_m.contact_count; j++)
+					{
+						const Contact &old_c = old_m.contacts[j];
+
+						float dist = (old_c.contact_point - new_c.contact_point).length();
+						float normal_alignment = new_c.normal.dot(old_c.normal);
+
+						if (dist <= PHSYICS_CONTACT_SLOP && normal_alignment > 0.95f)
+						{
+							new_c.accumulated_normal_impulse = old_c.accumulated_normal_impulse;
+							new_c.accumulated_tangent_impulse = old_c.accumulated_tangent_impulse;
+							new_c.tangent = old_c.tangent;
+							break;
+						}
+					}
+				}
+				break; // Found matching manifold, move to next new manifold
+			}
+		}
 	}
+}
+void PhysicsWorld::warm_start_manifolds()
+{
+	for (auto &m : manifolds)
+	{
+		Rigidbody &a = *m.a;
+		Rigidbody &b = *m.b;
 
+		for (int i = 0; i < m.contact_count; i++)
+		{
+			Contact &c = m.contacts[i];
 
+			Vec3 pn = c.normal * c.accumulated_normal_impulse;
+			Vec3 pt = Vec3();
+
+			if (c.tangent.length() > PHYSICS_EPSILON)
+			{
+				pt = c.tangent * c.accumulated_tangent_impulse;
+			}
+
+			Vec3 impulse = pn + pt;
+			a.velocity -= impulse * a.inverse_mass;
+			b.velocity += impulse * b.inverse_mass;
+		}
+	}
+}
+
+void PhysicsWorld::solve_manifold_velocities()
+{
+	const int iterations = PHYSICS_VEL_SOLVER_ITERATION;
+	const float RESTITUTION_VELOCITY_THRESHOLD = 0.1f;
+	for (int i = 0; i < iterations; i++)
+	{
+		for (auto &m : manifolds)
+		{
+			Rigidbody &a = *m.a;
+			Rigidbody &b = *m.b;
+
+			for (int j = 0; j < m.contact_count; j++)
+			{
+				Contact &c = m.contacts[j];
+
+				float total_invmass = a.inverse_mass + b.inverse_mass;
+				if (total_invmass == 0.0f)
+					continue; // contact bw 2 imovable objects must be ignoreeded
+
+				Vec3 rel_vel = b.velocity - a.velocity; // following the A to B convention
+				float relvel_along_normal = rel_vel.dot(c.normal);
+
+				float target_post_normal_velocity = 0.0f;
+				if (c.pre_solve_normal_velocity < -RESTITUTION_VELOCITY_THRESHOLD)
+				{
+					target_post_normal_velocity = -c.restitution * c.pre_solve_normal_velocity;
+				}
+
+				float jn = (target_post_normal_velocity - relvel_along_normal) / total_invmass;
+
+				float prev_normal_impulse = c.accumulated_normal_impulse;
+				c.accumulated_normal_impulse = std::max(prev_normal_impulse + jn, 0.0f);
+
+				float delta_impulse = c.accumulated_normal_impulse - prev_normal_impulse;
+
+				Vec3 impulse = c.normal * delta_impulse;
+
+				a.velocity -= impulse * a.inverse_mass;
+				b.velocity += impulse * b.inverse_mass;
+
+				// lets handle friction now
+				rel_vel = b.velocity - a.velocity; // recompute cuz it was updated during normal resolution
+				Vec3 tangent = rel_vel - c.normal * rel_vel.dot(c.normal);
+				float tangent_length = tangent.length();
+				if (tangent_length > PHYSICS_EPSILON)
+				{
+					tangent = tangent * (1.0f / tangent_length);
+					c.tangent = tangent;
+				}
+				else
+				{
+					float cached_len = c.tangent.length();
+					if (cached_len <= PHYSICS_EPSILON)
+						continue;
+					tangent = c.tangent * (1.0f / cached_len);
+				}
+
+				float jt = -rel_vel.dot(tangent);
+				jt /= total_invmass;
+
+				float prev_tangent_impulse = c.accumulated_tangent_impulse;
+
+				float mu = c.friction_coeff;
+				float maxfriction = mu * c.accumulated_normal_impulse;
+				float new_tangent_impulse = prev_tangent_impulse + jt;
+				c.accumulated_tangent_impulse = std::max(-maxfriction, std::min(new_tangent_impulse, maxfriction));
+
+				float delta_tangent = c.accumulated_tangent_impulse - prev_tangent_impulse;
+
+				Vec3 friction_impulse = tangent * delta_tangent;
+				a.velocity -= friction_impulse * a.inverse_mass;
+				b.velocity += friction_impulse * b.inverse_mass;
+			}
+		}
+	}
+}
+
+void PhysicsWorld::solve_manifold_positions()
+{
+	const int iterations = PHYSICS_POS_SOLVER_ITERATION;
+	for (int i = 0; i < iterations; i++)
+	{
+		for (auto &m : manifolds)
+		{
+			Rigidbody &a = *m.a;
+			Rigidbody &b = *m.b;
+
+			for (int j = 0; j < m.contact_count; j++)
+			{
+				Contact &c = m.contacts[j];
+
+				float total_invmass = a.inverse_mass + b.inverse_mass;
+				if (total_invmass == 0.0f)
+					continue; // contact bw 2 imovable objects must be ignoreeded
+
+				float slop = PHYSICS_PENETRATION_SLOP;
+				float percent = PHYSICS_CORRECTION_PERCENT;
+
+				float penetration = c.penetration;
+
+				float correction_mag = std::max(penetration - slop, 0.0f);
+				correction_mag = (correction_mag / total_invmass) * percent;
+
+				Vec3 correction = c.normal * correction_mag;
+
+				a.position -= correction * a.inverse_mass;
+				b.position += correction * b.inverse_mass;
+			}
+		}
+	}
 }

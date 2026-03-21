@@ -2,7 +2,7 @@
 #include "core/sphere_collider.hpp"
 #include<iostream>
 
-void resolveSphereSphere(Rigidbody&a,Rigidbody&b){
+bool buildSphereSphereContact(Rigidbody& a, Rigidbody& b, Contact& outContact){
 
     /*
     b.collider contains the pointer to its special collider but the type of b.collider is Collider* (general collider)
@@ -14,59 +14,33 @@ void resolveSphereSphere(Rigidbody&a,Rigidbody&b){
     auto* sa=static_cast<SphereCollider*>(a.collider);
     auto* sb=static_cast<SphereCollider*>(b.collider);
 
+    if(!sa||!sb)return false;
+
     Vec3 diff=b.position-a.position;
-    float dist=diff.length();
+    float dist_sq=diff.dot(diff);
     float radius_sum=sa->radius+sb->radius;
 
-    if(dist>=radius_sum)return;
+    if(dist_sq>=radius_sum*radius_sum)return false;
 
-    if(dist==0.0f){
-        dist=1.0f;
-        diff=Vec3(1.0f,0.0f,0.0f);
-    }
+    float dist = std::sqrt(std::max(0.0f, dist_sq));
+    Vec3 normal;
+    if (dist <= PHYSICS_EPSILON)
+        normal = Vec3(1.0f, 0.0f, 0.0f);
+    else
+        normal = diff * (1.0f / dist);
+     outContact = Contact{};
+    outContact.a = &a;
+    outContact.b = &b;
+    outContact.a_id = a.id;
+    outContact.b_id = b.id;
+    outContact.normal = normal;
+    outContact.penetration = radius_sum - dist;
 
-    Vec3 normal=diff*(1.0/dist);
-    float penetration_depth=radius_sum-dist;
-    float total_invmass=a.inverse_mass+b.inverse_mass;
-    if(total_invmass==0.0f)return;
+    outContact.contact_point = a.position + normal * (sa->radius - 0.5f * outContact.penetration);
 
-    Vec3 relative_velocity=b.velocity-a.velocity;
-    float velocity_along_normal=relative_velocity.dot(normal);
-    if(velocity_along_normal>-PHYSICS_EPSILON)return;
+    outContact.restitution = (a.restitution +b.restitution)*0.5f;
+    outContact.friction_coeff = std::sqrt(a.friction * b.friction);
 
-    //teleporting the balls outside of each other so it doesnt register as collision again in next frame cuz it didnt get enought time to seprate
-    Vec3 correction=normal*(penetration_depth/total_invmass);
-    a.position-=correction*a.inverse_mass;
-    b.position+=correction*b.inverse_mass;
-
-    float restitution=(a.restitution+b.restitution)*0.5f;
-    if(fabs(velocity_along_normal)<0.5f){
-        restitution=0.0f;
-    }
-    float impulse_magnitude=-(1+restitution)*velocity_along_normal/total_invmass;
-
-    Vec3 impulse_force=normal*impulse_magnitude;
-    a.velocity-=impulse_force*a.inverse_mass;
-    b.velocity+=impulse_force*b.inverse_mass;
-
-    //for friction guyz
-    Vec3 rv=b.velocity -a.velocity ;// rel vel
-    Vec3 tangent=rv - normal*rv.dot(normal); //jis bhi axes (maybe mixed) aligned ho us jagah se dot prd lo for tangent
-    float tlength=tangent.length();
-    if(tlength > 1e-6f) {
-        tangent=tangent * (1.0f / tlength);
-        float fricvel=rv.dot(tangent);
-        float fricmag=-fricvel/total_invmass;
-        float mu=std::sqrt(a.friction*b.friction);
-        float max_friction   = mu * impulse_magnitude;
-        if (fricmag >  max_friction) fricmag =  max_friction;
-        if (fricmag < -max_friction) fricmag = -max_friction;
-
-        Vec3 friction_impulse = tangent * fricmag;
-        a.velocity -= friction_impulse * a.inverse_mass;
-        b.velocity += friction_impulse * b.inverse_mass;
-
-
-    }
-
+    return true;
 }
+
