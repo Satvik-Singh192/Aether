@@ -6,7 +6,7 @@ int main()
 {
     PhysicsWorld world;
 
-    const TestCase active_case = TestCase::PyramidStack;
+    const TestCase active_case = TestCase::BoxBox;
     LoadSingleTestScenario(world, active_case);
 
     CreateWindow(world);
