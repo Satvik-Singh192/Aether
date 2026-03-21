@@ -14,14 +14,11 @@ bool boxboxmanifold (Rigidbody& A,Rigidbody& B, ContactManifold& manifold ) {
 
     manifold.normal = c.normal;
 
-    manifold.pointCount = 1;
+    manifold.contact_count = 1;
 
     c.normal = manifold.normal;
 
-    
-    
-
-    manifold.points[0] = c;
+    manifold.contacts[0] = c;
 
     return true; 
 }

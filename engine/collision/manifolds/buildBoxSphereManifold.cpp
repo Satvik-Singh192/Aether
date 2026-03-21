@@ -12,8 +12,8 @@ bool buildBoxSphereManifold(Rigidbody& A,Rigidbody& B,ContactManifold& manifold)
     manifold.a_id=c.a_id;
     manifold.b_id=c.b_id;
     manifold.normal=c.normal;
-    manifold.pointCount=1;
-    manifold.points[0]=c;
+    manifold.contact_count=1;
+    manifold.contacts[0]=c;
 
     return true;
 }
