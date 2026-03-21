@@ -53,6 +53,12 @@ add_executable(Aether_Test
     engine/collision/box_ramp.cpp
     engine/collision/sphere_ramp.cpp
     engine/collision/ramp_ramp.cpp
+    engine/collision/manifolds/buildBoxBoxManifold.cpp
+    engine/collision/manifolds/buildBoxSphereManifold.cpp
+    engine/collision/manifolds/buildSphereSphereManifold.cpp
+    engine/collision/manifolds/buildRampBoxManifold.cpp
+    engine/collision/manifolds/buildRampSphereManifold.cpp
+    engine/collision/manifolds/buildRampRampManifold.cpp
     renderer/window.cpp 
     renderer/camera.cpp
     renderer/drawbodies.cpp

@@ -1,21 +1,20 @@
-#include "contactmanifold.hpp"
-#include "collision.hpp"
-#include <algorithm> 
-//A is box, B is sphere
-bool buildSphereSphereManifold(Rigidbody& A,Rigidbody& B,ContactManifold& manifold){
+#include "collision/contactmanifold.hpp"
+#include "collision/collision.hpp"
+
+bool buildSphereSphereManifold(Rigidbody &A, Rigidbody &B, ContactManifold &manifold)
+{
     Contact c;
-    if(! buildSphereSphereContact(A, B,c)){
+    if (!buildSphereSphereContact(A, B, c))
+    {
         return false;
     }
-    manifold.a=c.a;
-    manifold.b=c.b;
-    manifold.a_id=c.a_id;
-    manifold.b_id=c.b_id;
-    manifold.normal=c.normal;
-    manifold.contact_count=1;
-    manifold.contacts[0]=c;
+    manifold.a = c.a;
+    manifold.b = c.b;
+    manifold.a_id = A.id;
+    manifold.b_id = B.id;
+    manifold.normal = c.normal;
+    manifold.contact_count = 1;
+    manifold.contacts[0] = c;
 
     return true;
 }
-
-

@@ -1,4 +1,5 @@
 #include "world/physicsworld.hpp"
+#include "collision/manifolds/manifold_builders.hpp"
 #include <utility>
 #include <vector>
 
@@ -36,12 +37,12 @@ std::vector<Rigidbody> &PhysicsWorld::getBodies()
 	return bodies;
 }
 
-const Vec3& PhysicsWorld::getGravity() const
+const Vec3 &PhysicsWorld::getGravity() const
 {
 	return gravity;
 }
 
-void PhysicsWorld::setGravity(const Vec3& new_gravity)
+void PhysicsWorld::setGravity(const Vec3 &new_gravity)
 {
 	gravity = new_gravity;
 }
@@ -147,19 +148,12 @@ void PhysicsWorld::generate_contacts()
 
 			Contact c;
 			ContactManifold m;
-			m.a = &a;
-			m.b = &b;
-			m.a_id = a.id;
-			m.b_id = b.id;
 
 			if (a.collider->type == ShapeType::Sphere &&
 				b.collider->type == ShapeType::Sphere)
 			{
-				if (buildSphereSphereContact(a, b, c))
+				if (buildSphereSphereManifold(a, b, m))
 				{
-					m.contacts[0] = c;
-					m.contact_count = 1;
-					m.normal = c.normal;
 					manifolds.push_back(m);
 				}
 			}
@@ -171,31 +165,26 @@ void PhysicsWorld::generate_contacts()
 					m.contacts[0] = c;
 					m.contact_count = 1;
 					m.normal = c.normal;
+					m.a = c.a;
+					m.b = c.b;
+					m.a_id = c.a->id;
+					m.b_id = c.b->id;
 					manifolds.push_back(m);
 				}
 			}
 			else if (a.collider->type == ShapeType::Box &&
 					 b.collider->type == ShapeType::Sphere)
 			{
-				if (buildSphereBoxContact(b, a, c))
+				if (buildBoxSphereManifold(a, b, m))
 				{
-					std::swap(c.a, c.b);
-					std::swap(c.a_id, c.b_id);
-					c.normal = c.normal * -1.0f;
-					m.contacts[0] = c;
-					m.contact_count = 1;
-					m.normal = c.normal;
 					manifolds.push_back(m);
 				}
 			}
 			else if (a.collider->type == ShapeType::Box &&
 					 b.collider->type == ShapeType::Box)
 			{
-				if (buildBoxBoxContact(a, b, c))
+				if (buildBoxBoxManifold(a, b, m))
 				{
-					m.contacts[0] = c;
-					m.contact_count = 1;
-					m.normal = c.normal;
 					manifolds.push_back(m);
 				}
 			}
@@ -207,17 +196,18 @@ void PhysicsWorld::generate_contacts()
 					m.contacts[0] = c;
 					m.contact_count = 1;
 					m.normal = c.normal;
+					m.a = c.a;
+					m.b = c.b;
+					m.a_id = c.a->id;
+					m.b_id = c.b->id;
 					manifolds.push_back(m);
 				}
 			}
 			else if (a.collider->type == ShapeType::Ramp &&
 					 b.collider->type == ShapeType::Box)
 			{
-				if (buildRampBoxContact(a, b, c))
+				if (buildRampBoxManifold(a, b, m))
 				{
-					m.contacts[0] = c;
-					m.contact_count = 1;
-					m.normal = c.normal;
 					manifolds.push_back(m);
 				}
 			}
@@ -229,28 +219,26 @@ void PhysicsWorld::generate_contacts()
 					m.contacts[0] = c;
 					m.contact_count = 1;
 					m.normal = c.normal;
+					m.a = c.a;
+					m.b = c.b;
+					m.a_id = c.a->id;
+					m.b_id = c.b->id;
 					manifolds.push_back(m);
 				}
 			}
 			else if (a.collider->type == ShapeType::Ramp &&
 					 b.collider->type == ShapeType::Sphere)
 			{
-				if (buildRampSphereContact(a, b, c))
+				if (buildRampSphereManifold(a, b, m))
 				{
-					m.contacts[0] = c;
-					m.contact_count = 1;
-					m.normal = c.normal;
 					manifolds.push_back(m);
 				}
 			}
 			else if (a.collider->type == ShapeType::Ramp &&
 					 b.collider->type == ShapeType::Ramp)
 			{
-				if (buildRampRampContact(a, b, c))
+				if (buildRampRampManifold(a, b, m))
 				{
-					m.contacts[0] = c;
-					m.contact_count = 1;
-					m.normal = c.normal;
 					manifolds.push_back(m);
 				}
 			}
