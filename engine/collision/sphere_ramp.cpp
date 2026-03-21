@@ -72,6 +72,8 @@ bool buildRampSphereContact(Rigidbody &ramp_body, Rigidbody &sphere_body, Contac
     outContact = Contact{};
     outContact.a = &ramp_body;
     outContact.b = &sphere_body;
+    outContact.a_id = ramp_body.id;
+    outContact.b_id = sphere_body.id;
     outContact.normal = normal;
     outContact.penetration = radius - dist;
     outContact.contact_point = ramp_body.position + closestOnSlope;
@@ -87,6 +89,7 @@ bool buildSphereRampContact(Rigidbody &sphere_body, Rigidbody &ramp_body, Contac
         return false;
 
     std::swap(outContact.a, outContact.b);
+    std::swap(outContact.a_id, outContact.b_id);
     outContact.normal = outContact.normal * -1.0f;
     return true;
 }
