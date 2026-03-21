@@ -26,7 +26,7 @@ public:
 	void clear_contacts();
 	void generate_contacts();
 	void match_contacts();
-	void solve_contacts(); //solves for vel
-	void solve_position();//tis solves for position overlap
+	void solve_contacts(); //it solves for velocity
+	void solve_position();//it is solves for position overlapping
 	void warm_start_contacts();
 };
