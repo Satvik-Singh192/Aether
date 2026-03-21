@@ -1,13 +1,14 @@
 #include "collision/contactmanifold.hpp"
 #include "collision/collision.hpp"
 
-bool buildBoxSphereManifold(Rigidbody &A, Rigidbody &B, ContactManifold &manifold)
+bool buildRampBoxManifold(Rigidbody &A, Rigidbody &B, ContactManifold &manifold)
 {
     Contact c;
-    if (!buildSphereBoxContact(A, B, c))
+    if (!buildRampBoxContact(A, B, c))
     {
         return false;
     }
+
     manifold.a = c.a;
     manifold.b = c.b;
     manifold.a_id = c.a_id;

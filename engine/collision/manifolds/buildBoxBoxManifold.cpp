@@ -1,9 +1,12 @@
-#include "contactmanifold.hpp"
-#include "collision.hpp"
-bool boxboxmanifold (Rigidbody& A,Rigidbody& B, ContactManifold& manifold ) {
+#include "collision/contactmanifold.hpp"
+#include "collision/collision.hpp"
+
+bool buildBoxBoxManifold(Rigidbody &A, Rigidbody &B, ContactManifold &manifold)
+{
 
     Contact c;
-    if(!buildBoxBoxContact(A, B,c)){
+    if (!buildBoxBoxContact(A, B, c))
+    {
         return false;
     }
     manifold.a = c.a;
@@ -20,5 +23,5 @@ bool boxboxmanifold (Rigidbody& A,Rigidbody& B, ContactManifold& manifold ) {
 
     manifold.contacts[0] = c;
 
-    return true; 
+    return true;
 }
