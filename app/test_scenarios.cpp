@@ -40,7 +40,7 @@ namespace
     void spawn_pyramid_stack(PhysicsWorld &world)
     {
         // pyramid of boxes: spawn layers at increasing heights so each layer falls onto the previous one
-        const int base = 25;
+        const int base = 50;
         const float base_spawn_y = 2.0f;  // bottom layer spawn height (above ground)
         const float layer_spacing = 2.2f; // vertical spacing between layers to allow visible falling
         const float horizontal_spacing = 1.05f;
