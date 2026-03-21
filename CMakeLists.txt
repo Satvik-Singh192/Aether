@@ -56,6 +56,7 @@ add_executable(Aether_Test
     renderer/window.cpp 
     renderer/camera.cpp
     renderer/drawbodies.cpp
+    renderer/bodymenu.cpp
 )
 
 add_library(imgui STATIC

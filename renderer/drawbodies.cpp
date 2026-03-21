@@ -8,6 +8,7 @@
 #include "../engine/core/box_collider.hpp"
 #include "../engine/core/sphere_collider.hpp"
 #include "../engine/core/ramp_collider.hpp"
+#include "bodyselection.hpp"
 
 static GLuint shaderProgram;
 static GLuint VAO, VBO;
@@ -265,9 +266,20 @@ void RenderBodies(PhysicsWorld &world, const Camera &camera, float aspectRatio)
 
             if (colorLoc >= 0)
             {
-                glUniform4f(colorLoc, r, g, b, 1.0f);
+                bool isSelected = (body.id == GetSelectedBodyId());
+                if (isSelected) // different colour for the body selected in body menu
+                {
+                    glUniform4f(colorLoc, 1.0f, 1.0f, 0.2f, 1.0f);
+                }
+                else
+                {
+                    glUniform4f(colorLoc, r, g, b, 1.0f);
+                }
             }
-            glLineWidth(2.0f);
+            if (body.id == GetSelectedBodyId())
+                glLineWidth(4.0f); // thicker line for the selected body
+            else
+                glLineWidth(2.0f);
             glDrawArrays(GL_LINES, 0, static_cast<GLsizei>(bodyVertices.size() / 3));
         }
     }
