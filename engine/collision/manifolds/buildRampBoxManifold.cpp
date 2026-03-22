@@ -154,7 +154,7 @@ bool buildRampBoxManifold(Rigidbody &A, Rigidbody &B, ContactManifold &manifold)
 
     for (int i = 0; i < manifold.contact_count; ++i)
     {
-        // std::cout << manifold.contact_count << " ";
+        std::cout << manifold.contact_count << " ";
         manifold.contacts[i].normal = manifold.normal;
         manifold.contacts[i].penetration = clampValue(baseContact.penetration, 0.0f, 100.0f);
         manifold.contacts[i].a = manifold.a;
