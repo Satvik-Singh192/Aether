@@ -38,3 +38,52 @@ Quat Quat::operator*(const Quat& rhs) const {
         w * rhs.z + x * rhs.y - y * rhs.x + z * rhs.w
     );
 }
+Quat Quat::operator+(const Quat& rhs) const {
+    return Quat(
+        w + rhs.w,
+        x + rhs.x,
+        y + rhs.y,
+        z + rhs.z
+    );
+}
+Quat Quat::operator*(float scalar) const {
+    return Quat(
+        w * scalar,
+        x * scalar,
+        y * scalar,
+        z * scalar
+    );
+}
+Quat Quat::fromAngularVelocity(const Vec3& omega){
+    return Quat(0.0f,omega.x,omega.y, omega.z);
+}
+Mat3 Quat::toMat3() const {
+    float xx = x * x;
+    float yy = y * y;
+    float zz = z * z;
+
+    float xy = x * y;
+    float xz = x * z;
+    float yz = y * z;
+
+    float wx = w * x;
+    float wy = w * y;
+    float wz = w * z;
+
+    Mat3 m;
+
+    m.m[0][0] = 1.0f - 2.0f * (yy + zz);
+    m.m[0][1] = 2.0f * (xy - wz);
+    m.m[0][2] = 2.0f * (xz + wy);
+
+    m.m[1][0] = 2.0f * (xy + wz);
+    m.m[1][1] = 1.0f - 2.0f * (xx + zz);
+    m.m[1][2] = 2.0f * (yz - wx);
+
+    m.m[2][0] = 2.0f * (xz - wy);
+    m.m[2][1] = 2.0f * (yz + wx);
+    m.m[2][2] = 1.0f - 2.0f * (xx + yy);
+
+    return m;
+}
+
