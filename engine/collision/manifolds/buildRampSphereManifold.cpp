@@ -1,7 +1,6 @@
 #include "collision/contactmanifold.hpp"
 #include "collision/collision.hpp"
 
-//A ramp B sphere
 bool buildRampSphereManifold(Rigidbody &A, Rigidbody &B, ContactManifold &manifold)
 {
     Contact c;
