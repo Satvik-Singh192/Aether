@@ -14,13 +14,11 @@ bool buildBoxSphereManifold(Rigidbody &A, Rigidbody &B, ContactManifold &manifol
     std::swap(c.a, c.b);
     std::swap(c.a_id, c.b_id);
     c.normal = c.normal * -1.0f;
-    c.a_id = c.a->id;
-    c.b_id = c.b->id;
 
     manifold.a = c.a;
     manifold.b = c.b;
-    manifold.a_id = manifold.a->id;
-    manifold.b_id = manifold.b->id;
+    manifold.a_id = A.id;
+    manifold.b_id = B.id;
     manifold.normal = c.normal;
     manifold.contact_count = 1;
     manifold.contacts[0] = c;

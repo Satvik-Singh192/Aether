@@ -2,7 +2,6 @@
 #include "collision/collision.hpp"
 #include "core/box_collider.hpp"
 #include <cmath>
-#include <algorithm>
 #include "collision/contactmanifold.hpp"
 #include <vector>
 
@@ -64,8 +63,6 @@ bool buildBoxBoxContact(Rigidbody& a, Rigidbody& b, Contact& outContact){
     outContact = Contact{};
     outContact.a = &a;
     outContact.b = &b;
-    outContact.a_id = a.id;
-    outContact.b_id = b.id;
     outContact.normal = normal;
     outContact.penetration = penetration;
 
@@ -103,8 +100,8 @@ bool buildBoxBoxManifold(Rigidbody& a, Rigidbody& b, ContactManifold& m){
     }
     m.a=&a;
     m.b=&b;
-    m.a_id=m.a->id;
-    m.b_id=m.b->id;
+    m.a_id=a.id;
+    m.b_id=b.id;
     m.normal=normal;
     std::vector<Contact> candd;
     auto cornersA=getBoxCorners(a,ba);
@@ -114,8 +111,6 @@ bool buildBoxBoxManifold(Rigidbody& a, Rigidbody& b, ContactManifold& m){
             Contact c;
             c.a = &a;
             c.b = &b;
-            c.a_id = a.id;
-            c.b_id = b.id;
             c.normal = normal;
             c.penetration = penetration;
             c.contact_point = it;
@@ -133,8 +128,6 @@ bool buildBoxBoxManifold(Rigidbody& a, Rigidbody& b, ContactManifold& m){
             Contact c;
             c.a = &a;
             c.b = &b;
-            c.a_id = a.id;
-            c.b_id = b.id;
             c.normal = normal;
             c.penetration = penetration;
             c.contact_point = it;
@@ -148,8 +141,6 @@ bool buildBoxBoxManifold(Rigidbody& a, Rigidbody& b, ContactManifold& m){
         Contact c;
         c.a = &a;
         c.b = &b;
-        c.a_id = a.id;
-        c.b_id = b.id;
         c.normal = normal;
         c.penetration = penetration;
         c.contact_point = (a.position + b.position) * 0.5f;
@@ -160,34 +151,6 @@ bool buildBoxBoxManifold(Rigidbody& a, Rigidbody& b, ContactManifold& m){
         m.contact_count = 1;
         return true;
     }
-
-    std::sort(candd.begin(), candd.end(), [](const Contact &lhs, const Contact &rhs) {
-        if (lhs.contact_point.x != rhs.contact_point.x)
-            return lhs.contact_point.x < rhs.contact_point.x;
-        if (lhs.contact_point.y != rhs.contact_point.y)
-            return lhs.contact_point.y < rhs.contact_point.y;
-        return lhs.contact_point.z < rhs.contact_point.z;
-    });
-
-    std::vector<Contact> ordered_candidates;
-    ordered_candidates.reserve(candd.size());
-    for (const auto &candidate : candd)
-    {
-        bool is_duplicate = false;
-        for (const auto &existing : ordered_candidates)
-        {
-            if ((candidate.contact_point - existing.contact_point).length() <= 0.001f)
-            {
-                is_duplicate = true;
-                break;
-            }
-        }
-        if (!is_duplicate)
-        {
-            ordered_candidates.push_back(candidate);
-        }
-    }
-    candd.swap(ordered_candidates);
 
     m.contacts[0]=candd[0];
     m.contact_count=1;
