@@ -3,6 +3,7 @@
 #include "core/box_collider.hpp"
 #include <cmath>
 #include <vector>
+#include<algorithm>
 
 std:: vector<Vec3> getBoxCorners(const Rigidbody& body, const BoxCollider* box){
     std::vector<Vec3> corners;
@@ -55,8 +56,8 @@ bool buildBoxBoxManifold(Rigidbody& a, Rigidbody& b, ContactManifold& m){
     }
     m.a=&a;
     m.b=&b;
-    m.a_id=a.id;
-    m.b_id=b.id;
+    m.a_id=m.a->id;
+    m.b_id=m.b->id;
     m.normal=normal;
     std::vector<Contact> candd;
     auto cornersA=getBoxCorners(a,ba);
@@ -66,6 +67,8 @@ bool buildBoxBoxManifold(Rigidbody& a, Rigidbody& b, ContactManifold& m){
             Contact c;
             c.a = &a;
             c.b = &b;
+            c.a_id = a.id;
+            c.b_id = b.id;
             c.normal = normal;
             c.penetration = penetration;
             c.contact_point = it;
@@ -83,6 +86,8 @@ bool buildBoxBoxManifold(Rigidbody& a, Rigidbody& b, ContactManifold& m){
             Contact c;
             c.a = &a;
             c.b = &b;
+            c.a_id = a.id;
+            c.b_id = b.id;
             c.normal = normal;
             c.penetration = penetration;
             c.contact_point = it;
@@ -96,6 +101,8 @@ bool buildBoxBoxManifold(Rigidbody& a, Rigidbody& b, ContactManifold& m){
         Contact c;
         c.a = &a;
         c.b = &b;
+        c.a_id = a.id;
+        c.b_id = b.id;
         c.normal = normal;
         c.penetration = penetration;
         c.contact_point = (a.position + b.position) * 0.5f;
