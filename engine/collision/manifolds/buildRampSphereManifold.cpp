@@ -14,7 +14,7 @@ namespace
         return isValidFloat(v.x) && isValidFloat(v.y) && isValidFloat(v.z);
     }
 }
-
+//A is Ramp, B is sphere
 bool buildRampSphereManifold(Rigidbody &A, Rigidbody &B, ContactManifold &manifold)
 {
     Contact c;

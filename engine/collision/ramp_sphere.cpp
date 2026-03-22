@@ -80,13 +80,3 @@ bool buildRampSphereContact(Rigidbody &ramp_body, Rigidbody &sphere_body, Contac
 
     return true;
 }
-
-bool buildSphereRampContact(Rigidbody &sphere_body, Rigidbody &ramp_body, Contact &outContact)
-{
-    if (!buildRampSphereContact(ramp_body, sphere_body, outContact))
-        return false;
-
-    std::swap(outContact.a, outContact.b);
-    outContact.normal = outContact.normal * -1.0f;
-    return true;
-}
