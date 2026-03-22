@@ -104,8 +104,6 @@ bool buildRampRampContact(Rigidbody &a, Rigidbody &b, Contact &outContact)
     outContact = Contact{};
     outContact.a = &a;
     outContact.b = &b;
-    outContact.a_id = a.id;
-    outContact.b_id = b.id;
     outContact.normal = normal;
     outContact.penetration = penetration;
     outContact.contact_point = contactPoint;

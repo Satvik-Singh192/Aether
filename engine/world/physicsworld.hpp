@@ -24,10 +24,10 @@ public:
 	const Vec3& getGravity() const;
 	void setGravity(const Vec3& new_gravity);
 
-	void clear_manifolds();
-	void generate_manifolds();
-	void match_manifolds();
-	void solve_manifold_velocities();
-	void solve_manifold_positions();
-	void warm_start_manifolds();
+	void clear_contacts();
+	void generate_contacts();
+	void match_contacts();
+	void solve_contacts(); //it solves for velocity
+	void solve_position();//it is solves for position overlapping
+	void warm_start_contacts();
 };
