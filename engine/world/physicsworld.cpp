@@ -160,15 +160,8 @@ void PhysicsWorld::generate_contacts()
 			else if (a.collider->type == ShapeType::Sphere &&
 					 b.collider->type == ShapeType::Box)
 			{
-				if (buildSphereBoxContact(a, b, c))
+				if (buildBoxSphereManifold(b,a,m))
 				{
-					m.contacts[0] = c;
-					m.contact_count = 1;
-					m.normal = c.normal;
-					m.a = c.a;
-					m.b = c.b;
-					m.a_id = c.a->id;
-					m.b_id = c.b->id;
 					manifolds.push_back(m);
 				}
 			}
