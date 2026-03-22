@@ -16,3 +16,18 @@ constexpr float PHYSICS_CORRECTION_PERCENT=0.12f; //percent of overlap resolved 
 
 constexpr int PHYSICS_VEL_SOLVER_ITERATION=8; // how many times a contact is solved for velocity
 constexpr int PHYSICS_POS_SOLVER_ITERATION=3; // how many times a contact is solved for pos
+
+// Multiplies linear velocity every step after solver. Values < 1 reduce residual jitter energy.
+constexpr float PHYSICS_LINEAR_DAMPING=0.995f;
+
+// If a body is currently in contact manifolds and horizontal speed (x/z plane) is below this,
+// snap x/z velocity to zero to stop tiny friction-driven sliding drift.
+constexpr float PHYSICS_RESTING_TANGENT_SLEEP_THRESHOLD=0.05f;
+
+// If a body is currently in contact manifolds and |y velocity| is below this,
+// snap y velocity to zero to stop tiny vertical bouncing/oscillation on resting contacts.
+constexpr float PHYSICS_RESTING_NORMAL_SLEEP_THRESHOLD=0.04f;
+
+// Global full-speed sleep threshold. If total speed magnitude is below this,
+// velocity is fully zeroed regardless of contact state.
+constexpr float PHYSICS_SLEEP_VELOCITY_THRESHOLD=0.005f;

@@ -100,9 +100,9 @@ void PhysicsWorld::step(float dt)
 		body.clearForces();
 	}
 	prev_manifolds = manifolds;
-	clear_contacts();
-	generate_contacts();
-	match_contacts();
+	clear_manifolds();
+	generate_manifolds();
+	match_manifolds();
 	for (auto &m : manifolds)
 	{
 		for (int i = 0; i < m.contact_count; i++)
@@ -111,30 +111,31 @@ void PhysicsWorld::step(float dt)
 			c.pre_solve_normal_velocity = (c.b->velocity - c.a->velocity).dot(c.normal);
 		}
 	}
-	warm_start_contacts();
-	solve_contacts();
-	solve_position();
+	warm_start_manifolds();
+	solve_manifolds_vel();
+	solve_manifolds_pos();
 
-	const float SLEEP_VELOCITY_THRESHOLD = 0.001f;
 	for (auto &body : bodies)
 	{
 		if (body.inverse_mass == 0.0f)
 			continue;
-
+		body.velocity = body.velocity * PHYSICS_LINEAR_DAMPING;
+		float tangent_speed_sq = body.velocity.x * body.velocity.x + body.velocity.z * body.velocity.z;
+		if (tangent_speed_sq < PHYSICS_RESTING_TANGENT_SLEEP_THRESHOLD * PHYSICS_RESTING_TANGENT_SLEEP_THRESHOLD){
+			body.velocity.x = 0.0f;
+			body.velocity.z = 0.0f;
+		}
+		if (std::abs(body.velocity.y) < PHYSICS_RESTING_NORMAL_SLEEP_THRESHOLD){
+				body.velocity.y = 0.0f;
+		}
 		float vel_mag_sq = body.velocity.dot(body.velocity);
-		if (vel_mag_sq < SLEEP_VELOCITY_THRESHOLD * SLEEP_VELOCITY_THRESHOLD)
-		{
+		if (vel_mag_sq < PHYSICS_SLEEP_VELOCITY_THRESHOLD * PHYSICS_SLEEP_VELOCITY_THRESHOLD){
 			body.velocity = Vec3();
 		}
 	}
-
-	for (auto &body : bodies)
-	{
-		validate_body(body);
-	}
 }
 
-void PhysicsWorld::generate_contacts()
+void PhysicsWorld::generate_manifolds()
 {
 	for (std::size_t i = 0; i + 1 < bodies.size(); ++i)
 	{
@@ -231,12 +232,12 @@ void PhysicsWorld::generate_contacts()
 		}
 	}
 }
-void PhysicsWorld::clear_contacts()
+void PhysicsWorld::clear_manifolds()
 {
 	manifolds.clear();
 }
 
-void PhysicsWorld::match_contacts()
+void PhysicsWorld::match_manifolds()
 {
 	for (auto &m : manifolds)
 	{
@@ -271,7 +272,7 @@ void PhysicsWorld::match_contacts()
 		}
 	}
 }
-void PhysicsWorld::warm_start_contacts()
+void PhysicsWorld::warm_start_manifolds()
 {
 	for (auto &m : manifolds)
 	{
@@ -297,7 +298,7 @@ void PhysicsWorld::warm_start_contacts()
 	}
 }
 
-void PhysicsWorld::solve_contacts()
+void PhysicsWorld::solve_manifolds_vel()
 {
 	const int iterations = PHYSICS_VEL_SOLVER_ITERATION;
 	const float RESTITUTION_VELOCITY_THRESHOLD = 0.1f;
@@ -374,7 +375,7 @@ void PhysicsWorld::solve_contacts()
 	}
 }
 
-void PhysicsWorld::solve_position()
+void PhysicsWorld::solve_manifolds_pos()
 {
 	const int iterations = PHYSICS_POS_SOLVER_ITERATION;
 	for (int i = 0; i < iterations; i++)
