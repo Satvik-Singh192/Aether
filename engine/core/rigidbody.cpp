@@ -35,6 +35,6 @@ void Rigidbody::applyForce(const Vec3& force) {
     force_accum=force_accum+force;
 }
 
-void Rigidbody::clearForces() {
+void Rigidbody::clearAccum() {
     force_accum = Vec3();
 }
