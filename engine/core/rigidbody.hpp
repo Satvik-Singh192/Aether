@@ -1,19 +1,16 @@
 #pragma once
 #include "common_header.hpp"
-#include "bodyid.hpp"
 #include "collider.hpp"
 #include <iostream>
 
 class Rigidbody {
 public: 
-	BodyID id;
-	
 	Vec3 position;
 	Vec3 velocity;
 	Vec3 force_accum;
 	float inverse_mass;
-	float friction=PHYSICS_DEFAULT_FRICTION;
-	float restitution=PHYSICS_DEFAULT_RESTITUTION;
+	float friction;
+	float restitution;
 
 	/*
 	- Collider is a pointer cuz if we just write "Collider collider;" then the collider will always be a generic one
@@ -23,15 +20,10 @@ public:
 	Collider* collider;
 
 
-	Rigidbody(
-		//BodyID body_id,
-		const Vec3& position,
+	Rigidbody(const Vec3& position,
 		const Vec3& velocity,
 		Collider* col=nullptr,
-		float mass=1.0f,
-		float fric=PHYSICS_DEFAULT_FRICTION,
-    	float res=PHYSICS_DEFAULT_RESTITUTION
-		);
+		float mass=1.0f);
 
 	void applyForce(const Vec3& force);
 	void clearForces();

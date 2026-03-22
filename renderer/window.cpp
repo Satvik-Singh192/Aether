@@ -6,7 +6,6 @@
 #include "../engine/world/physicsworld.hpp"
 #include "camera.hpp"
 #include "drawbodies.hpp"
-#include "bodymenu.hpp"
 
 #include "imgui.h"
 #include "backends/imgui_impl_glfw.h"
@@ -135,13 +134,10 @@ void CreateWindow(PhysicsWorld &world)
 		}
 		const ImGuiIO &io = ImGui::GetIO();
 		ImGui::Text("Bodies: %zu", world.getBodies().size());
-		ImGui::Text("Contacts: %zu", world.getContactCount());
 		ImGui::Text("Frame: %d", frame);
 		ImGui::Text("FPS: %.1f", io.Framerate);
 		ImGui::Text("Frame time: %.3f ms", io.Framerate > 0.0f ? (1000.0f / io.Framerate) : 0.0f);
 		ImGui::End();
-
-		RenderBodyMenu(world);
 
 		ImGui::Render();
 		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
@@ -165,10 +161,6 @@ void framebuffer_size_callback(GLFWwindow *window, int width, int height)
 
 void processInput(GLFWwindow *window, float deltaTime, Camera &camera)
 {
-	static bool isDraggingCamera = false;
-	static double lastMouseX = 0.0;
-	static double lastMouseY = 0.0;
-
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 	{
 		glfwSetWindowShouldClose(window, true);
@@ -189,35 +181,5 @@ void processInput(GLFWwindow *window, float deltaTime, Camera &camera)
 	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
 	{
 		camera.moveRight(deltaTime);
-	}
-
-	const ImGuiIO &io = ImGui::GetIO();
-	const bool canDragRotate = !io.WantCaptureMouse;
-	const bool rightMouseDown = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS;
-
-	if (canDragRotate && rightMouseDown)
-	{
-		double mouseX = 0.0;
-		double mouseY = 0.0;
-		glfwGetCursorPos(window, &mouseX, &mouseY);
-
-		if (!isDraggingCamera)
-		{
-			isDraggingCamera = true;
-			lastMouseX = mouseX;
-			lastMouseY = mouseY;
-		}
-		else
-		{
-			float deltaX = static_cast<float>(mouseX - lastMouseX);
-			float deltaY = static_cast<float>(mouseY - lastMouseY);
-			camera.rotate(deltaX, -deltaY);
-			lastMouseX = mouseX;
-			lastMouseY = mouseY;
-		}
-	}
-	else
-	{
-		isDraggingCamera = false;
 	}
 }

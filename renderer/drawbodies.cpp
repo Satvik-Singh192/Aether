@@ -7,8 +7,6 @@
 
 #include "../engine/core/box_collider.hpp"
 #include "../engine/core/sphere_collider.hpp"
-#include "../engine/core/ramp_collider.hpp"
-#include "bodyselection.hpp"
 
 static GLuint shaderProgram;
 static GLuint VAO, VBO;
@@ -207,54 +205,13 @@ void RenderBodies(PhysicsWorld &world, const Camera &camera, float aspectRatio)
             pushCircleLines(bodyVertices, c, r, segments, 0, 2); // XZ
             pushCircleLines(bodyVertices, c, r, segments, 1, 2); // YZ
         }
-        else if (body.collider->type == ShapeType::Ramp)
-        {
-            const auto *ramp = static_cast<const RampCollider *>(body.collider);
-            const float L = ramp->length;
-            const float H = ramp->getHeight();
-            const float w = ramp->half_width_z;
-            
-            const float x0 = c.x;
-            const float y0 = c.y;
-            const float x1 = c.x + L;
-            const float y1 = c.y + H;
-
-            const float z0 = c.z - w;
-            const float z1 = c.z + w;
-
-            // Simple triangular prism, right triangle in X-Y, extruded along Z
-            const glm::vec3 p0z0(x0, y0, z0);
-            const glm::vec3 p1z0(x1, y0, z0);
-            const glm::vec3 p2z0(x1, y1, z0);
-
-            const glm::vec3 p0z1(x0, y0, z1);
-            const glm::vec3 p1z1(x1, y0, z1);
-            const glm::vec3 p2z1(x1, y1, z1);
-
-            // bottom face edges
-            pushLine(bodyVertices, p0z0, p1z0);
-            pushLine(bodyVertices, p0z1, p1z1);
-
-            // side face edges
-            pushLine(bodyVertices, p1z0, p2z0);
-            pushLine(bodyVertices, p1z1, p2z1);
-
-            // hypotenuse edges
-            pushLine(bodyVertices, p0z0, p2z0);
-            pushLine(bodyVertices, p0z1, p2z1);
-
-            // connect slices along Z
-            pushLine(bodyVertices, p0z0, p0z1);
-            pushLine(bodyVertices, p1z0, p1z1);
-            pushLine(bodyVertices, p2z0, p2z1);
-        }
 
         if (!bodyVertices.empty())
         {
             glBufferData(GL_ARRAY_BUFFER, bodyVertices.size() * sizeof(float), bodyVertices.data(), GL_DYNAMIC_DRAW);
 
-            // Adding colour to wireframe based on stable body id
-            BodyID key = body.id;
+            // Adding colour to wireframe based on the body address
+            std::uintptr_t key = reinterpret_cast<std::uintptr_t>(&body);
             float r = ((key * 73u) % 100) / 100.0f;
             float g = ((key * 37u) % 100) / 100.0f;
             float b = ((key * 19u) % 100) / 100.0f;
@@ -266,20 +223,9 @@ void RenderBodies(PhysicsWorld &world, const Camera &camera, float aspectRatio)
 
             if (colorLoc >= 0)
             {
-                bool isSelected = (body.id == GetSelectedBodyId());
-                if (isSelected) // different colour for the body selected in body menu
-                {
-                    glUniform4f(colorLoc, 1.0f, 1.0f, 0.2f, 1.0f);
-                }
-                else
-                {
-                    glUniform4f(colorLoc, r, g, b, 1.0f);
-                }
+                glUniform4f(colorLoc, r, g, b, 1.0f);
             }
-            if (body.id == GetSelectedBodyId())
-                glLineWidth(4.0f); // thicker line for the selected body
-            else
-                glLineWidth(2.0f);
+            glLineWidth(2.0f);
             glDrawArrays(GL_LINES, 0, static_cast<GLsizei>(bodyVertices.size() / 3));
         }
     }

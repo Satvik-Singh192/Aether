@@ -50,5 +50,5 @@ std::ostream& operator<<(std::ostream& os,const Vec3& vector3){
 }
 
 bool is_corrupt(const Vec3& vector3){
-    return (!std::isfinite(vector3.x)||!std::isfinite(vector3.y)||!std::isfinite(vector3.z));
+    return (!isfinite(vector3.x)||!isfinite(vector3.y)||!isfinite(vector3.z));
 }

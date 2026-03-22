@@ -1,6 +1,6 @@
-# Aether
+# AetherPhysics
 
-Aether is a C++ project for building a simple real-time 3D rigid body physics simulation with OpenGL visualization.
+AetherPhysics is a C++ project for building a simple real-time 3D rigid body physics simulation with OpenGL visualization.
 
 This project is being developed for FOSS 2026.  
 The goal is to implement core physics concepts from scratch and keep the architecture clean and modular.
@@ -17,13 +17,12 @@ The goal is to implement core physics concepts from scratch and keep the archite
 
 ## Project Structure
 ```text
-Aether/
+AetherPhysics/
 ├── engine/ # Physics logic
 ├── renderer/ # OpenGL rendering
 ├── app/ # Main entry point
 ├── CMakeLists.txt
-├── README.md
-└── LICENSE
+└── README.md
 ```
 
 - `engine/` contains physics-related code only.
@@ -42,14 +41,3 @@ Requires:
 - C++20 compiler
 - CMake
 - OpenGL-compatible system
-
-## License
-
-This project is licensed under the [MIT License](./LICENSE).
-
-## Contributors
-
-- @Satvik-Singh192
-- @urastogi2048
-- @PresenceOP-Coder
-- @Just-Here-TO-Code
