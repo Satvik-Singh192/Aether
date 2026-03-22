@@ -3,7 +3,8 @@
 #include "bodyid.hpp"
 #include "collider.hpp"
 #include <iostream>
-
+#include "math/quat.hpp"
+#include "math/mat3.hpp"
 class Rigidbody {
 public: 
 	BodyID id;
@@ -14,6 +15,11 @@ public:
 	float inverse_mass;
 	float friction=PHYSICS_DEFAULT_FRICTION;
 	float restitution=PHYSICS_DEFAULT_RESTITUTION;
+	Quat orientation;//xi + yj+ zk
+	Vec3 angvel;//w
+	Vec3 acctork;
+	Mat3 inverse_inertia_body;   //for local
+ 	Mat3 inverse_inertia_world;  //for world
 
 	/*
 	- Collider is a pointer cuz if we just write "Collider collider;" then the collider will always be a generic one
@@ -32,7 +38,9 @@ public:
 		float fric=PHYSICS_DEFAULT_FRICTION,
     	float res=PHYSICS_DEFAULT_RESTITUTION
 		);
-
+	void applyTorque(const Vec3& torque);
 	void applyForce(const Vec3& force);
 	void clearForces();
+	void clearAccum();
+	void updateworldinvinertia();
 };

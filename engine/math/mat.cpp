@@ -42,3 +42,19 @@ Mat3 Mat3::operator*(const Mat3& rhs) const {
     }
     return result;
 }
+Mat3 Mat3::diag(float x, float y, float z) {
+    Mat3 result;
+    result.m[0][0] = x;
+    result.m[1][1] = y;
+    result.m[2][2] = z;
+    return result;
+}
+Mat3 Mat3::operator*(float scalar) const {
+    Mat3 result;
+    for(int i = 0; i < 3; ++i) {
+        for(int j = 0; j < 3; ++j) {
+            result.m[i][j] = m[i][j] * scalar;
+        }
+    }
+    return result;
+}
