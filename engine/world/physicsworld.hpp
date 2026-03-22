@@ -2,6 +2,7 @@
 #include "core/rigidbody.hpp"
 #include "collision/collision.hpp"
 #include "collision/contactmanifold.hpp"
+#include "constraints/distance_constraints.hpp"
 #include <vector>
 #include <cstddef>
 
@@ -10,6 +11,8 @@ private:
 	std::vector<Rigidbody> bodies;
 	std::vector<ContactManifold> manifolds;
 	std::vector<ContactManifold> prev_manifolds;
+
+	std::vector<DistanceConstraint> constraints;
 	Vec3 gravity;
 	BodyID next_body_id;
 public: 
@@ -27,7 +30,29 @@ public:
 	void clear_manifolds();
 	void generate_manifolds();
 	void match_manifolds();
-	void solve_manifolds_vel(); //it solves for velocity
+	void solve_manifolds_vel_iteration(); //it solves for velocity (1 iteration only)
 	void solve_manifolds_pos();//it is solves for position overlapping
 	void warm_start_manifolds();
+
+
+	//methods for constraints
+	void addDistanceConstraints(
+		std::uint32_t a_id,
+		std::uint32_t b_id,
+		float rest_length,
+		DistanceConstraint::TYPE type,
+		float stiffness,
+		float damping
+	);
+	void solve_constraints_vel(float dt);
+	void warm_start_constraints();
 };
+
+static void solve_1D_constraint(
+	Rigidbody& a,
+    Rigidbody& b,
+    const Vec3& normal,
+    float& accumulated_impulse,
+    float bias,
+    float min_impulse,
+    float max_impulse);

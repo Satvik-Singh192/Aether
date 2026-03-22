@@ -112,7 +112,14 @@ void PhysicsWorld::step(float dt)
 		}
 	}
 	warm_start_manifolds();
-	solve_manifolds_vel();
+	warm_start_constraints();
+	const int iterations = PHYSICS_VEL_SOLVER_ITERATION;
+
+	for (int i = 0; i < iterations; i++)
+	{
+		solve_manifolds_vel_iteration();
+		solve_constraints_vel(dt);
+	}
 	solve_manifolds_pos();
 
 	for (auto &body : bodies)
@@ -298,12 +305,9 @@ void PhysicsWorld::warm_start_manifolds()
 	}
 }
 
-void PhysicsWorld::solve_manifolds_vel()
-{
-	const int iterations = PHYSICS_VEL_SOLVER_ITERATION;
+void PhysicsWorld::solve_manifolds_vel_iteration()
+{ //now it solves only 1 iteration of manifold , we move the iteration outside this function
 	const float RESTITUTION_VELOCITY_THRESHOLD = 0.1f;
-	for (int i = 0; i < iterations; i++)
-	{
 		for (auto &m : manifolds)
 		{
 			Rigidbody &a = *m.a;
@@ -372,7 +376,6 @@ void PhysicsWorld::solve_manifolds_vel()
 				b.velocity += friction_impulse * b.inverse_mass;
 			}
 		}
-	}
 }
 
 void PhysicsWorld::solve_manifolds_pos()
@@ -407,5 +410,145 @@ void PhysicsWorld::solve_manifolds_pos()
 				b.position += correction * b.inverse_mass;
 			}
 		}
+	}
+}
+
+
+//methods for constraints
+void PhysicsWorld::addDistanceConstraints(
+		std::uint32_t a_id,
+		std::uint32_t b_id,
+		float rest_length,
+		DistanceConstraint::TYPE type,
+		float stiffness,
+		float damping){
+		Rigidbody* a=nullptr;
+		Rigidbody* b=nullptr;
+
+		for(auto& body:bodies){
+			if(body.id==a_id)a=&body;
+			if(body.id==b_id)b=&body;
+		}
+		if(!a || !b){
+			std::cout<<"id requested when creating constraints was not found in bodies\n"<<a_id<<' '<<b_id<<'\n';
+			return;
+		}
+		constraints.push_back({
+        a,
+        b,
+        rest_length,
+        0.0f,
+        stiffness,
+        damping,
+        type
+    });
+
+}
+
+static void solve_1D_constraint(
+	Rigidbody& a,
+    Rigidbody& b,
+    const Vec3& normal,
+    float& accumulated_impulse,
+    float bias,
+    float min_impulse,
+    float max_impulse){
+
+	/*
+	this function is used to solve hard constrain (rod and rope). rope must be handeled sepratel
+	*/
+
+	Vec3 relvel=b.velocity-a.velocity;
+	float rel=relvel.dot(normal);
+
+	float inv_mass=a.inverse_mass+b.inverse_mass;
+	if(inv_mass==0.0f)return;
+
+	float j=-(rel+bias)/inv_mass;
+
+	float prev=accumulated_impulse;
+	accumulated_impulse = std::max(min_impulse, std::min(prev + j, max_impulse));
+	j=accumulated_impulse-prev;
+
+	Vec3 impulse=normal*j;
+
+	a.velocity-=impulse*a.inverse_mass;
+    b.velocity+=impulse*b.inverse_mass;
+}
+
+void PhysicsWorld::solve_constraints_vel(float dt){
+	for(auto&c:constraints){
+
+		Vec3 delta=c.b->position-c.a->position;
+		float dist=delta.length();
+		if(dist<PHYSICS_EPSILON)continue;
+
+		Vec3 n=delta*(1.0f/dist);
+		float error=dist-c.rest_length; //positive: too far, negative: too close
+
+		if(c.type==DistanceConstraint::ROPE&&error<0.0f){
+			c.accumulated_impulse = 0.0f;
+			continue;
+		}
+
+		if(c.type==DistanceConstraint::SPRING){
+			//special handling for spring cuz no force is applied differently in rod and rope
+			Vec3 relvel=c.b->velocity-c.a->velocity;
+			float rel=relvel.dot(n);
+
+			float force = -c.stiffness * error - c.damping * rel;
+			float j = force * dt;
+			float maxJ = 10.0f; //clamp to prevent exploion
+			j = std::max(-maxJ, std::min(j, maxJ));
+			Vec3 impulse=n*j;
+			c.a->velocity-=impulse*c.a->inverse_mass;
+			c.b->velocity+=impulse*c.b->inverse_mass;
+
+			continue;
+		}
+
+		// Baumgarte stabilization: bias helps correct constraint drift
+		float beta=0.2f;
+		float bias=beta*error/dt;
+
+		float min_impulse, max_impulse;
+		if(c.type==DistanceConstraint::ROPE) {
+			min_impulse = -FLT_MAX;  // Allow pulling
+			max_impulse = 0.0f;      // Prevent pushing
+		} else {
+			min_impulse = -FLT_MAX;
+			max_impulse = FLT_MAX;
+		}
+
+		solve_1D_constraint(
+			*c.a,
+			*c.b,
+			n,
+			c.accumulated_impulse,
+			bias,
+			min_impulse,
+			max_impulse
+		);
+	}
+}
+
+void PhysicsWorld::warm_start_constraints(){
+	for (auto& c:constraints){
+		Vec3 delta=c.b->position-c.a->position;
+		float dist=delta.length();
+		if (dist<PHYSICS_EPSILON) continue;
+
+		float error=dist-c.rest_length;
+
+		// Skip warm start for slack ropes - they cannot pull
+		if(c.type==DistanceConstraint::ROPE&&error<0.0f){
+			continue;
+		}
+
+		Vec3 n=delta*(1.0f/dist);
+		Vec3 impulse=n*c.accumulated_impulse;
+
+		c.a->velocity-=impulse*c.a->inverse_mass;
+		c.b->velocity+=impulse*c.b->inverse_mass;
 	}
 }

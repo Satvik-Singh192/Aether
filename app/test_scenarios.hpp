@@ -19,7 +19,14 @@ enum class TestCase
     SlidingRampRow,
     ChainCollide,
     RandomScatter,
-    StressTestLarge
+    StressTestLarge,
+    RopeBasic,
+    RodBasic,
+    SpringBasic,
+    RopeChain,
+    RodChain,
+    SoftBody,
+    RopeCollision,
 };
 
 void LoadSingleTestScenario(PhysicsWorld &world, TestCase test_case);
