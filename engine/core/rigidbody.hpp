@@ -40,6 +40,7 @@ public:
 		);
 	void applyTorque(const Vec3& torque);
 	void applyForce(const Vec3& force);
+	void clearForces();
 	void clearAccum();
 	void updateworldinvinertia();
 };
