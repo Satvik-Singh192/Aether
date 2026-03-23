@@ -79,6 +79,19 @@ void PhysicsWorld::validate_body(Rigidbody &body)
 
 void PhysicsWorld::step(float dt)
 {
+	// Resolve constraint pointers - they may be invalid after vector reallocation
+	for(auto& c : constraints){
+		c.a = nullptr;
+		c.b = nullptr;
+		for(auto& body : bodies){
+			if(body.id == c.a_id) c.a = &body;
+			if(body.id == c.b_id) c.b = &body;
+		}
+		if(!c.a || !c.b){
+			std::cout << "Constraint references missing body!\n";
+		}
+	}
+
 	for (auto &body : bodies)
 	{
 		if (body.inverse_mass == 0.0f)
@@ -428,14 +441,16 @@ void PhysicsWorld::addDistanceConstraints(
 			return;
 		}
 		constraints.push_back({
-        a,
-        b,
-        rest_length,
-        0.0f,
-        stiffness,
-        damping,
-        type
-    });
+		a_id,
+		b_id,
+		a,
+		b,
+		rest_length,
+		0.0f,
+		stiffness,
+		damping,
+		type
+	});
 
 }
 
