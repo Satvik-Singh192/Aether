@@ -1,8 +1,11 @@
 #pragma once
 #include"core/rigidbody.hpp"
 #include"math/vec3.hpp"
+#include<cstdint>
 
 struct DistanceConstraint{
+    std::uint32_t a_id;
+    std::uint32_t b_id;
     Rigidbody *a;
     Rigidbody *b;
     float rest_length; // distance bw the bodies
