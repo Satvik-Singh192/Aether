@@ -208,15 +208,113 @@ namespace
             world.addBody(Rigidbody(position, Vec3(0.0f, 0.0f, 0.0f), &g_small_box, 1.0f));
         }
     }
+    void spawn_rope_basic(PhysicsWorld &world)
+{
+    auto id1 = world.addBody(Rigidbody(Vec3(0, 5, 0), Vec3(), &g_small_sphere, 1.0f));
+    auto id2 = world.addBody(Rigidbody(Vec3(0, 8, 0), Vec3(), &g_small_sphere, 1.0f));
 
+    world.addDistanceConstraints(id1, id2, 2.0f, DistanceConstraint::ROPE,0.0f,0.0f);
+}
+    void spawn_rod_basic(PhysicsWorld &world)
+{
+    auto id1 = world.addBody(Rigidbody(Vec3(-2, 5, 0), Vec3(), &g_small_box, 1.0f));
+    auto id2 = world.addBody(Rigidbody(Vec3(2, 5, 0), Vec3(), &g_small_box, 1.0f));
+
+    world.addDistanceConstraints(id1, id2, 4.0f, DistanceConstraint::ROD,0.5f,0.5f);
+}
+    void spawn_spring_basic(PhysicsWorld &world)
+{
+    auto id1 = world.addBody(Rigidbody(Vec3(0, 5, 0), Vec3(), &g_small_sphere, 1.0f));
+    auto id2 = world.addBody(Rigidbody(Vec3(0, 10, 0), Vec3(), &g_small_sphere, 1.0f));
+
+    world.addDistanceConstraints(id1, id2, 3.0f, DistanceConstraint::SPRING, 1.0f, 1.0f);
+}
+    void spawn_rope_chain(PhysicsWorld &world)
+{
+    const int N = 10;
+    std::vector<std::uint32_t> ids;
+
+    for (int i = 0; i < N; i++)
+    {
+        ids.push_back(
+            world.addBody(Rigidbody(Vec3(0, 8 - i * 0.8f, 0), Vec3(), &g_small_sphere, 1.0f))
+        );
+    }
+
+    for (int i = 0; i < N - 1; i++)
+    {
+        world.addDistanceConstraints(ids[i], ids[i + 1], 0.8f, DistanceConstraint::ROPE,0.5f,0.5f);
+    }
+}
+    void spawn_rod_chain(PhysicsWorld &world)
+{
+    const int N = 8;
+    std::vector<std::uint32_t> ids;
+
+    for (int i = 0; i < N; i++)
+    {
+        ids.push_back(
+            world.addBody(Rigidbody(Vec3(-5 + i * 1.2f, 6, 0), Vec3(), &g_small_box, 1.0f))
+        );
+    }
+
+    for (int i = 0; i < N - 1; i++)
+    {
+        world.addDistanceConstraints(ids[i], ids[i + 1], 1.2f, DistanceConstraint::ROD,0.5f,0.5f);
+    }
+}
+void spawn_soft_body_grid(PhysicsWorld &world)
+{
+    const int W = 5;
+    const int H = 5;
+
+    std::uint32_t ids[W][H];
+
+    for (int i = 0; i < W; i++)
+    {
+        for (int j = 0; j < H; j++)
+        {
+            ids[i][j] = world.addBody(
+                Rigidbody(Vec3(i * 1.0f, 8 + j * 1.0f, 0), Vec3(), &g_small_sphere, 0.8f)
+            );
+        }
+    }
+
+    for (int i = 0; i < W; i++)
+    {
+        for (int j = 0; j < H; j++)
+        {
+            if (i + 1 < W)
+                world.addDistanceConstraints(ids[i][j], ids[i + 1][j], 1.0f, DistanceConstraint::SPRING, 50.0f, 6.0f);
+
+            if (j + 1 < H)
+                world.addDistanceConstraints(ids[i][j], ids[i][j + 1], 1.0f, DistanceConstraint::SPRING, 50.0f, 6.0f);
+        }
+    }
+}
+void spawn_rope_with_collision(PhysicsWorld &world)
+{
+    add_floor(world);
+
+    auto id1 = world.addBody(Rigidbody(Vec3(0, 8, 0), Vec3(), &g_small_sphere, 1.0f));
+    auto id2 = world.addBody(Rigidbody(Vec3(0, 6, 0), Vec3(), &g_small_sphere, 1.0f));
+
+    world.addDistanceConstraints(id1, id2, 2.0f, DistanceConstraint::ROPE,0.0f,0.0f);
+
+    // drop box onto rope
+    world.addBody(Rigidbody(Vec3(0, 12, 0), Vec3(), &g_small_box, 2.0f));
 }
 
+
+
+}
 void LoadSingleTestScenario(PhysicsWorld &world, TestCase test_case)
 {
     add_floor(world);
 
     switch (test_case)
     {
+    // ===== Existing =====
     case TestCase::SphereSphere:
         spawn_sphere_sphere_case(world);
         break;
@@ -262,6 +360,38 @@ void LoadSingleTestScenario(PhysicsWorld &world, TestCase test_case)
     case TestCase::StressTestLarge:
         spawn_stress_test_large(world);
         break;
+
+    // ===== NEW CONSTRAINT TESTS =====
+
+    case TestCase::RopeBasic:
+        spawn_rope_basic(world);
+        break;
+
+    case TestCase::RodBasic:
+        spawn_rod_basic(world);
+        break;
+
+    case TestCase::SpringBasic:
+        spawn_spring_basic(world);
+        break;
+
+    case TestCase::RopeChain:
+        spawn_rope_chain(world);
+        break;
+
+    case TestCase::RodChain:
+        spawn_rod_chain(world);
+        break;
+
+    case TestCase::SoftBody:
+        spawn_soft_body_grid(world);
+        break;
+
+    case TestCase::RopeCollision:
+        spawn_rope_with_collision(world);
+        break;
+
+    // ===== Default =====
     case TestCase::BoxSphereRamp:
     default:
         spawn_box_sphere_ramp_case(world);

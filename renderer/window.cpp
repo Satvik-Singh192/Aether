@@ -125,6 +125,20 @@ void CreateWindow(PhysicsWorld &world)
 		ImGui::NewFrame();
 
 		ImGui::Begin("Simulation Controls");
+		{
+			bool wf = GetBodyDrawWireframeMode();
+			if (ImGui::Checkbox("Wireframe mode", &wf))
+				SetBodyDrawWireframeMode(wf);
+			ImGui::TextDisabled("(off = shaded solid bodies)");
+			float br = 1.0f;
+			float bg = 1.0f;
+			float bb = 1.0f;
+			GetBodyTint(br, bg, bb);
+			float tint[3] = {br, bg, bb};
+			if (ImGui::ColorEdit3("Body color tint", tint))
+				SetBodyTint(tint[0], tint[1], tint[2]);
+			ImGui::TextDisabled("Multiplies per-body colors; floor uses fixed grey.");
+		}
 		if (ImGui::Button(isSimulationPaused ? "Resume Physics" : "Pause Physics"))
 		{
 			isSimulationPaused = !isSimulationPaused;
