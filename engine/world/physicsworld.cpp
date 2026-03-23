@@ -2,6 +2,7 @@
 #include "collision/manifolds/manifold_builders.hpp"
 #include <utility>
 #include <vector>
+#include <cfloat>
 
 PhysicsWorld::PhysicsWorld() : gravity(0.0f, PHYSICS_GRAVITY, 0.0f), next_body_id(1) {}
 
@@ -97,7 +98,30 @@ void PhysicsWorld::step(float dt)
 		body.velocity += acceleration * dt;
 		body.position += body.velocity * dt;
 
-		body.clearForces();
+		//body.clearForces();
+	}
+	for(auto &body :bodies){
+		if(body.inverse_mass==0.0f)
+		continue;
+		body.updateworldinvinertia();
+		Vec3 angAcc =body.inverse_inertia_world*body.acctork;
+		body.angvel+=angAcc*dt;
+		Quat omega(0.0f, body.angvel.x, body.angvel.y, body.angvel.z);
+		Quat qdot=(omega*body.orientation)*0.5f;
+		body.orientation=body.orientation+qdot*dt;
+		body.orientation=body.orientation.normalised();
+		body.angvel=body.angvel*ANGULAR_DAMPING;
+		const float ANG_SLEEP = 0.001f;
+        if (body.angvel.dot(body.angvel) < ANG_SLEEP * ANG_SLEEP) {
+            body.angvel = Vec3();
+        }
+
+
+	}
+	for(auto &body:bodies){
+		if(body.inverse_mass==0.0f)
+		continue;
+		body.clearAccum();
 	}
 	prev_manifolds = manifolds;
 	clear_manifolds();
