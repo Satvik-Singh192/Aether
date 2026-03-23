@@ -27,6 +27,13 @@ enum class TestCase
     RodChain,
     SoftBody,
     RopeCollision,
+    AngularTorque,
+    AngularImpact,
+    AngularStack,
+    OffCenterHit,
+    BoxCornerCollision,
+    StackTipping,
+    SphereRolling,
 };
 
 void LoadSingleTestScenario(PhysicsWorld &world, TestCase test_case);

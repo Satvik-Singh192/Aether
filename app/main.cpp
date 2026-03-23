@@ -7,7 +7,7 @@ int main()
 {
     PhysicsWorld world;
 
-    const TestCase active_case = TestCase::SpringBasic;
+    const TestCase active_case = TestCase::BoxRamp;
     LoadSingleTestScenario(world, active_case);
 
     CreateWindow(world);

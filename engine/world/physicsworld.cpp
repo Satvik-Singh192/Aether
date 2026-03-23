@@ -132,7 +132,12 @@ void PhysicsWorld::step(float dt)
 		for (int i = 0; i < m.contact_count; i++)
 		{
 			Contact &c = m.contacts[i];
-			c.pre_solve_normal_velocity = (c.b->velocity - c.a->velocity).dot(c.normal);
+			c.rA=c.contact_point - c.a->position;
+			c.rB=c.contact_point - c.b->position;
+			//vel k liye linear + r x w
+			Vec3 vA = c.a->velocity+c.a->angvel.cross(c.rA);
+			Vec3 vB = c.b->velocity + c.b->angvel.cross(c.rB);
+			c.pre_solve_normal_velocity = (vB-vA).dot(c.normal);
 		}
 	}
 	warm_start_manifolds();
@@ -325,6 +330,8 @@ void PhysicsWorld::warm_start_manifolds()
 			Vec3 impulse = pn + pt;
 			a.velocity -= impulse * a.inverse_mass;
 			b.velocity += impulse * b.inverse_mass;
+			a.angvel -= a.inverse_inertia_world * c.rA.cross(impulse);
+			b.angvel += b.inverse_inertia_world * c.rB.cross(impulse);
 		}
 	}
 }
@@ -344,8 +351,9 @@ void PhysicsWorld::solve_manifolds_vel_iteration()
 				float total_invmass = a.inverse_mass + b.inverse_mass;
 				if (total_invmass == 0.0f)
 					continue; // contact bw 2 imovable objects must be ignoreeded
-
-				Vec3 rel_vel = b.velocity - a.velocity; // following the A to B convention
+				Vec3 vA = a.velocity + a.angvel.cross(c.rA);
+				Vec3 vB = b.velocity + b.angvel.cross(c.rB);
+				Vec3 rel_vel = vB-vA; // following the A to B convention
 				float relvel_along_normal = rel_vel.dot(c.normal);
 
 				float target_post_normal_velocity = 0.0f;
@@ -353,8 +361,15 @@ void PhysicsWorld::solve_manifolds_vel_iteration()
 				{
 					target_post_normal_velocity = -c.restitution * c.pre_solve_normal_velocity;
 				}
+				Vec3 raXn = c.rA.cross(c.normal);
+				Vec3 rbXn = c.rB.cross(c.normal);
 
-				float jn = (target_post_normal_velocity - relvel_along_normal) / total_invmass;
+				Vec3 angA = a.inverse_inertia_world * raXn;
+				Vec3 angB = b.inverse_inertia_world * rbXn;
+
+				float kNormal = a.inverse_mass + b.inverse_mass + c.normal.dot(angA.cross(c.rA) + angB.cross(c.rB));
+				if (kNormal <= PHYSICS_EPSILON) continue;
+				float jn = (target_post_normal_velocity - relvel_along_normal) / kNormal;
 
 				float prev_normal_impulse = c.accumulated_normal_impulse;
 				c.accumulated_normal_impulse = std::max(prev_normal_impulse + jn, 0.0f);
@@ -365,9 +380,14 @@ void PhysicsWorld::solve_manifolds_vel_iteration()
 
 				a.velocity -= impulse * a.inverse_mass;
 				b.velocity += impulse * b.inverse_mass;
+				a.angvel-=a.inverse_inertia_world*c.rA.cross(impulse);
+				b.angvel+=b.inverse_inertia_world*c.rB.cross(impulse);
 
 				// lets handle friction now
-				rel_vel = b.velocity - a.velocity; // recompute cuz it was updated during normal resolution
+				// Recompute velocity at contact point with NEW velocities after normal impulse
+				vA = a.velocity + a.angvel.cross(c.rA);
+				vB = b.velocity + b.angvel.cross(c.rB);
+				rel_vel = vB - vA;
 				Vec3 tangent = rel_vel - c.normal * rel_vel.dot(c.normal);
 				float tangent_length = tangent.length();
 				if (tangent_length > PHYSICS_EPSILON)
@@ -384,7 +404,15 @@ void PhysicsWorld::solve_manifolds_vel_iteration()
 				}
 
 				float jt = -rel_vel.dot(tangent);
-				jt /= total_invmass;
+				Vec3 raXt = c.rA.cross(tangent);
+				Vec3 rbXt = c.rB.cross(tangent);
+
+				Vec3 angTA = a.inverse_inertia_world * raXt;
+				Vec3 angTB = b.inverse_inertia_world * rbXt;
+
+				float kTangent = a.inverse_mass + b.inverse_mass + tangent.dot(angTA.cross(c.rA) + angTB.cross(c.rB));
+				if (kTangent <= PHYSICS_EPSILON) continue;
+				jt /= kTangent;
 
 				float prev_tangent_impulse = c.accumulated_tangent_impulse;
 
@@ -398,6 +426,8 @@ void PhysicsWorld::solve_manifolds_vel_iteration()
 				Vec3 friction_impulse = tangent * delta_tangent;
 				a.velocity -= friction_impulse * a.inverse_mass;
 				b.velocity += friction_impulse * b.inverse_mass;
+				a.angvel -= a.inverse_inertia_world * c.rA.cross(friction_impulse);
+				b.angvel += b.inverse_inertia_world * c.rB.cross(friction_impulse);
 			}
 		}
 }
