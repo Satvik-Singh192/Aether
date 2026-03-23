@@ -2,12 +2,12 @@
 #include "../renderer/window.hpp"
 #include "test_scenarios.hpp"
 
-//BoxRamp
+// BoxRamp
 int main()
 {
     PhysicsWorld world;
 
-    const TestCase active_case = TestCase::SpringBasic;
+    const TestCase active_case = TestCase::RampDropOnSphere;
     LoadSingleTestScenario(world, active_case);
 
     CreateWindow(world);

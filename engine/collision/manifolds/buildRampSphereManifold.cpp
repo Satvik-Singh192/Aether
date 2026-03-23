@@ -63,62 +63,151 @@ bool buildRampSphereManifold(Rigidbody &A, Rigidbody &B, ContactManifold &manifo
         return false;
     }
 
-    // Project sphere center onto ramp slope line (clamped to segment)
-    const float tUnclamped = (localCenter.x * length + localCenter.y * height) / dirLengthSq;
-    const float t = clampValue(tUnclamped, 0.0f, 1.0f);
+    struct CandidateContact
+    {
+        Vec3 contact_point;
+        float penetration;
+        Vec3 normal;
+    };
 
-    const Vec3 closestOnSlope(length * t, height * t, clampValue(localCenter.z, -halfWidthZ, halfWidthZ));
-    const Vec3 delta = localCenter - closestOnSlope;
-    const float distSq = delta.dot(delta);
+    CandidateContact best_candidate = {};
+    best_candidate.penetration = -1.0f;
 
-    // Check if sphere actually intersects the ramp
-    if (distSq > radius * radius)
+    {
+
+        const float tUnclamped = (localCenter.x * length + localCenter.y * height) / dirLengthSq;
+        const float t = clampValue(tUnclamped, 0.0f, 1.0f);
+
+        const Vec3 closestOnSlope(length * t, height * t, clampValue(localCenter.z, -halfWidthZ, halfWidthZ));
+        const Vec3 delta = localCenter - closestOnSlope;
+        const float distSq = delta.dot(delta);
+
+        if (distSq <= radius * radius)
+        {
+            const float dist = std::sqrt(std::max(0.0f, distSq));
+            const float penetration = radius - dist;
+
+            if (penetration > PHYSICS_EPSILON)
+            {
+                CandidateContact slope_candidate;
+                slope_candidate.contact_point = A.position + closestOnSlope;
+
+                if (dist <= PHYSICS_EPSILON)
+                {
+                    const float mag = std::sqrt(dirLengthSq);
+                    slope_candidate.normal = Vec3(-height / mag, length / mag, 0.0f);
+                }
+                else
+                {
+                    slope_candidate.normal = delta * (1.0f / dist);
+                }
+
+                {
+                    const float mag = std::sqrt(dirLengthSq);
+                    const Vec3 slopeNormal(-height / mag, length / mag, 0.0f);
+                    if (slope_candidate.normal.dot(slopeNormal) < 0.0f)
+                        slope_candidate.normal = slope_candidate.normal * -1.0f;
+                }
+
+                slope_candidate.penetration = penetration;
+
+                if (slope_candidate.penetration > best_candidate.penetration)
+                    best_candidate = slope_candidate;
+            }
+        }
+    }
+
+    {
+        const Vec3 bottomClosest(
+            clampValue(localCenter.x, 0.0f, length),
+            0.0f,
+            clampValue(localCenter.z, -halfWidthZ, halfWidthZ));
+        const Vec3 delta = localCenter - bottomClosest;
+        const float distSq = delta.dot(delta);
+
+        if (distSq <= radius * radius)
+        {
+            const float dist = std::sqrt(std::max(0.0f, distSq));
+            const float penetration = radius - dist;
+
+            if (penetration > PHYSICS_EPSILON)
+            {
+                CandidateContact bottom_candidate;
+                bottom_candidate.contact_point = A.position + bottomClosest;
+
+                if (dist <= PHYSICS_EPSILON)
+                {
+                    bottom_candidate.normal = Vec3(0.0f, -1.0f, 0.0f);
+                }
+                else
+                {
+                    bottom_candidate.normal = delta * (1.0f / dist);
+                    if (bottom_candidate.normal.y > 0.0f)
+                        bottom_candidate.normal = bottom_candidate.normal * -1.0f;
+                }
+
+                bottom_candidate.penetration = penetration;
+
+                if (bottom_candidate.penetration > best_candidate.penetration)
+                    best_candidate = bottom_candidate;
+            }
+        }
+    }
+
+    {
+        const Vec3 backClosest(
+            length,
+            clampValue(localCenter.y, 0.0f, height),
+            clampValue(localCenter.z, -halfWidthZ, halfWidthZ));
+        const Vec3 delta = localCenter - backClosest;
+        const float distSq = delta.dot(delta);
+
+        if (distSq <= radius * radius)
+        {
+            const float dist = std::sqrt(std::max(0.0f, distSq));
+            const float penetration = radius - dist;
+
+            if (penetration > PHYSICS_EPSILON)
+            {
+                CandidateContact back_candidate;
+                back_candidate.contact_point = A.position + backClosest;
+
+                if (dist <= PHYSICS_EPSILON)
+                {
+                    back_candidate.normal = Vec3(1.0f, 0.0f, 0.0f);
+                }
+                else
+                {
+                    back_candidate.normal = delta * (1.0f / dist);
+                    if (back_candidate.normal.x < 0.0f)
+                        back_candidate.normal = back_candidate.normal * -1.0f;
+                }
+
+                back_candidate.penetration = penetration;
+
+                if (back_candidate.penetration > best_candidate.penetration)
+                    best_candidate = back_candidate;
+            }
+        }
+    }
+
+    if (best_candidate.penetration <= PHYSICS_EPSILON)
         return false;
 
-    // Compute distance to surface
-    const float dist = std::sqrt(std::max(0.0f, distSq));
-    const float penetration = radius - dist;
+    // Validate best contact
+    if (!isValidVec3(best_candidate.normal) || best_candidate.normal.length() <= PHYSICS_EPSILON)
+        return false;
+    best_candidate.normal = best_candidate.normal.normalized();
 
-    if (penetration <= PHYSICS_EPSILON)
+    if (!isValidVec3(best_candidate.contact_point) || !isValidFloat(best_candidate.penetration))
         return false;
 
-    // Compute contact normal
-    Vec3 normal;
-    if (dist <= PHYSICS_EPSILON)
-    {
-        // Sphere center is very close to slope, use slope normal
-        const float mag = std::sqrt(dirLengthSq);
-        if (mag <= PHYSICS_EPSILON)
-            return false;
-        normal = Vec3(-height / mag, length / mag, 0.0f);
-    }
-    else
-    {
-        // Normal points from closest point toward sphere center
-        normal = delta * (1.0f / dist);
-    }
-
-    // Ensure normal points toward sphere (away from ramp)
-    {
-        const float mag = std::sqrt(dirLengthSq);
-        if (mag <= PHYSICS_EPSILON)
-            return false;
-        const Vec3 slopeNormal(-height / mag, length / mag, 0.0f);
-        if (normal.dot(slopeNormal) < 0.0f)
-            normal = normal * -1.0f;
-    }
-
-    if (!isValidVec3(normal) || normal.length() <= PHYSICS_EPSILON)
-        return false;
-    normal = normal.normalized();
-
-    // Build single contact
     Contact c;
     c.a = &A;
     c.b = &B;
-    c.normal = normal;
-    c.penetration = penetration;
-    c.contact_point = A.position + closestOnSlope;
+    c.normal = best_candidate.normal;
+    c.penetration = best_candidate.penetration;
+    c.contact_point = best_candidate.contact_point;
     c.restitution = (A.restitution + B.restitution) * 0.5f;
     c.friction_coeff = std::sqrt(A.friction * B.friction);
 
@@ -128,10 +217,6 @@ bool buildRampSphereManifold(Rigidbody &A, Rigidbody &B, ContactManifold &manifo
         return false;
     }
 
-    std::cout << "RampSphere Penetration: " << c.penetration << "\n";
-    std::cout << "RampSphere Normal: " << c.normal << "\n";
-
-    // Build manifold
     manifold.a = &A;
     manifold.b = &B;
     manifold.a_id = A.id;
