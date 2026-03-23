@@ -64,6 +64,7 @@ add_executable(Aether_Test
     renderer/window.cpp 
     renderer/camera.cpp
     renderer/drawbodies.cpp
+    renderer/bodyshaders.cpp
     renderer/bodymenu.cpp
 )
 
