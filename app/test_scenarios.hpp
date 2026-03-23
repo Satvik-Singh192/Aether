@@ -34,6 +34,8 @@ enum class TestCase
     BoxCornerCollision,
     StackTipping,
     SphereRolling,
+    RampDropOnSphere,
+    RampRampStress,
 };
 
 void LoadSingleTestScenario(PhysicsWorld &world, TestCase test_case);

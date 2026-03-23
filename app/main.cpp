@@ -2,7 +2,7 @@
 #include "../renderer/window.hpp"
 #include "test_scenarios.hpp"
 
-//BoxRamp
+// BoxRamp
 int main()
 {
     PhysicsWorld world;

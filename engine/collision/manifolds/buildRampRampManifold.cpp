@@ -2,7 +2,9 @@
 #include "collision/collision.hpp"
 #include "core/ramp_collider.hpp"
 #include <algorithm>
+#include <cfloat>
 #include <cmath>
+#include <iostream>
 #include <vector>
 
 namespace
@@ -15,6 +17,29 @@ namespace
     bool isValidVec3(const Vec3 &v)
     {
         return isValidFloat(v.x) && isValidFloat(v.y) && isValidFloat(v.z);
+    }
+
+    bool overlaps1D(float minA, float maxA, float minB, float maxB)
+    {
+        return maxA >= minB && maxB >= minA;
+    }
+
+    float computeAabbOverlapOnAxis(const Vec3 &axisN,
+                                   const Vec3 &centerA,
+                                   const Vec3 &halfA,
+                                   const Vec3 &centerB,
+                                   const Vec3 &halfB)
+    {
+        const float distance = std::abs((centerB - centerA).dot(axisN));
+        const float radiusA =
+            std::abs(axisN.x) * halfA.x +
+            std::abs(axisN.y) * halfA.y +
+            std::abs(axisN.z) * halfA.z;
+        const float radiusB =
+            std::abs(axisN.x) * halfB.x +
+            std::abs(axisN.y) * halfB.y +
+            std::abs(axisN.z) * halfB.z;
+        return radiusA + radiusB - distance;
     }
 
     Vec3 buildSlopeNormal(const RampCollider &ramp)
@@ -44,21 +69,6 @@ namespace
         return std::abs(local.z) <= ramp.getHalfWidthZ() + 0.05f;
     }
 
-    std::vector<Vec3> getSlopeCorners(const Rigidbody &body, const RampCollider &ramp)
-    {
-        const float z = ramp.getHalfWidthZ();
-        const Vec3 p0 = body.position;
-        const Vec3 p1 = body.position + Vec3(ramp.getLength(), ramp.getHeight(), 0.0f);
-
-        std::vector<Vec3> corners;
-        corners.reserve(4);
-        corners.push_back(p0 + Vec3(0.0f, 0.0f, z));
-        corners.push_back(p0 + Vec3(0.0f, 0.0f, -z));
-        corners.push_back(p1 + Vec3(0.0f, 0.0f, z));
-        corners.push_back(p1 + Vec3(0.0f, 0.0f, -z));
-        return corners;
-    }
-
     void pushUniqueContact(std::vector<Contact> &contacts, const Contact &c)
     {
         constexpr float kMinDistSq = 0.0004f;
@@ -71,27 +81,35 @@ namespace
         contacts.push_back(c);
     }
 
-    void addProjectedCandidates(const Rigidbody &srcBody, const RampCollider &srcRamp,
-                                const Rigidbody &dstBody, const RampCollider &dstRamp,
-                                Vec3 planeNormal, const Contact &baseContact,
-                                std::vector<Contact> &out)
+    std::vector<Vec3> getRampVertices(const Rigidbody &body, const RampCollider &ramp)
     {
-        if (planeNormal.length() <= PHYSICS_EPSILON)
-            return;
+        std::vector<Vec3> verts;
+        const float L = ramp.getLength();
+        const float H = ramp.getHeight();
+        const float W = ramp.getHalfWidthZ();
+        const Vec3 p = body.position;
 
-        for (const Vec3 &corner : getSlopeCorners(srcBody, srcRamp))
+        verts.push_back(p + Vec3(0.0f, 0.0f, -W));
+        verts.push_back(p + Vec3(L, 0.0f, -W));
+        verts.push_back(p + Vec3(0.0f, 0.0f, W));
+        verts.push_back(p + Vec3(L, 0.0f, W));
+
+        verts.push_back(p + Vec3(L, H, -W));
+        verts.push_back(p + Vec3(L, H, W));
+
+        return verts;
+    }
+
+    void projectVertices(const std::vector<Vec3> &verts, const Vec3 &axis, float &minProj, float &maxProj)
+    {
+        minProj = FLT_MAX;
+        maxProj = -FLT_MAX;
+
+        for (const Vec3 &v : verts)
         {
-            const float signedDistance = (corner - dstBody.position).dot(planeNormal);
-            if (signedDistance > 0.0f)
-                continue;
-
-            const Vec3 projected = corner - planeNormal * signedDistance;
-            if (!isPointOnRampSlope(dstBody, dstRamp, projected))
-                continue;
-
-            Contact c = baseContact;
-            c.contact_point = projected;
-            pushUniqueContact(out, c);
+            const float proj = v.dot(axis);
+            minProj = std::min(minProj, proj);
+            maxProj = std::max(maxProj, proj);
         }
     }
 }
@@ -99,83 +117,179 @@ namespace
 // A and B are ramps.
 bool buildRampRampManifold(Rigidbody &A, Rigidbody &B, ContactManifold &manifold)
 {
-    Contact baseContact;
-    if (!buildRampRampContact(A, B, baseContact))
-    {
-        return false;
-    }
-
-    if (!isValidVec3(baseContact.normal) || !isValidFloat(baseContact.penetration) ||
-        baseContact.penetration <= 0.0f || baseContact.penetration > 100.0f)
-    {
-        return false;
-    }
-
     auto *rampA = static_cast<RampCollider *>(A.collider);
     auto *rampB = static_cast<RampCollider *>(B.collider);
+
     if (!rampA || !rampB)
         return false;
 
-    Vec3 nA = buildSlopeNormal(*rampA);
-    Vec3 nB = buildSlopeNormal(*rampB);
-    if (nA.length() <= PHYSICS_EPSILON || nB.length() <= PHYSICS_EPSILON)
+    const float lengthA = rampA->getLength();
+    const float lengthB = rampB->getLength();
+    const float heightA = rampA->getHeight();
+    const float heightB = rampB->getHeight();
+
+    // Validate both ramps have reasonable dimensions
+    if (std::abs(lengthA) <= PHYSICS_EPSILON || std::abs(lengthB) <= PHYSICS_EPSILON ||
+        std::abs(heightA) <= PHYSICS_EPSILON || std::abs(heightB) <= PHYSICS_EPSILON)
         return false;
 
-    if (nA.dot(baseContact.normal) < 0.0f)
-        nA = nA * -1.0f;
+    float aMinX = std::min(A.position.x, A.position.x + lengthA);
+    float aMaxX = std::max(A.position.x, A.position.x + lengthA);
+    float aMinY = std::min(A.position.y, A.position.y + heightA);
+    float aMaxY = std::max(A.position.y, A.position.y + heightA);
+    const float aMinZ = A.position.z - rampA->getHalfWidthZ();
+    const float aMaxZ = A.position.z + rampA->getHalfWidthZ();
 
-    // For B plane, orient normal toward A.
-    if (nB.dot(baseContact.normal) > 0.0f)
-        nB = nB * -1.0f;
+    float bMinX = std::min(B.position.x, B.position.x + lengthB);
+    float bMaxX = std::max(B.position.x, B.position.x + lengthB);
+    float bMinY = std::min(B.position.y, B.position.y + heightB);
+    float bMaxY = std::max(B.position.y, B.position.y + heightB);
+    const float bMinZ = B.position.z - rampB->getHalfWidthZ();
+    const float bMaxZ = B.position.z + rampB->getHalfWidthZ();
 
-    std::vector<Contact> candidates;
-    pushUniqueContact(candidates, baseContact);
-
-    addProjectedCandidates(B, *rampB, A, *rampA, nA, baseContact, candidates);
-    addProjectedCandidates(A, *rampA, B, *rampB, nB, baseContact, candidates);
-
-    if (candidates.empty())
+    if (!overlaps1D(aMinX, aMaxX, bMinX, bMaxX) ||
+        !overlaps1D(aMinY, aMaxY, bMinY, bMaxY) ||
+        !overlaps1D(aMinZ, aMaxZ, bMinZ, bMaxZ))
+    {
         return false;
+    }
+
+    const Vec3 centerA((aMinX + aMaxX) * 0.5f, (aMinY + aMaxY) * 0.5f, (aMinZ + aMaxZ) * 0.5f);
+    const Vec3 centerB((bMinX + bMaxX) * 0.5f, (bMinY + bMaxY) * 0.5f, (bMinZ + bMaxZ) * 0.5f);
+
+    const Vec3 halfA((aMaxX - aMinX) * 0.5f, (aMaxY - aMinY) * 0.5f, (aMaxZ - aMinZ) * 0.5f);
+    const Vec3 halfB((bMaxX - bMinX) * 0.5f, (bMaxY - bMinY) * 0.5f, (bMaxZ - bMinZ) * 0.5f);
+
+    const Vec3 normalA = buildSlopeNormal(*rampA);
+    const Vec3 normalB = buildSlopeNormal(*rampB);
+    if (normalA.length() <= PHYSICS_EPSILON || normalB.length() <= PHYSICS_EPSILON)
+        return false;
+
+    float minOverlap = FLT_MAX;
+    Vec3 bestAxis;
+
+    std::vector<Vec3> axes;
+    axes.push_back(normalA);
+    axes.push_back(normalB);
+    axes.push_back(Vec3(1.0f, 0.0f, 0.0f));
+    axes.push_back(Vec3(0.0f, 1.0f, 0.0f));
+    axes.push_back(Vec3(0.0f, 0.0f, 1.0f));
+
+    const Vec3 edgesA[] = {Vec3(lengthA, 0.0f, 0.0f), Vec3(0.0f, heightA, 0.0f), Vec3(0.0f, 0.0f, 1.0f)};
+    const Vec3 edgesB[] = {Vec3(lengthB, 0.0f, 0.0f), Vec3(0.0f, heightB, 0.0f), Vec3(0.0f, 0.0f, 1.0f)};
+
+    for (int i = 0; i < 3; ++i)
+    {
+        for (int j = 0; j < 3; ++j)
+        {
+            const Vec3 crossAxis = edgesA[i].cross(edgesB[j]);
+            const float crossLen = crossAxis.length();
+            if (crossLen > PHYSICS_EPSILON)
+                axes.push_back(crossAxis.normalized());
+        }
+    }
+
+    std::cout << "Axes count: " << axes.size() << "\n";
+
+    const std::vector<Vec3> vertsA = getRampVertices(A, *rampA);
+    const std::vector<Vec3> vertsB = getRampVertices(B, *rampB);
+
+    for (const Vec3 &rawAxis : axes)
+    {
+        const float axisLen = rawAxis.length();
+        if (axisLen <= PHYSICS_EPSILON)
+            return false;
+
+        const Vec3 axis = rawAxis * (1.0f / axisLen);
+        float minA, maxA, minB, maxB;
+        projectVertices(vertsA, axis, minA, maxA);
+        projectVertices(vertsB, axis, minB, maxB);
+
+        const float overlap = std::min(maxA, maxB) - std::max(minA, minB);
+
+        if (!isValidFloat(overlap) || overlap <= PHYSICS_EPSILON)
+            return false;
+
+        if (overlap < minOverlap)
+        {
+            minOverlap = overlap;
+            bestAxis = axis;
+        }
+    }
+
+    if (minOverlap == FLT_MAX)
+        return false;
+
+    if (!isValidVec3(bestAxis) || bestAxis.length() <= PHYSICS_EPSILON)
+        return false;
+
+    Vec3 normal = bestAxis;
+
+    float secondMinOverlap = FLT_MAX;
+    for (const Vec3 &rawAxis : axes)
+    {
+        const float axisLen = rawAxis.length();
+        if (axisLen <= PHYSICS_EPSILON)
+            continue;
+        const Vec3 axis = rawAxis * (1.0f / axisLen);
+        float minA, maxA, minB, maxB;
+        projectVertices(vertsA, axis, minA, maxA);
+        projectVertices(vertsB, axis, minB, maxB);
+        const float overlap = std::min(maxA, maxB) - std::max(minA, minB);
+        if (isValidFloat(overlap) && overlap > PHYSICS_EPSILON && overlap < secondMinOverlap &&
+            !(axis.dot(bestAxis) > 0.99f))
+        {
+            secondMinOverlap = overlap;
+        }
+    }
+
+    if (isValidFloat(secondMinOverlap) && (secondMinOverlap - minOverlap) / minOverlap < 0.05f)
+    {
+        if ((centerB - centerA).length() < 0.01f)
+        {
+            if (A.id > B.id)
+                normal = normal * -1.0f;
+        }
+    }
+
+    if (!isValidVec3(normal) || normal.length() <= PHYSICS_EPSILON)
+        return false;
+
+    if (normal.dot(B.position - A.position) < 0.0f)
+        normal = normal * -1.0f;
+
+    normal = normal.normalized();
+    if (!isValidVec3(normal) || normal.length() <= PHYSICS_EPSILON)
+        return false;
+
+    const float penetration = minOverlap;
+    if (!isValidFloat(penetration) || penetration <= PHYSICS_EPSILON)
+        return false;
+
+    const Vec3 contactPoint = (A.position + B.position) * 0.5f;
+
+    Contact baseContact;
+    baseContact.a = &A;
+    baseContact.b = &B;
+    baseContact.normal = normal;
+    baseContact.penetration = penetration;
+    baseContact.contact_point = contactPoint;
+    baseContact.restitution = (A.restitution + B.restitution) * 0.5f;
+    baseContact.friction_coeff = std::sqrt(A.friction * B.friction);
+
+    if (!isValidVec3(baseContact.normal) || !isValidVec3(baseContact.contact_point) ||
+        !isValidFloat(baseContact.penetration) || baseContact.penetration <= 0.0f)
+    {
+        return false;
+    }
 
     manifold.a = &A;
     manifold.b = &B;
     manifold.a_id = A.id;
     manifold.b_id = B.id;
-    manifold.normal = baseContact.normal;
+    manifold.normal = normal;
+    manifold.contact_count = 1;
+    manifold.contacts[0] = baseContact;
 
-    manifold.contact_count = 0;
-    manifold.contacts[manifold.contact_count++] = candidates[0];
-
-    if (candidates.size() > 1)
-    {
-        float bestDistSq = -1.0f;
-        int bestIdx = -1;
-        for (int i = 1; i < static_cast<int>(candidates.size()); ++i)
-        {
-            const Vec3 d = candidates[i].contact_point - manifold.contacts[0].contact_point;
-            const float distSq = d.dot(d);
-            if (distSq > bestDistSq)
-            {
-                bestDistSq = distSq;
-                bestIdx = i;
-            }
-        }
-
-        if (bestIdx >= 0 && bestDistSq > 0.0004f)
-        {
-            manifold.contacts[manifold.contact_count++] = candidates[bestIdx];
-        }
-    }
-
-    for (int i = 0; i < manifold.contact_count; ++i)
-    {
-        manifold.contacts[i].a = manifold.a;
-        manifold.contacts[i].b = manifold.b;
-        manifold.contacts[i].a_id = manifold.a_id;
-        manifold.contacts[i].b_id = manifold.b_id;
-        manifold.contacts[i].normal = manifold.normal;
-        manifold.contacts[i].penetration = baseContact.penetration;
-    }
-
-    return manifold.contact_count > 0;
+    return true;
 }

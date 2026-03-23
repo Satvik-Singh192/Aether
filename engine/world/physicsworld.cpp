@@ -80,6 +80,19 @@ void PhysicsWorld::validate_body(Rigidbody &body)
 
 void PhysicsWorld::step(float dt)
 {
+	// Resolve constraint pointers - they may be invalid after vector reallocation
+	for(auto& c : constraints){
+		c.a = nullptr;
+		c.b = nullptr;
+		for(auto& body : bodies){
+			if(body.id == c.a_id) c.a = &body;
+			if(body.id == c.b_id) c.b = &body;
+		}
+		if(!c.a || !c.b){
+			std::cout << "Constraint references missing body!\n";
+		}
+	}
+
 	for (auto &body : bodies)
 	{
 		if (body.inverse_mass == 0.0f)
@@ -157,15 +170,18 @@ void PhysicsWorld::step(float dt)
 			continue;
 		body.velocity = body.velocity * PHYSICS_LINEAR_DAMPING;
 		float tangent_speed_sq = body.velocity.x * body.velocity.x + body.velocity.z * body.velocity.z;
-		if (tangent_speed_sq < PHYSICS_RESTING_TANGENT_SLEEP_THRESHOLD * PHYSICS_RESTING_TANGENT_SLEEP_THRESHOLD){
+		if (tangent_speed_sq < PHYSICS_RESTING_TANGENT_SLEEP_THRESHOLD * PHYSICS_RESTING_TANGENT_SLEEP_THRESHOLD)
+		{
 			body.velocity.x = 0.0f;
 			body.velocity.z = 0.0f;
 		}
-		if (std::abs(body.velocity.y) < PHYSICS_RESTING_NORMAL_SLEEP_THRESHOLD){
-				body.velocity.y = 0.0f;
+		if (std::abs(body.velocity.y) < PHYSICS_RESTING_NORMAL_SLEEP_THRESHOLD)
+		{
+			body.velocity.y = 0.0f;
 		}
 		float vel_mag_sq = body.velocity.dot(body.velocity);
-		if (vel_mag_sq < PHYSICS_SLEEP_VELOCITY_THRESHOLD * PHYSICS_SLEEP_VELOCITY_THRESHOLD){
+		if (vel_mag_sq < PHYSICS_SLEEP_VELOCITY_THRESHOLD * PHYSICS_SLEEP_VELOCITY_THRESHOLD)
+		{
 			body.velocity = Vec3();
 		}
 	}
@@ -182,8 +198,6 @@ void PhysicsWorld::generate_manifolds()
 
 			if (!a.collider || !b.collider)
 				continue;
-
-			Contact c;
 			ContactManifold m;
 
 			if (a.collider->type == ShapeType::Sphere &&
@@ -197,7 +211,7 @@ void PhysicsWorld::generate_manifolds()
 			else if (a.collider->type == ShapeType::Sphere &&
 					 b.collider->type == ShapeType::Box)
 			{
-				if (buildBoxSphereManifold(b,a,m))
+				if (buildBoxSphereManifold(b, a, m))
 				{
 					manifolds.push_back(m);
 				}
@@ -221,15 +235,8 @@ void PhysicsWorld::generate_manifolds()
 			else if (a.collider->type == ShapeType::Box &&
 					 b.collider->type == ShapeType::Ramp)
 			{
-				if (buildBoxRampContact(a, b, c))
+				if (buildRampBoxManifold(b, a, m))
 				{
-					m.contacts[0] = c;
-					m.contact_count = 1;
-					m.normal = c.normal;
-					m.a = c.a;
-					m.b = c.b;
-					m.a_id = c.a->id;
-					m.b_id = c.b->id;
 					manifolds.push_back(m);
 				}
 			}
@@ -244,7 +251,7 @@ void PhysicsWorld::generate_manifolds()
 			else if (a.collider->type == ShapeType::Sphere &&
 					 b.collider->type == ShapeType::Ramp)
 			{
-				if (buildRampSphereManifold(b,a,m))
+				if (buildRampSphereManifold(b, a, m))
 				{
 					manifolds.push_back(m);
 				}
@@ -453,7 +460,7 @@ void PhysicsWorld::solve_manifolds_pos()
 				float slop = PHYSICS_PENETRATION_SLOP;
 				float percent = PHYSICS_CORRECTION_PERCENT;
 
-				float penetration = c.penetration;
+				float penetration = c.penetration / static_cast<float>(std::max(1, m.contact_count));
 
 				float correction_mag = std::max(penetration - slop, 0.0f);
 				correction_mag = (correction_mag / total_invmass) * percent;
@@ -488,14 +495,16 @@ void PhysicsWorld::addDistanceConstraints(
 			return;
 		}
 		constraints.push_back({
-        a,
-        b,
-        rest_length,
-        0.0f,
-        stiffness,
-        damping,
-        type
-    });
+		a_id,
+		b_id,
+		a,
+		b,
+		rest_length,
+		0.0f,
+		stiffness,
+		damping,
+		type
+	});
 
 }
 

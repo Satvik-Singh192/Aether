@@ -1,13 +1,43 @@
 #include "collision/collision.hpp"
 #include "core/ramp_collider.hpp"
 #include <algorithm>
+#include <cfloat>
 #include <cmath>
+#include <iostream>
 
 namespace
 {
     bool overlaps1D(float minA, float maxA, float minB, float maxB)
     {
         return maxA >= minB && maxB >= minA;
+    }
+
+    bool isValidFloat(float v)
+    {
+        return std::isfinite(v);
+    }
+
+    bool isValidVec3(const Vec3 &v)
+    {
+        return isValidFloat(v.x) && isValidFloat(v.y) && isValidFloat(v.z);
+    }
+
+    float computeAabbOverlapOnAxis(const Vec3 &axisN,
+                                   const Vec3 &centerA,
+                                   const Vec3 &halfA,
+                                   const Vec3 &centerB,
+                                   const Vec3 &halfB)
+    {
+        const float distance = std::abs((centerB - centerA).dot(axisN));
+        const float radiusA =
+            std::abs(axisN.x) * halfA.x +
+            std::abs(axisN.y) * halfA.y +
+            std::abs(axisN.z) * halfA.z;
+        const float radiusB =
+            std::abs(axisN.x) * halfB.x +
+            std::abs(axisN.y) * halfB.y +
+            std::abs(axisN.z) * halfB.z;
+        return radiusA + radiusB - distance;
     }
 
     Vec3 buildRampNormal(const RampCollider &ramp)
@@ -70,36 +100,52 @@ bool buildRampRampContact(Rigidbody &a, Rigidbody &b, Contact &outContact)
     if (normalA.length() <= PHYSICS_EPSILON || normalB.length() <= PHYSICS_EPSILON)
         return false;
 
-    const float distBToAPlane = (centerB - a.position).dot(normalA);
-    const float projBOnA =
-        std::abs(normalA.x) * halfB.x +
-        std::abs(normalA.y) * halfB.y +
-        std::abs(normalA.z) * halfB.z;
-    const float penetrationA = projBOnA - distBToAPlane;
+    float minOverlap = FLT_MAX;
+    Vec3 bestAxis;
+    const Vec3 axes[] = {
+        normalA,
+        normalB,
+        Vec3(1.0f, 0.0f, 0.0f),
+        Vec3(0.0f, 1.0f, 0.0f),
+        Vec3(0.0f, 0.0f, 1.0f)};
 
-    const float distAToBPlane = (centerA - b.position).dot(normalB);
-    const float projAOnB =
-        std::abs(normalB.x) * halfA.x +
-        std::abs(normalB.y) * halfA.y +
-        std::abs(normalB.z) * halfA.z;
-    const float penetrationB = projAOnB - distAToBPlane;
-
-    if (penetrationA <= 0.0f || penetrationB <= 0.0f)
-        return false;
-
-    Vec3 normal = normalA;
-    float penetration = penetrationA;
-    Vec3 contactPoint = centerB - normalA * distBToAPlane;
-
-    if (penetrationB < penetrationA)
+    for (const Vec3 &rawAxis : axes)
     {
-        normal = normalB * -1.0f;
-        penetration = penetrationB;
-        contactPoint = centerA + normalB * distAToBPlane;
+        const float axisLen = rawAxis.length();
+        if (axisLen <= PHYSICS_EPSILON)
+            return false;
+
+        const Vec3 axis = rawAxis * (1.0f / axisLen);
+        const float overlap = computeAabbOverlapOnAxis(axis, centerA, halfA, centerB, halfB);
+
+        if (!isValidFloat(overlap) || overlap <= PHYSICS_EPSILON)
+            return false;
+
+        if (overlap < minOverlap)
+        {
+            minOverlap = overlap;
+            bestAxis = axis;
+        }
     }
 
-    if ((centerB - centerA).dot(normal) < 0.0f)
+    if (minOverlap == FLT_MAX)
+        return false;
+
+    if (!isValidVec3(bestAxis) || bestAxis.length() <= PHYSICS_EPSILON)
+        return false;
+
+    Vec3 normal = bestAxis.normalized();
+    if (!isValidVec3(normal) || normal.length() <= PHYSICS_EPSILON)
+        return false;
+
+    if (normal.dot(b.position - a.position) < 0.0f)
         normal = normal * -1.0f;
+
+    const float penetration = minOverlap;
+    if (!isValidFloat(penetration) || penetration <= PHYSICS_EPSILON)
+        return false;
+
+    const Vec3 contactPoint = (centerA + centerB) * 0.5f;
 
     outContact = Contact{};
     outContact.a = &a;
@@ -109,6 +155,15 @@ bool buildRampRampContact(Rigidbody &a, Rigidbody &b, Contact &outContact)
     outContact.contact_point = contactPoint;
     outContact.restitution = (a.restitution + b.restitution) * 0.5f;
     outContact.friction_coeff = std::sqrt(a.friction * b.friction);
+
+    if (!isValidVec3(outContact.normal) || !isValidVec3(outContact.contact_point) ||
+        !isValidFloat(outContact.penetration) || outContact.penetration <= PHYSICS_EPSILON)
+    {
+        return false;
+    }
+
+    std::cout << "RampRamp Contact Penetration: " << outContact.penetration << "\n";
+    std::cout << "RampRamp Contact Normal: " << outContact.normal << "\n";
 
     return true;
 }

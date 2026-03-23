@@ -10,7 +10,7 @@ bool buildBoxSphereManifold(Rigidbody &A, Rigidbody &B, ContactManifold &manifol
         return false;
     }
 
-    // buildSphereBoxContact returns A=sphere, B=box; flip to A=box, B=sphere manifold convention.
+ 
     std::swap(c.a, c.b);
     std::swap(c.a_id, c.b_id);
     c.normal = c.normal * -1.0f;
