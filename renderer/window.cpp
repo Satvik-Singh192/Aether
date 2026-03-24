@@ -124,8 +124,13 @@ void CreateWindow(PhysicsWorld &world)
 		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
 
+		ImGui::SetNextWindowSize(ImVec2(360.0f, 0.0f), ImGuiCond_FirstUseEver);
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 10.0f);
+		ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.07f, 0.10f, 0.15f, 0.93f));
 		ImGui::Begin("Simulation Controls");
 		{
+			ImGui::TextColored(ImVec4(0.72f, 0.88f, 1.0f, 1.0f), "Simulation");
+			ImGui::Separator();
 			bool wf = GetBodyDrawWireframeMode();
 			if (ImGui::Checkbox("Wireframe mode", &wf))
 				SetBodyDrawWireframeMode(wf);
@@ -154,6 +159,8 @@ void CreateWindow(PhysicsWorld &world)
 		ImGui::Text("FPS: %.1f", io.Framerate);
 		ImGui::Text("Frame time: %.3f ms", io.Framerate > 0.0f ? (1000.0f / io.Framerate) : 0.0f);
 		ImGui::End();
+		ImGui::PopStyleColor();
+		ImGui::PopStyleVar();
 
 		RenderBodyMenu(world);
 

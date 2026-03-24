@@ -1,0 +1,199 @@
+import { Button } from "std-widgets.slint";
+
+export component AppWindow inherits Window {
+    width: 900px;
+    height: 600px;
+    title: "Aether Engine";
+    background: #0b0c10;
+
+    callback start_simulation();
+
+    in-out property <bool> show_settings: false;
+    in-out property <int> selected_scenario: 3;
+    in-out property <float> gravity_y: -9.81;
+
+    // Atmospheric background glows
+    Rectangle {
+        width: 600px;
+        height: 600px;
+        x: -150px;
+        y: -100px;
+        background: #45f3ff;
+        opacity: 0.15;
+        border-radius: 300px;
+    }
+
+    Rectangle {
+        width: 500px;
+        height: 500px;
+        x: 500px;
+        y: 200px;
+        background: #9d4edd;
+        opacity: 0.15;
+        border-radius: 250px;
+    }
+
+    // Glass-style dashboard panel (Main Menu)
+    Rectangle {
+        visible: !root.show_settings;
+        width: 400px;
+        height: 450px;
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        background: #ffffff08;
+        border-radius: 24px;
+        border-width: 1px;
+        border-color: #ffffff26;
+
+        VerticalLayout {
+            padding: 40px;
+            spacing: 20px;
+
+            Text {
+                text: "AETHER";
+                font-size: 36px;
+                color: #45f3ff;
+                horizontal-alignment: center;
+            }
+
+            Text {
+                text: "Physics Simulation Engine";
+                font-size: 14px;
+                color: #ffffff99;
+                horizontal-alignment: center;
+            }
+
+            Rectangle {
+                height: 20px;
+                background: #00000000;
+            }
+
+            Button {
+                text: "START SIMULATION";
+                clicked => {
+                    root.start_simulation();
+                }
+            }
+
+            Button {
+                text: "SETTINGS";
+                clicked => {
+                    root.show_settings = true;
+                }
+            }
+        }
+    }
+
+    // Settings Panel
+    Rectangle {
+        visible: root.show_settings;
+        width: 520px;
+        height: 470px;
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        background: #ffffff08;
+        border-radius: 24px;
+        border-width: 1px;
+        border-color: #ffffff26;
+
+        VerticalLayout {
+            padding: 28px;
+            spacing: 14px;
+
+            Text {
+                text: "Launcher Settings";
+                font-size: 28px;
+                color: #45f3ff;
+                horizontal-alignment: center;
+            }
+
+            Text {
+                text: "Choose startup scenario";
+                font-size: 14px;
+                color: #ffffff99;
+            }
+
+            HorizontalLayout {
+                spacing: 10px;
+                Button {
+                    text: root.selected_scenario == 0 ? "SphereSphere (Selected)" : "SphereSphere";
+                    clicked => {
+                        root.selected_scenario = 0;
+                    }
+                }
+                Button {
+                    text: root.selected_scenario == 3 ? "BoxRamp (Selected)" : "BoxRamp";
+                    clicked => {
+                        root.selected_scenario = 3;
+                    }
+                }
+                Button {
+                    text: root.selected_scenario == 31 ? "RampRampStress (Selected)" : "RampRampStress";
+                    clicked => {
+                        root.selected_scenario = 31;
+                    }
+                }
+            }
+
+            Rectangle {
+                height: 8px;
+                background: #00000000;
+            }
+
+            Text {
+                text: "Gravity preset";
+                font-size: 14px;
+                color: #ffffff99;
+            }
+
+            HorizontalLayout {
+                spacing: 10px;
+                Button {
+                    text: "Moon (-1.62)";
+                    clicked => {
+                        root.gravity_y = -1.62;
+                    }
+                }
+                Button {
+                    text: "Earth (-9.81)";
+                    clicked => {
+                        root.gravity_y = -9.81;
+                    }
+                }
+                Button {
+                    text: "Heavy (-20.0)";
+                    clicked => {
+                        root.gravity_y = -20.0;
+                    }
+                }
+            }
+
+            Text {
+                text: "Current gravity: " + root.gravity_y;
+                font-size: 13px;
+                color: #ffffffb3;
+            }
+
+            Rectangle {
+                height: 14px;
+                background: #00000000;
+            }
+
+            HorizontalLayout {
+                spacing: 12px;
+                Button {
+                    text: "BACK";
+                    clicked => {
+                        root.show_settings = false;
+                    }
+                }
+                Button {
+                    text: "START WITH THESE SETTINGS";
+                    clicked => {
+                        root.start_simulation();
+                    }
+                }
+            }
+        }
+    }
+}

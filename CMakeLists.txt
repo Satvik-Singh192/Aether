@@ -2,9 +2,15 @@ cmake_minimum_required(VERSION 3.20)
 
 project(Aether_Test)
 
+cmake_policy(SET CMP0091 NEW)
+
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 
 set(CMAKE_CXX_STANDARD 20)
+
+if(MSVC)
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+endif()
 
 include(FetchContent)
 
@@ -38,6 +44,20 @@ FetchContent_MakeAvailable(imgui)
 FetchContent_MakeAvailable(glad)
 FetchContent_MakeAvailable(glm)
 
+FetchContent_Declare(
+    Slint
+    GIT_REPOSITORY https://github.com/slint-ui/slint.git
+    GIT_TAG v1.15.1
+    SOURCE_SUBDIR api/cpp
+)
+
+if(MSVC AND CMAKE_GENERATOR MATCHES "Ninja")
+    set(Rust_CARGO_TARGET_LINK_NATIVE_LIBS "kernel32;ntdll;userenv;ws2_32;dbghelp;dwrite;propsys;uxtheme;shlwapi;dwmapi;comctl32;imm32" CACHE INTERNAL "" FORCE)
+endif()
+
+FetchContent_MakeAvailable(Slint)
+
+# ---------------------------------------------------
 find_package(OpenGL REQUIRED)
 
 add_executable(Aether_Test
@@ -68,6 +88,8 @@ add_executable(Aether_Test
     renderer/bodymenu.cpp
 )
 
+slint_target_sources(Aether_Test app/ui/main.slint)
+
 add_library(imgui STATIC
     ${imgui_SOURCE_DIR}/imgui.cpp
     ${imgui_SOURCE_DIR}/imgui_draw.cpp
@@ -94,4 +116,5 @@ target_link_libraries(Aether_Test
     OpenGL::GL
     glm
     imgui
+    Slint::Slint
 )

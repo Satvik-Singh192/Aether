@@ -26,9 +26,9 @@ static float rampHalfWidthZ = 1.5f;
 
 static std::vector<std::unique_ptr<Collider>> ownedColliders;
 
-static void spawn_body(PhysicsWorld& world)
+static void spawn_body(PhysicsWorld &world)
 {
-	Collider* collider_ptr = nullptr;
+	Collider *collider_ptr = nullptr;
 
 	if (shapeIndex == 0) // spawn sphere
 	{
@@ -59,14 +59,27 @@ static void spawn_body(PhysicsWorld& world)
 	SetSelectedBodyId(world.addBody(std::move(b)));
 }
 
-void RenderBodyMenu(PhysicsWorld& world)
+void RenderBodyMenu(PhysicsWorld &world)
 {
+	ImGui::SetNextWindowSize(ImVec2(420.0f, 760.0f), ImGuiCond_FirstUseEver);
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 10.0f);
+	ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 6.0f);
+	ImGui::PushStyleVar(ImGuiStyleVar_GrabRounding, 6.0f);
+	ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.08f, 0.10f, 0.14f, 0.94f));
+	ImGui::PushStyleColor(ImGuiCol_TitleBgActive, ImVec4(0.12f, 0.21f, 0.34f, 1.0f));
+	ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(0.18f, 0.30f, 0.46f, 0.55f));
+	ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImVec4(0.24f, 0.40f, 0.62f, 0.82f));
+	ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.16f, 0.36f, 0.60f, 0.72f));
+	ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.22f, 0.48f, 0.75f, 0.92f));
+
 	ImGui::Begin("Body Menu");
 
+	ImGui::TextColored(ImVec4(0.75f, 0.90f, 1.0f, 1.0f), "Spawn and Edit Bodies");
+	ImGui::Separator();
 
 	// add shape section
-	const char* shapeNames[] = {"Sphere", "Box", "Ramp"};
-	ImGui::Combo("Add Shape", &shapeIndex, shapeNames, 3);
+	const char *shapeNames[] = {"Sphere", "Box", "Ramp"};
+	ImGui::Combo("Shape", &shapeIndex, shapeNames, 3);
 
 	ImGui::DragFloat3("Position", spawnPos, 0.1f);
 	ImGui::DragFloat3("Speed", spawnSpeed, 0.1f);
@@ -86,7 +99,7 @@ void RenderBodyMenu(PhysicsWorld& world)
 		ImGui::DragFloat("Ramp HalfWidthZ", &rampHalfWidthZ, 0.1f);
 	}
 
-	if (ImGui::Button("Add Body"))
+	if (ImGui::Button("Add Body", ImVec2(-1.0f, 0.0f)))
 		spawn_body(world);
 
 	ImGui::Separator();
@@ -102,11 +115,11 @@ void RenderBodyMenu(PhysicsWorld& world)
 	ImGui::Separator();
 
 	// show active bodies in the scene
-	ImGui::Text("Bodies");
+	ImGui::TextColored(ImVec4(0.70f, 0.85f, 1.0f, 1.0f), "Active Bodies");
 	ImGui::BeginChild("BodyList", ImVec2(0, 400), true);
 
-	auto& bodies = world.getBodies();
-	for (auto& body : bodies)
+	auto &bodies = world.getBodies();
+	for (auto &body : bodies)
 	{
 		ImGui::PushID(body.id);
 
@@ -119,7 +132,7 @@ void RenderBodyMenu(PhysicsWorld& world)
 		const bool isSelected = body.id == GetSelectedBodyId();
 		const bool isLive = body.inverse_mass != 0.0f;
 
-		const char* typeStr = "Unknown";
+		const char *typeStr = "Unknown";
 		if (body.collider->type == ShapeType::Sphere)
 			typeStr = "Sphere";
 		else if (body.collider->type == ShapeType::Box)
@@ -156,5 +169,7 @@ void RenderBodyMenu(PhysicsWorld& world)
 
 	ImGui::EndChild();
 	ImGui::End();
-}
 
+	ImGui::PopStyleColor(6);
+	ImGui::PopStyleVar(3);
+}
