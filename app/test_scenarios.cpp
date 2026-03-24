@@ -20,8 +20,8 @@ namespace
 
     void add_floor(PhysicsWorld &world)
     {
-        // Position Vec3() defaults to (0,0,0)
-        world.addBody(Rigidbody(Vec3(), Vec3(), &g_floor, 0.0f, PHYSICS_DEFAULT_FRICTION, 0.0f));
+        // Keep floor top at y=0 so scenario bodies spawn above, not inside.
+        world.addBody(Rigidbody(Vec3(0.0f, -0.1f, 0.0f), Vec3(), &g_floor, 0.0f, PHYSICS_DEFAULT_FRICTION, 0.0f));
     }
 
     void spawn_box_stack(PhysicsWorld &world)
