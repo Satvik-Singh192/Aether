@@ -30,6 +30,17 @@ namespace
         return isValidFloat(v.x) && isValidFloat(v.y) && isValidFloat(v.z);
     }
 
+    void projectVerts(const std::vector<Vec3> &verts, const Vec3 &axis, float &min, float &max)
+    {
+        min = max = verts[0].dot(axis);
+        for (int i = 1; i < verts.size(); i++)
+        {
+            float p = verts[i].dot(axis);
+            min = std::min(min, p);
+            max = std::max(max, p);
+        }
+    }
+
     float computeAabbOverlapOnAxis(const Vec3 &axisN,
                                    const Vec3 &centerA,
                                    const Vec3 &halfA,
@@ -131,29 +142,62 @@ bool buildRampBoxManifold(Rigidbody &A, Rigidbody &B, ContactManifold &manifold)
     if (!isValidVec3(rampNormal) || rampNormal.length() <= PHYSICS_EPSILON)
         return false;
 
-    const Vec3 rampCenter(
-        (rampMinX + rampMaxX) * 0.5f,
-        (rampMinY + rampMaxY) * 0.5f,
-        (rampMinZ + rampMaxZ) * 0.5f);
-    const Vec3 boxCenter = B.position;
+    // Build ramp vertices (6 total: base quad + top slope edge)
+    std::vector<Vec3> rampVerts;
+    rampVerts.push_back(A.position + Vec3(0, 0, -ramp->getHalfWidthZ()));
+    rampVerts.push_back(A.position + Vec3(length, 0, -ramp->getHalfWidthZ()));
+    rampVerts.push_back(A.position + Vec3(0, 0, ramp->getHalfWidthZ()));
+    rampVerts.push_back(A.position + Vec3(length, 0, ramp->getHalfWidthZ()));
+    rampVerts.push_back(A.position + Vec3(length, height, -ramp->getHalfWidthZ()));
+    rampVerts.push_back(A.position + Vec3(length, height, ramp->getHalfWidthZ()));
 
-    float minOverlap = FLT_MAX;
-    Vec3 bestAxis;
-    const Vec3 axes[] = {
-        rampNormal,
+    // Build box vertices (8 total)
+    std::vector<Vec3> boxVerts;
+    for (int sx = -1; sx <= 1; sx += 2)
+        for (int sy = -1; sy <= 1; sy += 2)
+            for (int sz = -1; sz <= 1; sz += 2)
+                boxVerts.push_back(B.position + Vec3(sx * half.x, sy * half.y, sz * half.z));
+
+    // Build SAT axes: ramp normal + cardinals + edge cross products
+    std::vector<Vec3> axes;
+    axes.push_back(rampNormal);
+    axes.push_back(Vec3(1.0f, 0.0f, 0.0f));
+    axes.push_back(Vec3(0.0f, 1.0f, 0.0f));
+    axes.push_back(Vec3(0.0f, 0.0f, 1.0f));
+
+    // Add edge cross products: ramp slope edge × box edges
+    Vec3 rampEdge(length, height, 0.0f);
+    Vec3 boxEdges[3] = {
         Vec3(1.0f, 0.0f, 0.0f),
         Vec3(0.0f, 1.0f, 0.0f),
         Vec3(0.0f, 0.0f, 1.0f)};
+
+    for (int i = 0; i < 3; i++)
+    {
+        Vec3 axis = rampEdge.cross(boxEdges[i]);
+        if (axis.length() > 1e-6f)
+            axes.push_back(axis.normalized());
+    }
+
+    // SAT: project all vertices onto each axis
+    float minOverlap = FLT_MAX;
+    Vec3 bestAxis;
 
     for (const Vec3 &rawAxis : axes)
     {
         const float axisLen = rawAxis.length();
         if (axisLen <= PHYSICS_EPSILON)
-            return false;
+            continue;
 
         const Vec3 axis = rawAxis * (1.0f / axisLen);
-        const float overlap = computeAabbOverlapOnAxis(axis, rampCenter, rampHalf, boxCenter, half);
-        if (!isValidFloat(overlap) || overlap <= PHYSICS_EPSILON)
+
+        float minA, maxA, minB, maxB;
+        projectVerts(rampVerts, axis, minA, maxA);
+        projectVerts(boxVerts, axis, minB, maxB);
+
+        float overlap = std::min(maxA, maxB) - std::max(minA, minB);
+
+        if (overlap <= PHYSICS_EPSILON)
             return false;
 
         if (overlap < minOverlap)
@@ -271,7 +315,6 @@ bool buildRampBoxManifold(Rigidbody &A, Rigidbody &B, ContactManifold &manifold)
         manifold.contacts[i].a_id = manifold.a_id;
         manifold.contacts[i].b_id = manifold.b_id;
         manifold.contacts[i].normal = manifold.normal;
-        manifold.contacts[i].penetration = baseContact.penetration;
     }
 
     return manifold.contact_count > 0;
