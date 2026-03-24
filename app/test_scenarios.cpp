@@ -177,10 +177,10 @@ namespace
 
     void spawn_box_ramp_case(PhysicsWorld &world)
     {
-        world.addBody(Rigidbody(Vec3(-2.0f, 0.0f, 0.0f), Vec3(0.0f, 0.0f, 0.0f), &g_gentle_ramp, 0.0f));
-        world.addBody(Rigidbody(Vec3(0.5f, 4.0f, 0.0f), Vec3(0.0f, 0.0f, 0.0f), &g_small_box, 1.0f));
+        world.addBody(Rigidbody(Vec3(-2.0f, 0.0f, 0.0f), Vec3(0.0f, 0.0f, 0.0f), &g_gentle_ramp, 2.0f));
+        world.addBody(Rigidbody(Vec3(0.5f, 4.0f, 0.0f), Vec3(0.0f, 0.0f, 0.0f), &g_small_box, 2.0f));
     }
-
+ 
     void spawn_sphere_ramp_case(PhysicsWorld &world)
     {
         world.addBody(Rigidbody(Vec3(-2.0f, 2.0f, 0.0f), Vec3(0.0f, 0.0f, 0.0f), &g_steep_ramp, 1.0f));

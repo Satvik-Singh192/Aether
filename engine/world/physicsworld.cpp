@@ -515,17 +515,26 @@ static void solve_1D_constraint(
     float& accumulated_impulse,
     float bias,
     float min_impulse,
-    float max_impulse){
+    float max_impulse,
+	const Vec3& rA,
+    const Vec3& rB){
 
 	/*
 	this function is used to solve hard constrain (rod and rope). rope must be handeled sepratel
 	*/
+	Vec3 vA = a.velocity + a.angvel.cross(rA);
+	Vec3 vB = b.velocity + b.angvel.cross(rB);
+	Vec3 relvel = vB - vA;
+	float rel = relvel.dot(normal);
 
-	Vec3 relvel=b.velocity-a.velocity;
-	float rel=relvel.dot(normal);
+	Vec3 raXn = rA.cross(normal);
+	Vec3 rbXn = rB.cross(normal);
 
-	float inv_mass=a.inverse_mass+b.inverse_mass;
-	if(inv_mass==0.0f)return;
+	Vec3 angA = a.inverse_inertia_world * raXn;
+	Vec3 angB = b.inverse_inertia_world * rbXn;
+
+	float inv_mass = a.inverse_mass + b.inverse_mass + normal.dot(angA.cross(rA) + angB.cross(rB));
+	if(inv_mass <= PHYSICS_EPSILON) return;
 
 	float j=-(rel+bias)/inv_mass;
 
@@ -535,8 +544,10 @@ static void solve_1D_constraint(
 
 	Vec3 impulse=normal*j;
 
-	a.velocity-=impulse*a.inverse_mass;
-    b.velocity+=impulse*b.inverse_mass;
+	a.velocity -= impulse * a.inverse_mass;
+	b.velocity += impulse * b.inverse_mass;
+	a.angvel -= a.inverse_inertia_world * rA.cross(impulse);
+	b.angvel += b.inverse_inertia_world * rB.cross(impulse);
 }
 
 void PhysicsWorld::solve_constraints_vel(float dt){
@@ -583,6 +594,9 @@ void PhysicsWorld::solve_constraints_vel(float dt){
 			max_impulse = FLT_MAX;
 		}
 
+		Vec3 rA = delta * (-0.5f);
+		Vec3 rB = delta * 0.5f;
+
 		solve_1D_constraint(
 			*c.a,
 			*c.b,
@@ -590,7 +604,9 @@ void PhysicsWorld::solve_constraints_vel(float dt){
 			c.accumulated_impulse,
 			bias,
 			min_impulse,
-			max_impulse
+			max_impulse,
+			rA,
+			rB
 		);
 	}
 }
@@ -611,7 +627,12 @@ void PhysicsWorld::warm_start_constraints(){
 		Vec3 n=delta*(1.0f/dist);
 		Vec3 impulse=n*c.accumulated_impulse;
 
-		c.a->velocity-=impulse*c.a->inverse_mass;
-		c.b->velocity+=impulse*c.b->inverse_mass;
+		Vec3 rA = delta * (-0.5f);
+		Vec3 rB = delta * 0.5f;
+
+		c.a->velocity -= impulse * c.a->inverse_mass;
+		c.b->velocity += impulse * c.b->inverse_mass;
+		c.a->angvel -= c.a->inverse_inertia_world * rA.cross(impulse);
+		c.b->angvel += c.b->inverse_inertia_world * rB.cross(impulse);
 	}
 }
