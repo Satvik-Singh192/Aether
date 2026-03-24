@@ -10,7 +10,7 @@
 
 namespace
 {
-    BoxCollider g_floor(Vec3(100.0f, 0.1f, 100.0f));
+    BoxCollider g_floor(Vec3(100.0f, 10.0f, 100.0f));
     SphereCollider g_small_sphere(0.5f);
     SphereCollider g_big_sphere(0.8f);
     BoxCollider g_small_box(Vec3(0.5f, 0.5f, 0.5f));
