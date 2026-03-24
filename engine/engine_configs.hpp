@@ -31,5 +31,5 @@ constexpr float PHYSICS_RESTING_NORMAL_SLEEP_THRESHOLD=0.04f;
 // Global full-speed sleep threshold. If total speed magnitude is below this,
 // velocity is fully zeroed regardless of contact state.
 constexpr float PHYSICS_SLEEP_VELOCITY_THRESHOLD=0.005f;
-//ROTATION
+//ROTATION//
 constexpr float ANGULAR_DAMPING = 0.995f;

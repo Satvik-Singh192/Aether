@@ -12,6 +12,13 @@ struct Contact{
     Vec3 normal; // lets take A to B convention rn
     Vec3 contact_point;
 
+    /*
+    ye do vectors ye bta rhe ki pointofsolving aur manifold me actual point
+    of contact ke bich ka vector.
+    */
+    Vec3 rA;
+    Vec3 rB;
+
     float penetration=0.0f;
     
     float restitution=0.0f;

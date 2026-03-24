@@ -303,6 +303,107 @@ namespace
         world.addBody(Rigidbody(Vec3(0, 12, 0), Vec3(), &g_small_box, 2.0f));
     }
 
+    
+    void spawn_angular_torque(PhysicsWorld &world)
+    {
+        world.addBody(Rigidbody(Vec3(0.0f, 2.0f, 0.0f), Vec3(), &g_small_box, 2.0f));
+     
+        world.addBody(Rigidbody(Vec3(3.0f, 2.0f, 0.0f), Vec3(), &g_small_box, 1.0f));
+    }
+
+    void spawn_angular_impact(PhysicsWorld &world)
+    {
+        
+        world.addBody(Rigidbody(Vec3(0.0f, 1.0f, 0.0f), Vec3(), &g_small_box, 2.0f));
+       
+        world.addBody(Rigidbody(Vec3(-3.0f, 1.7f, 0.0f), Vec3(6.0f, 0.0f, 0.0f), &g_small_sphere, 1.0f));
+       
+        world.addBody(Rigidbody(Vec3(0.0f, 4.0f, 0.0f), Vec3(), &g_small_box, 2.0f));
+        world.addBody(Rigidbody(Vec3(-3.0f, 4.0f, 0.8f), Vec3(5.0f, 0.0f, 0.0f), &g_small_sphere, 1.0f));
+    }
+
+    void spawn_angular_stack(PhysicsWorld &world)
+    {
+        world.addBody(Rigidbody(Vec3(0.0f, 0.5f, 0.0f), Vec3(), &g_small_box, 1.0f));
+        world.addBody(Rigidbody(Vec3(0.0f, 1.55f, 0.0f), Vec3(), &g_small_box, 1.0f));
+        world.addBody(Rigidbody(Vec3(0.0f, 2.6f, 0.0f), Vec3(), &g_small_box, 1.0f));
+        
+        world.addBody(Rigidbody(Vec3(-2.5f, 1.55f, 0.0f), Vec3(4.0f, 0.0f, 0.0f), &g_small_sphere, 0.5f));
+    }
+
+    void spawn_off_center_hit(PhysicsWorld &world)
+    {
+        // Test: Sphere hitting box corner point
+        // Verify: Box spins from off-center impact
+        // Key: Contact point far from box center = high torque
+        
+        // Target box (should spin markedly)
+        world.addBody(Rigidbody(Vec3(0.0f, 2.0f, 0.0f), Vec3(), &g_small_box, 2.0f));
+        
+        // Sphere aimed at TOP-RIGHT corner (offset in X and Y)
+        // Box half-extent is (0.5, 0.5, 0.5), so corner is at (0.5, 0.5, 0)
+        // Contact point approximately: (0.5, 2.5, 0)
+        // This is (0.5, 0.5, 0) from center = maximum lever arm
+        world.addBody(Rigidbody(Vec3(-4.0f, 2.5f, 0.0f), Vec3(8.0f, 0.0f, 0.0f), &g_big_sphere, 1.0f));
+        
+        // Second test: different corner
+        world.addBody(Rigidbody(Vec3(0.0f, 5.0f, 0.0f), Vec3(), &g_small_box, 1.5f));
+        world.addBody(Rigidbody(Vec3(4.0f, 5.5f, 0.0f), Vec3(-7.0f, 0.0f, 0.0f), &g_big_sphere, 0.8f));
+    }
+
+    void spawn_box_corner_collision(PhysicsWorld &world)
+    {
+        // Test: Box-to-box collision at corners
+        // Verify: Both boxes rotate from corner-to-corner impact
+        // Key: Collision at edges = both bodies get rotational energy
+        
+        // Box A - moving
+        world.addBody(Rigidbody(Vec3(-5.0f, 2.0f, 0.0f), Vec3(6.0f, 0.0f, 0.0f), &g_small_box, 1.0f));
+        
+        // Box B - stationary, offset so collision is corner-to-corner
+        // A's right corner will hit B's left corner
+        world.addBody(Rigidbody(Vec3(3.0f, 2.0f, 0.0f), Vec3(), &g_small_box, 1.0f));
+        
+        // Third test: perpendicular approach
+        world.addBody(Rigidbody(Vec3(0.0f, 5.0f, 0.0f), Vec3(0.0f, -5.0f, 0.0f), &g_wide_box, 1.5f));
+        world.addBody(Rigidbody(Vec3(0.0f, 8.0f, 0.0f), Vec3(), &g_small_box, 1.0f));
+    }
+
+    void spawn_stack_tipping(PhysicsWorld &world)
+    {
+        // Test: Stack toppling from side impact
+        // Verify: Stack doesn't just slide - it TIPS/ROTATES
+        // Key: Impact at height + side hit = rotation torque
+        
+        // Build tall stack (3 boxes)
+        world.addBody(Rigidbody(Vec3(0.0f, 0.5f, 0.0f), Vec3(), &g_small_box, 1.0f));  // base
+        world.addBody(Rigidbody(Vec3(0.0f, 1.55f, 0.0f), Vec3(), &g_small_box, 1.0f)); // middle
+        world.addBody(Rigidbody(Vec3(0.0f, 2.6f, 0.0f), Vec3(), &g_small_box, 1.0f));  // top
+        
+        // Side impact at MIDDLE box height (not center-mass)
+        // This creates lever arm: impact point height difference from COM
+        // Impact at y=1.55, if COM of stack is at y~1.2, lever arm is ~0.35
+        world.addBody(Rigidbody(Vec3(-4.0f, 1.55f, 0.0f), Vec3(7.0f, 0.0f, 0.0f), &g_big_sphere, 1.2f));
+    }
+
+    void spawn_sphere_rolling(PhysicsWorld &world)
+    {
+        // Test: Sphere rolling with friction torque
+        // Verify: Sphere rotates due to friction at contact point
+        // Key: Sliding sphere → friction impulse creates torque → rolling motion
+        
+        // Create gentle ramp or flat surface with high friction
+        // Spawn sphere with sliding velocity (not rolling)
+        world.addBody(Rigidbody(Vec3(-8.0f, 3.0f, 0.0f), Vec3(8.0f, 0.0f, 0.0f), &g_big_sphere, 1.2f, 0.8f, 0.3f));
+        
+        // Reference: non-sliding sphere for comparison
+        world.addBody(Rigidbody(Vec3(-8.0f, 5.0f, 0.0f), Vec3(6.0f, 0.0f, 0.0f), &g_small_sphere, 0.8f, 0.1f, 0.2f));
+        
+        // Test on ramp: if it exists, rolling down will show rotation
+        world.addBody(Rigidbody(Vec3(2.0f, 0.0f, 0.0f), Vec3(), &g_gentle_ramp, 0.0f));
+        world.addBody(Rigidbody(Vec3(4.0f, 3.5f, 0.0f), Vec3(), &g_small_sphere, 1.0f, 0.8f, 0.1f));
+    }
+
     void spawn_ramp_drop_on_sphere_case(PhysicsWorld &world)
     {
         world.addBody(Rigidbody(Vec3(-1.0f, 0.5f, 0.0f), Vec3(), &g_big_sphere, 1.0f));
@@ -392,12 +493,45 @@ void LoadSingleTestScenario(PhysicsWorld &world, TestCase test_case)
     case TestCase::RopeCollision:
         spawn_rope_with_collision(world);
         break;
+
     case TestCase::RampDropOnSphere:
         spawn_ramp_drop_on_sphere_case(world);
         break;
+
     case TestCase::RampRampStress:
         spawn_ramp_ramp_stress_case(world);
         break;
+
+    // ===== ANGULAR PHYSICS TESTS =====
+    case TestCase::AngularTorque:
+        spawn_angular_torque(world);
+        break;
+
+    case TestCase::AngularImpact:
+        spawn_angular_impact(world);
+        break;
+
+    case TestCase::AngularStack:
+        spawn_angular_stack(world);
+        break;
+
+    case TestCase::OffCenterHit:
+        spawn_off_center_hit(world);
+        break;
+
+    case TestCase::BoxCornerCollision:
+        spawn_box_corner_collision(world);
+        break;
+
+    case TestCase::StackTipping:
+        spawn_stack_tipping(world);
+        break;
+
+    case TestCase::SphereRolling:
+        spawn_sphere_rolling(world);
+        break;
+
+    // ===== Default =====
     case TestCase::BoxSphereRamp:
     default:
         spawn_box_sphere_ramp_case(world);

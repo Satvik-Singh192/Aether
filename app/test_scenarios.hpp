@@ -27,6 +27,13 @@ enum class TestCase
     RodChain,
     SoftBody,
     RopeCollision,
+    AngularTorque,
+    AngularImpact,
+    AngularStack,
+    OffCenterHit,
+    BoxCornerCollision,
+    StackTipping,
+    SphereRolling,
     RampDropOnSphere,
     RampRampStress,
 };
