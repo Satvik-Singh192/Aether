@@ -94,7 +94,32 @@ namespace
 		"Ramp Ramp Stress",
 		"Box Topple"};
 
+	constexpr const char *kGravityPresetNames[] = {
+		"Mercury (3.70 m/s^2)",
+		"Venus (8.87 m/s^2)",
+		"Earth (9.81 m/s^2)",
+		"Moon (1.62 m/s^2)",
+		"Mars (3.71 m/s^2)",
+		"Jupiter (24.79 m/s^2)",
+		"Saturn (10.44 m/s^2)",
+		"Uranus (8.69 m/s^2)",
+		"Neptune (11.15 m/s^2)",
+		"Pluto (0.62 m/s^2)"};
+
+	constexpr float kGravityPresetValues[] = {
+		3.70f,
+		8.87f,
+		9.81f,
+		1.62f,
+		3.71f,
+		24.79f,
+		10.44f,
+		8.69f,
+		11.15f,
+		0.62f};
+
 	static_assert((sizeof(kTestCases) / sizeof(kTestCases[0])) == (sizeof(kTestCaseNames) / sizeof(kTestCaseNames[0])), "Test case arrays must stay aligned");
+	static_assert((sizeof(kGravityPresetNames) / sizeof(kGravityPresetNames[0])) == (sizeof(kGravityPresetValues) / sizeof(kGravityPresetValues[0])), "Gravity preset arrays must stay aligned");
 }
 
 void framebuffer_size_callback(GLFWwindow *window, int width, int height);
@@ -166,13 +191,21 @@ void CreateWindow(PhysicsWorld &world)
 	Camera camera;
 	AppScreen appScreen = AppScreen::StartScreen;
 	bool showControlsHelp = false;
-	bool showStartSettings = false;
 	bool showBodyInspector = false;
 	int selectedScenarioIndex = 31; // RampRampStress
 	float startGravityY = world.getGravity().y;
+	int selectedGravityPreset = 2; // Earth
 	bool startWireframe = GetBodyDrawWireframeMode();
 	float startTint[3] = {1.0f, 1.0f, 1.0f};
 	GetBodyTint(startTint[0], startTint[1], startTint[2]);
+
+	// State preservation
+	int lastSimulationScenario = selectedScenarioIndex;
+	float lastSimulationGravity = startGravityY;
+	int lastSimulationGravityPreset = selectedGravityPreset;
+	bool lastSimulationWireframe = startWireframe;
+	float lastSimulationTint[3] = {startTint[0], startTint[1], startTint[2]};
+	bool hasActiveSim = false;
 
 	// initialize ImGui once after OpenGL context creation.
 	IMGUI_CHECKVERSION();
@@ -181,6 +214,20 @@ void CreateWindow(PhysicsWorld &world)
 	ApplyAetherTheme();
 	ImGui_ImplGlfw_InitForOpenGL(window, true);
 	ImGui_ImplOpenGL3_Init("#version 330 core");
+
+	auto reloadSelectedScenario = [&]()
+	{
+		world = PhysicsWorld();
+		LoadSingleTestScenario(world, kTestCases[selectedScenarioIndex]);
+		Vec3 gravity = world.getGravity();
+		world.setGravity(Vec3(gravity.x, startGravityY, gravity.z));
+		SetBodyDrawWireframeMode(startWireframe);
+		SetBodyTint(startTint[0], startTint[1], startTint[2]);
+		isSimulationPaused = false;
+		accumulator = 0.0f;
+		simulation_time = 0.0f;
+		frame = 0;
+	};
 
 	// Loop to render frames
 	while (!glfwWindowShouldClose(window))
@@ -244,8 +291,18 @@ void CreateWindow(PhysicsWorld &world)
 		{
 			if (ImGui::BeginMenu("App"))
 			{
-				if (ImGui::MenuItem("Home / Start Screen"))
+				if (ImGui::MenuItem("Pause Menu"))
 				{
+					// Save current simulation state
+					lastSimulationScenario = selectedScenarioIndex;
+					lastSimulationGravity = startGravityY;
+					lastSimulationGravityPreset = selectedGravityPreset;
+					lastSimulationWireframe = startWireframe;
+					lastSimulationTint[0] = startTint[0];
+					lastSimulationTint[1] = startTint[1];
+					lastSimulationTint[2] = startTint[2];
+					hasActiveSim = true;
+
 					appScreen = AppScreen::StartScreen;
 					isSimulationPaused = true;
 					accumulator = 0.0f;
@@ -300,27 +357,34 @@ void CreateWindow(PhysicsWorld &world)
 					ImGui::EndMenu();
 				}
 
-				if (ImGui::BeginMenu("View"))
+				if (ImGui::BeginMenu("Settings"))
 				{
-					bool wf = GetBodyDrawWireframeMode();
-					if (ImGui::MenuItem("Wireframe mode", nullptr, &wf))
+					ImGui::SeparatorText("Scenario");
+					ImGui::Combo("Test Scenario", &selectedScenarioIndex, kTestCaseNames, static_cast<int>(sizeof(kTestCaseNames) / sizeof(kTestCaseNames[0])));
+					ShowTooltip("Choose a test case and use reload to apply it now.");
+
+					if (ImGui::Button("Reload Selected Test Case", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f)))
 					{
-						SetBodyDrawWireframeMode(wf);
-						startWireframe = wf;
+						reloadSelectedScenario();
 					}
 
-					float br = 1.0f;
-					float bg = 1.0f;
-					float bb = 1.0f;
-					GetBodyTint(br, bg, bb);
-					float tint[3] = {br, bg, bb};
-					ImGui::SeparatorText("Body Tint");
-					if (ImGui::ColorEdit3("Body color tint", tint))
+					ImGui::SeparatorText("Physics");
+					if (ImGui::Combo("Gravity Location", &selectedGravityPreset, kGravityPresetNames, static_cast<int>(sizeof(kGravityPresetNames) / sizeof(kGravityPresetNames[0]))))
 					{
-						SetBodyTint(tint[0], tint[1], tint[2]);
-						startTint[0] = tint[0];
-						startTint[1] = tint[1];
-						startTint[2] = tint[2];
+						startGravityY = -kGravityPresetValues[selectedGravityPreset];
+						Vec3 current = world.getGravity();
+						world.setGravity(Vec3(current.x, startGravityY, current.z));
+					}
+					ShowTooltip("Choose a place in the solar system. Gravity updates immediately.");
+
+					ImGui::SeparatorText("Rendering");
+					if (ImGui::Checkbox("Wireframe mode", &startWireframe))
+					{
+						SetBodyDrawWireframeMode(startWireframe);
+					}
+					if (ImGui::ColorEdit3("Body color tint", startTint))
+					{
+						SetBodyTint(startTint[0], startTint[1], startTint[2]);
 					}
 					ImGui::EndMenu();
 				}
@@ -335,7 +399,8 @@ void CreateWindow(PhysicsWorld &world)
 			ImGui::SetNextWindowPos(ImVec2(displaySize.x * 0.5f, displaySize.y * 0.5f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
 			ImGui::SetNextWindowSize(ImVec2(640.0f, 460.0f), ImGuiCond_Always);
 
-			if (ImGui::Begin("Aether Studio - Start", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize))
+			const char *startWindowTitle = hasActiveSim ? "Aether Studio - Pause Menu" : "Aether Studio - Start";
+			if (ImGui::Begin(startWindowTitle, nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize))
 			{
 				auto centerText = [](const char *text, bool disabled)
 				{
@@ -371,26 +436,31 @@ void CreateWindow(PhysicsWorld &world)
 				ImGui::Separator();
 				ImGui::Dummy(ImVec2(0.0f, 20.0f));
 
-				if (centerButton("Start Simulation", ImVec2(300.0f, 44.0f)))
+				if (centerButton(hasActiveSim ? "Resume Simulation" : "Start Simulation", ImVec2(300.0f, 44.0f)))
 				{
-					world = PhysicsWorld();
-					LoadSingleTestScenario(world, kTestCases[selectedScenarioIndex]);
-					Vec3 gravity = world.getGravity();
-					world.setGravity(Vec3(gravity.x, startGravityY, gravity.z));
-					SetBodyDrawWireframeMode(startWireframe);
-					SetBodyTint(startTint[0], startTint[1], startTint[2]);
+					if (!hasActiveSim)
+					{
+						reloadSelectedScenario();
+					}
+					else
+					{
+						// Restore saved state
+						selectedScenarioIndex = lastSimulationScenario;
+						startGravityY = lastSimulationGravity;
+						selectedGravityPreset = lastSimulationGravityPreset;
+						startWireframe = lastSimulationWireframe;
+						startTint[0] = lastSimulationTint[0];
+						startTint[1] = lastSimulationTint[1];
+						startTint[2] = lastSimulationTint[2];
+						SetBodyDrawWireframeMode(startWireframe);
+						SetBodyTint(startTint[0], startTint[1], startTint[2]);
+					}
 
 					appScreen = AppScreen::Running;
 					isSimulationPaused = false;
 					accumulator = 0.0f;
 					simulation_time = 0.0f;
 					frame = 0;
-				}
-
-				ImGui::Dummy(ImVec2(0.0f, 12.0f));
-				if (centerButton("Settings", ImVec2(300.0f, 44.0f)))
-				{
-					showStartSettings = true;
 				}
 
 				ImGui::Dummy(ImVec2(0.0f, 12.0f));
@@ -404,43 +474,6 @@ void CreateWindow(PhysicsWorld &world)
 				ImGui::Dummy(ImVec2(0.0f, 4.0f));
 				centerText("v1.0.0 | Built with OpenGL + ImGui", true);
 
-				if (showStartSettings)
-				{
-					ImGui::OpenPopup("Start Settings");
-					showStartSettings = false;
-				}
-
-				if (ImGui::BeginPopupModal("Start Settings", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
-				{
-					ImGui::SeparatorText("Scenario");
-					ImGui::Combo("Test Scenario", &selectedScenarioIndex, kTestCaseNames, static_cast<int>(sizeof(kTestCaseNames) / sizeof(kTestCaseNames[0])));
-					ShowTooltip("Select one predefined test setup to load when starting.");
-
-					ImGui::SeparatorText("Physics");
-					if (ImGui::DragFloat("Gravity Y", &startGravityY, 0.1f, -100000.0f, 100000.0f))
-					{
-						Vec3 current = world.getGravity();
-						world.setGravity(Vec3(current.x, startGravityY, current.z));
-					}
-					ShowTooltip("Applies after scenario load. Negative values pull downward.");
-
-					ImGui::SeparatorText("Rendering");
-					if (ImGui::Checkbox("Wireframe mode", &startWireframe))
-					{
-						SetBodyDrawWireframeMode(startWireframe);
-					}
-					if (ImGui::ColorEdit3("Body color tint", startTint))
-					{
-						SetBodyTint(startTint[0], startTint[1], startTint[2]);
-					}
-
-					if (ImGui::Button("Close", ImVec2(140.0f, 0.0f)))
-					{
-						ImGui::CloseCurrentPopup();
-					}
-					ImGui::EndPopup();
-				}
-
 				if (showControlsHelp)
 				{
 					ImGui::OpenPopup("Controls Help");
@@ -452,7 +485,7 @@ void CreateWindow(PhysicsWorld &world)
 					ImGui::Text("W / A / S / D : Move camera");
 					ImGui::Text("Right Mouse Drag : Rotate camera");
 					ImGui::Text("Esc : Quit application");
-					ImGui::Text("Use top menu > App > Home / Start Screen to return here.");
+					ImGui::Text("Use top menu > App > Pause Menu to return here.");
 					ImGui::Spacing();
 					if (ImGui::Button("Close", ImVec2(140.0f, 0.0f)))
 					{
