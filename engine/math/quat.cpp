@@ -86,4 +86,17 @@ Mat3 Quat::toMat3() const {
 
     return m;
 }
+Quat Quat::  fromAxisAngle(const Vec3& axis, float angle)
+{
+    Vec3 n = axis.normalized();
 
+    float half = angle * 0.5f;
+    float s = sin(half);
+
+    return Quat(
+        cos(half),      // w
+        n.x * s,        // x
+        n.y * s,        // y
+        n.z * s         // z
+    );
+}

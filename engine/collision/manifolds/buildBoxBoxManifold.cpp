@@ -4,56 +4,101 @@
 #include <cmath>
 #include <vector>
 #include<algorithm>
-
-std:: vector<Vec3> getBoxCorners(const Rigidbody& body, const BoxCollider* box){
+#include "collision/obb.hpp"
+#include <cfloat>
+std::vector<Vec3> getBoxCorners(const Rigidbody& body, const BoxCollider* box){
     std::vector<Vec3> corners;
+
+    Mat3 R = body.orientation.toMat3();
+
     for(int x=-1;x<=1;x+=2)
     for(int y=-1;y<=1;y+=2)
     for(int z=-1;z<=1;z+=2)
     {
-        corners.push_back(
-            body.position + Vec3(
-                x*box->halfsize.x,
-                y*box->halfsize.y,
-                z*box->halfsize.z
-            )
+        Vec3 local = Vec3(
+            x * box->halfsize.x,
+            y * box->halfsize.y,
+            z * box->halfsize.z
         );
+
+        Vec3 world = body.position + R * local; 
+
+        corners.push_back(world);
     }
 
     return corners;
 }
 
-bool pointInsideBox(const Vec3& p, const Rigidbody& body, const BoxCollider* box)
-{
-    Vec3 d = p - body.position;
+// bool pointInsideBox(const Vec3& p, const Rigidbody& body, const BoxCollider* box)
+// {
+//     Vec3 d = p - body.position;
 
-    return (std::abs(d.x) <= box->halfsize.x &&
-            std::abs(d.y) <= box->halfsize.y &&
-            std::abs(d.z) <= box->halfsize.z);
-}
+//     return (std::abs(d.x) <= box->halfsize.x &&
+//             std::abs(d.y) <= box->halfsize.y &&
+//             std::abs(d.z) <= box->halfsize.z);
+// }
 bool buildBoxBoxManifold(Rigidbody& a, Rigidbody& b, ContactManifold& m){
 
     auto* ba = static_cast<BoxCollider*>(a.collider);
     auto* bb = static_cast<BoxCollider*>(b.collider);
     if (!ba || !bb) return false;
-    Vec3 delta = b.position - a.position;
-    float overlapX = (ba->halfsize.x + bb->halfsize.x) - std::abs(delta.x);
-    float overlapY = (ba->halfsize.y + bb->halfsize.y) - std::abs(delta.y);
-    float overlapZ = (ba->halfsize.z + bb->halfsize.z) - std::abs(delta.z);
-    if (overlapX <= 0 || overlapY <= 0 || overlapZ <= 0) return false;
-    Vec3 normal;
-    float penetration;
+    // Vec3 delta = b.position - a.position;
+    // float overlapX = (ba->halfsize.x + bb->halfsize.x) - std::abs(delta.x);
+    // float overlapY = (ba->halfsize.y + bb->halfsize.y) - std::abs(delta.y);
+    // float overlapZ = (ba->halfsize.z + bb->halfsize.z) - std::abs(delta.z);
+    // if (overlapX <= 0 || overlapY <= 0 || overlapZ <= 0) return false;
+    // Vec3 normal;
+    // float penetration;
 
-    if (overlapX < overlapY && overlapX < overlapZ) {
-        penetration = overlapX;
-        normal = Vec3(delta.x < 0 ? -1.0f : 1.0f, 0, 0);
-    } else if (overlapY < overlapZ) {
-        penetration = overlapY;
-        normal = Vec3(0, delta.y < 0 ? -1.0f : 1.0f, 0);
-    } else {
-        penetration = overlapZ;
-        normal = Vec3(0, 0, delta.z < 0 ? -1.0f : 1.0f);
+    // if (overlapX < overlapY && overlapX < overlapZ) {
+    //     penetration = overlapX;
+    //     normal = Vec3(delta.x < 0 ? -1.0f : 1.0f, 0, 0);
+    // } else if (overlapY < overlapZ) {
+    //     penetration = overlapY;
+    //     normal = Vec3(0, delta.y < 0 ? -1.0f : 1.0f, 0);
+    // } else {
+    //     penetration = overlapZ;
+    //     normal = Vec3(0, 0, delta.z < 0 ? -1.0f : 1.0f);
+    // }
+    OBB A=makeOBB(a,ba);
+    OBB B=makeOBB(b,bb);
+    float mp=FLT_MAX;
+    Vec3 bestAxis;
+
+    for(int i=0;i<3;i++){
+        float p;
+        if(!overlapOnAxis(A,B,A.axis[i],p))return false;
+        if(p < mp){
+            mp=p;
+            bestAxis=A.axis[i];
+        }
     }
+    Vec3 normal;
+    for(int i = 0; i < 3; i++) {
+        float p;
+        if(!overlapOnAxis(A, B, B.axis[i], p)) return false;
+        if(p < mp) {
+            mp = p;
+            bestAxis = B.axis[i];
+        }
+    }
+    for(int i=0; i<3;i++){
+        for(int j=0;j<3;j++){
+            Vec3 axis=A.axis[i].cross(B.axis[j]);
+            float p;
+            if (axis.length() < 1e-6f) continue;
+            if(!overlapOnAxis(A,B,axis,p)) return false;
+            if(p<mp){
+                mp=p;
+                bestAxis=axis;
+            }
+        }
+    }
+    normal=bestAxis.normalized();
+    if((B.center-A.center).dot(normal)<0)
+        normal =  normal*(-1);
+    float penetration=mp;
+
     m.a=&a;
     m.b=&b;
     m.a_id=m.a->id;
@@ -63,7 +108,7 @@ bool buildBoxBoxManifold(Rigidbody& a, Rigidbody& b, ContactManifold& m){
     auto cornersA=getBoxCorners(a,ba);
     //points of a inside b
     for(auto& it: cornersA){
-        if(pointInsideBox(it, b,bb)){
+        if(pointInsideOBB(it, B)){
             Contact c;
             c.a = &a;
             c.b = &b;
@@ -81,7 +126,7 @@ bool buildBoxBoxManifold(Rigidbody& a, Rigidbody& b, ContactManifold& m){
     //pointd of b inside a
     auto cornersB = getBoxCorners(b, bb);
     for (auto& it : cornersB) {
-        if (pointInsideBox(it, a, ba))
+        if (pointInsideOBB(it, A))
         {
             Contact c;
             c.a = &a;

@@ -41,7 +41,7 @@ namespace
     void spawn_pyramid_stack(PhysicsWorld &world)
     {
         // pyramid of boxes: spawn layers at increasing heights so each layer falls onto the previous one
-        const int base = 50;
+        const int base = 10;
         const float base_spawn_y = 2.0f;  // bottom layer spawn height (above ground)
         const float layer_spacing = 2.2f; // vertical spacing between layers to allow visible falling
         const float horizontal_spacing = 1.05f;
@@ -177,10 +177,10 @@ namespace
 
     void spawn_box_ramp_case(PhysicsWorld &world)
     {
-        world.addBody(Rigidbody(Vec3(-2.0f, 0.0f, 0.0f), Vec3(0.0f, 0.0f, 0.0f), &g_gentle_ramp, 0.0f));
-        world.addBody(Rigidbody(Vec3(0.5f, 4.0f, 0.0f), Vec3(0.0f, 0.0f, 0.0f), &g_small_box, 1.0f));
+        world.addBody(Rigidbody(Vec3(-2.0f, 0.0f, 0.0f), Vec3(0.0f, 0.0f, 0.0f), &g_gentle_ramp, 2.0f));
+        world.addBody(Rigidbody(Vec3(0.5f, 4.0f, 0.0f), Vec3(0.0f, 0.0f, 0.0f), &g_small_box, 2.0f));
     }
-
+ 
     void spawn_sphere_ramp_case(PhysicsWorld &world)
     {
         world.addBody(Rigidbody(Vec3(-2.0f, 2.0f, 0.0f), Vec3(0.0f, 0.0f, 0.0f), &g_steep_ramp, 1.0f));
@@ -418,6 +418,26 @@ namespace
         world.addBody(Rigidbody(Vec3(-1.5f, 6.0f, 0.0f), Vec3(0.5f, -0.5f, 0.0f), &g_gentle_ramp, 1.0f));
         world.addBody(Rigidbody(Vec3(1.5f, 6.0f, 0.0f), Vec3(-0.5f, -0.5f, 0.0f), &g_steep_ramp, 1.0f));
     }
+    void spawn_box_45_topple(PhysicsWorld &world)
+{
+    
+    add_floor(world);
+
+   
+    Rigidbody box(
+        Vec3(0.0f, 3.0f, 0.0f),   // start above ground
+        Vec3(0.0f, 0.0f, 0.0f),   // no initial velocity
+        &g_small_box,
+        2.0f                      // mass
+    );
+
+   
+    float angle = 45.0f * (3.1415926f / 180.0f);
+
+    box.orientation = Quat::fromAxisAngle(Vec3(0,0,1), angle);
+
+    world.addBody(box);
+}
 
 }
 
@@ -530,11 +550,17 @@ void LoadSingleTestScenario(PhysicsWorld &world, TestCase test_case)
     case TestCase::SphereRolling:
         spawn_sphere_rolling(world);
         break;
+    case TestCase::Boxtopple:
+   
+        spawn_box_45_topple(world);
+        break;
+        
 
     // ===== Default =====
     case TestCase::BoxSphereRamp:
     default:
         spawn_box_sphere_ramp_case(world);
         break;
+    
     }
 }
