@@ -189,7 +189,7 @@ bool buildRampRampManifold(Rigidbody &A, Rigidbody &B, ContactManifold &manifold
         }
     }
 
-    std::cout << "Axes count: " << axes.size() << "\n";
+    //std::cout << "Axes count: " << axes.size() << "\n";
 
     const std::vector<Vec3> vertsA = getRampVertices(A, *rampA);
     const std::vector<Vec3> vertsB = getRampVertices(B, *rampB);

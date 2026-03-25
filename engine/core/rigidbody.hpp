@@ -5,6 +5,8 @@
 #include <iostream>
 #include "math/quat.hpp"
 #include "math/mat3.hpp"
+#include<memory>
+
 class Rigidbody {
 public: 
 	BodyID id;
@@ -26,7 +28,8 @@ public:
 	  any custom collider will just get sliced when it assign it directly 
 	- one more thing, we can make ghost objects by assigning the nullptr, we cant do that the other way
 	*/
-	Collider* collider;
+	Collider* collider; 
+
 
 
 	Rigidbody(

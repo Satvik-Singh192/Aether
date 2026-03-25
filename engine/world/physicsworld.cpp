@@ -11,6 +11,7 @@ std::uint32_t PhysicsWorld::addBody(const Rigidbody &body)
 	Rigidbody copy = body;
 	copy.id = next_body_id++;
 	bodies.push_back(copy);
+	syncAllPointers();
 	return copy.id;
 }
 
@@ -18,7 +19,44 @@ std::uint32_t PhysicsWorld::addBody(Rigidbody &&body)
 {
 	body.id = next_body_id++;
 	bodies.push_back(std::move(body));
+	syncAllPointers();
 	return body.id;
+}
+Rigidbody* PhysicsWorld::getBodyByID(uint32_t body_id){
+	auto it=lookup_map.find(body_id);
+    if (it!=lookup_map.end()) {
+        return it->second;
+    }
+    return nullptr;
+}
+void PhysicsWorld::rebuildLookupTable() {
+    lookup_map.clear();
+    for (auto& body:bodies) {
+        lookup_map[body.id]=&body;
+    }
+}
+PhysicsResult PhysicsWorld::deleteBody(uint32_t body_id){
+	// we dont free up the space used by the collider pointer, cuz multiple rigibodies reuse the same collider
+	auto it=std::remove_if(bodies.begin(),bodies.end(),[body_id](const Rigidbody&b){
+		return b.id==body_id;
+	});
+	if(it==bodies.end()){
+		return {false,PhysicsError::IDNotFound,"Body id: "+std::to_string(body_id)+" not found"};
+	}
+	else{
+		deleteConstraint(body_id);
+		bodies.erase(it,bodies.end());
+		syncAllPointers();
+		return {true,PhysicsError::None,"Body id: "+std::to_string(body_id)+" deleted successfully"};
+	}
+}
+
+void PhysicsWorld::syncAllPointers(){
+	rebuildLookupTable();
+	for (auto& c:constraints) {
+        c.a=lookup_map[c.a_id];
+        c.b=lookup_map[c.b_id];
+    }
 }
 
 void PhysicsWorld::addforce(const Vec3 &force, std::uint32_t id)
@@ -85,19 +123,8 @@ void PhysicsWorld::validate_body(Rigidbody &body)
 
 void PhysicsWorld::step(float dt)
 {
-	// Resolve constraint pointers - they may be invalid after vector reallocation
-	for(auto& c : constraints){
-		c.a = nullptr;
-		c.b = nullptr;
-		for(auto& body : bodies){
-			if(body.id == c.a_id) c.a = &body;
-			if(body.id == c.b_id) c.b = &body;
-		}
-		if(!c.a || !c.b){
-			std::cout << "Constraint references missing body!\n";
-		}
-	}
-
+	// Make sure constraint endpoints are in sync with the bodies array layout
+	syncAllPointers();
 	for (auto &body : bodies)
 	{
 		if (body.inverse_mass == 0.0f)
@@ -105,6 +132,7 @@ void PhysicsWorld::step(float dt)
 
 		Vec3 GravityForce = gravity * (1.0f / body.inverse_mass);
 		body.applyForce(GravityForce);
+		if(body.position.y<=-15)bodies_to_delete.push_back(body.id);
 	}
 
 	for (auto &body : bodies)
@@ -115,8 +143,6 @@ void PhysicsWorld::step(float dt)
 		Vec3 acceleration = body.force_accum * body.inverse_mass;
 		body.velocity += acceleration * dt;
 		body.position += body.velocity * dt;
-
-		//body.clearForces();
 	}
 	for(auto &body :bodies){
 		if(body.inverse_mass==0.0f)
@@ -141,6 +167,14 @@ void PhysicsWorld::step(float dt)
 		continue;
 		body.clearAccum();
 	}
+
+	if(bodies_to_delete.size()!=0){
+		for(std::uint32_t id: bodies_to_delete){
+			deleteBody(id);
+		}
+		bodies_to_delete.clear();
+	}
+
 	prev_manifolds = manifolds;
 	clear_manifolds();
 	generate_manifolds();
@@ -513,6 +547,31 @@ void PhysicsWorld::addDistanceConstraints(
 
 }
 
+PhysicsResult PhysicsWorld::deleteConstraint(uint32_t first_body_id,uint32_t second_body_id){
+	auto it=std::remove_if(constraints.begin(),constraints.end(),[first_body_id,second_body_id](const DistanceConstraint& constraint){
+		return (first_body_id==constraint.a_id&&second_body_id==constraint.b_id)||(first_body_id==constraint.b_id&&second_body_id==constraint.a_id);
+	});
+	if(it==constraints.end()){
+		return {false,PhysicsError::IDNotFound,"No distance constraint exists between "+std::to_string(first_body_id)+" and "+std::to_string(second_body_id)};
+	}
+	else{
+		constraints.erase(it,constraints.end());
+		return {true,PhysicsError::None,"Constraint deleted successfully"};
+	}
+}
+PhysicsResult PhysicsWorld::deleteConstraint(uint32_t body_id){
+	auto it=std::remove_if(constraints.begin(),constraints.end(),[body_id](const DistanceConstraint& constraint){
+		return (body_id==constraint.a_id||body_id==constraint.b_id);
+	});
+	if(it==constraints.end()){
+		return {false,PhysicsError::IDNotFound,"No distance constraint exists between "+std::to_string(body_id)+" and any other body"};
+	}
+	else{
+		constraints.erase(it,constraints.end());
+		return {true,PhysicsError::None,"Constraint deleted successfully"};
+	}
+}
+
 static void solve_1D_constraint(
 	Rigidbody& a,
     Rigidbody& b,
@@ -557,6 +616,7 @@ static void solve_1D_constraint(
 
 void PhysicsWorld::solve_constraints_vel(float dt){
 	for(auto&c:constraints){
+		if(!c.a||!c.b)continue;
 
 		Vec3 delta=c.b->position-c.a->position;
 		float dist=delta.length();
@@ -618,6 +678,7 @@ void PhysicsWorld::solve_constraints_vel(float dt){
 
 void PhysicsWorld::warm_start_constraints(){
 	for (auto& c:constraints){
+		if(!c.a||!c.b)continue;
 		Vec3 delta=c.b->position-c.a->position;
 		float dist=delta.length();
 		if (dist<PHYSICS_EPSILON) continue;
