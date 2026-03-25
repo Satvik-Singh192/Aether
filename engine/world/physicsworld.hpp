@@ -26,6 +26,7 @@ public:
 	std::size_t getContactCount() const;
 	const Vec3& getGravity() const;
 	void setGravity(const Vec3& new_gravity);
+	const std::vector<DistanceConstraint>& getDistanceConstraints() const;
 
 	void clear_manifolds();
 	void generate_manifolds();

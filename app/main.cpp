@@ -7,7 +7,7 @@ int main()
 {
     PhysicsWorld world;
 
-    const TestCase active_case = TestCase::BoxRamp;
+    const TestCase active_case = TestCase::RampRampStress;
     LoadSingleTestScenario(world, active_case);
 
     CreateWindow(world);
