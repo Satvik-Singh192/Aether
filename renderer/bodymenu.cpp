@@ -33,9 +33,15 @@ static float rampHalfWidthZ = 1.5f;
 
 static std::vector<std::unique_ptr<Collider>> ownedColliders;
 
-static void spawn_body(PhysicsWorld& world)
+static void show_tooltip(const char *text)
 {
-	Collider* collider_ptr = nullptr;
+	if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
+		ImGui::SetTooltip("%s", text);
+}
+
+static void spawn_body(PhysicsWorld &world)
+{
+	Collider *collider_ptr = nullptr;
 
 	if (shapeIndex == 0) // spawn sphere
 	{
@@ -66,37 +72,50 @@ static void spawn_body(PhysicsWorld& world)
 	SetSelectedBodyId(world.addBody(std::move(b)));
 }
 
-void RenderBodyMenu(PhysicsWorld& world)
+void RenderAddBodyMenuContent(PhysicsWorld &world)
 {
-	ImGui::Begin("Body Menu");
-
-
-	// add shape section
-	const char* shapeNames[] = {"Sphere", "Box", "Ramp"};
+	ImGui::SeparatorText("Spawn Body");
+	const char *shapeNames[] = {"Sphere", "Box", "Ramp"};
 	ImGui::Combo("Add Shape", &shapeIndex, shapeNames, 3);
+	show_tooltip("Choose which collider type to create for the next body.");
 
 	ImGui::DragFloat3("Position", spawnPos, 0.1f);
+	show_tooltip("Initial world-space position for the new body.");
 	ImGui::DragFloat3("Speed", spawnSpeed, 0.1f);
+	show_tooltip("Initial linear velocity applied on spawn.");
 	ImGui::DragFloat3("Force", spawnForce, 0.1f);
+	show_tooltip("Initial accumulated force. Useful for immediate pushes.");
 	ImGui::DragFloat("Mass", &spawnMass, 0.1f, 0.0f, 100000.0f);
+	show_tooltip("Higher mass resists acceleration. 0.0 means static body.");
 
 	if (shapeIndex == 0)
+	{
 		ImGui::DragFloat("Sphere Radius", &sphereRadius, 0.01f, 0.0f, 100000.0f);
+		show_tooltip("Radius of the spawned sphere collider.");
+	}
 	else if (shapeIndex == 1)
 	{
 		ImGui::DragFloat3("Box Halfsize", boxHalfSize, 0.01f);
+		show_tooltip("Half extents of the box along X, Y, and Z.");
 	}
 	else
 	{
 		ImGui::DragFloat("Ramp Slope", &rampSlope, 0.01f);
+		show_tooltip("Vertical rise per unit horizontal run for the ramp.");
 		ImGui::DragFloat("Ramp Length", &rampLength, 0.1f);
+		show_tooltip("Ramp size along the forward axis.");
 		ImGui::DragFloat("Ramp HalfWidthZ", &rampHalfWidthZ, 0.1f);
+		show_tooltip("Half-width of the ramp across the Z axis.");
 	}
 
 	if (ImGui::Button("Add Body"))
 		spawn_body(world);
+	show_tooltip("Creates one rigid body with the current spawn parameters.");
+}
 
-	ImGui::Separator();
+void RenderConstraintMenuContent(PhysicsWorld &world)
+{
+	ImGui::SeparatorText("Constraints");
 
 	{
 		auto &bodies = world.getBodies();
@@ -141,12 +160,18 @@ void RenderBodyMenu(PhysicsWorld& world)
 		if (n >= 2)
 		{
 			ImGui::Combo("Body A", &linkBodyAIndex, linkItems.data(), n);
+			show_tooltip("First body in the distance constraint pair.");
 			ImGui::Combo("Body B", &linkBodyBIndex, linkItems.data(), n);
+			show_tooltip("Second body in the distance constraint pair.");
 			const char *linkNames[] = {"Rope", "Rod", "Spring"};
 			ImGui::Combo("Link type", &linkKindIndex, linkNames, 3);
+			show_tooltip("Rope = max length, Rod = fixed length, Spring = elastic.");
 			ImGui::DragFloat("Rest length", &linkRestLength, 0.05f, 0.01f, 1000.0f);
+			show_tooltip("Target distance used by rope, rod, and spring links.");
 			ImGui::DragFloat("Stiffness", &linkStiffness, 0.05f, 0.0f, 1000.0f);
+			show_tooltip("How strongly a spring pulls bodies toward its rest length.");
 			ImGui::DragFloat("Damping", &linkDamping, 0.05f, 0.0f, 1000.0f);
+			show_tooltip("Reduces oscillation and jitter in spring-like motion.");
 			if (ImGui::Button("Add rope / rod / spring"))
 			{
 				if (linkBodyAIndex != linkBodyBIndex)
@@ -165,8 +190,11 @@ void RenderBodyMenu(PhysicsWorld& world)
 		else
 			ImGui::TextDisabled("Need at least two bodies to add a link.");
 	}
+}
 
-	ImGui::Separator();
+void RenderWorldMenuContent(PhysicsWorld &world)
+{
+	ImGui::SeparatorText("World");
 
 	// gravity section
 	{
@@ -174,16 +202,31 @@ void RenderBodyMenu(PhysicsWorld& world)
 		float gravityY = gravity.y;
 		if (ImGui::DragFloat("Gravity Y", &gravityY, 0.1f, -100000.0f, 100000.0f))
 			world.setGravity(Vec3(gravity.x, gravityY, gravity.z));
+		show_tooltip("Negative values pull downward, positive values push upward.");
+	}
+}
+
+void RenderBodyInspectorContent(PhysicsWorld &world, bool showCloseButton)
+{
+	if (showCloseButton && ImGui::Button("Back"))
+	{
+		ImGui::CloseCurrentPopup();
+		return;
 	}
 
-	ImGui::Separator();
+	if (showCloseButton)
+		ImGui::Separator();
+
+	ImGui::SeparatorText("Bodies");
 
 	// show active bodies in the scene
-	ImGui::Text("Bodies");
-	ImGui::BeginChild("BodyList", ImVec2(0, 400), true);
+	float listHeight = ImGui::GetContentRegionAvail().y;
+	if (showCloseButton)
+		listHeight = (listHeight > 44.0f) ? (listHeight - 44.0f) : listHeight;
+	ImGui::BeginChild("BodyList", ImVec2(0, listHeight), true);
 
-	auto& bodies = world.getBodies();
-	for (auto& body : bodies)
+	auto &bodies = world.getBodies();
+	for (auto &body : bodies)
 	{
 		ImGui::PushID(body.id);
 
@@ -196,7 +239,7 @@ void RenderBodyMenu(PhysicsWorld& world)
 		const bool isSelected = body.id == GetSelectedBodyId();
 		const bool isLive = body.inverse_mass != 0.0f;
 
-		const char* typeStr = "Unknown";
+		const char *typeStr = "Unknown";
 		if (body.collider->type == ShapeType::Sphere)
 			typeStr = "Sphere";
 		else if (body.collider->type == ShapeType::Box)
@@ -232,6 +275,14 @@ void RenderBodyMenu(PhysicsWorld& world)
 	}
 
 	ImGui::EndChild();
-	ImGui::End();
 }
 
+void RenderBodyMenu(PhysicsWorld &world)
+{
+	ImGui::Begin("Body Menu");
+	RenderAddBodyMenuContent(world);
+	RenderConstraintMenuContent(world);
+	RenderWorldMenuContent(world);
+	RenderBodyInspectorContent(world, false);
+	ImGui::End();
+}

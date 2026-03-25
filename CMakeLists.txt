@@ -68,6 +68,7 @@ add_executable(Aether_Test
     renderer/drawconstraints.cpp
     renderer/bodyshaders.cpp
     renderer/bodymenu.cpp
+    renderer/aether_theme.cpp
 )
 
 add_library(imgui STATIC
