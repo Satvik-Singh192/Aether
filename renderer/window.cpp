@@ -31,7 +31,7 @@ void CreateWindow(PhysicsWorld &world)
 #endif
 
 	// Window creation
-	GLFWwindow *window = glfwCreateWindow(800, 600, "Window", NULL, NULL);
+	GLFWwindow *window = glfwCreateWindow(1920, 1080, "Window", NULL, NULL);
 	if (window == NULL)
 	{
 		std::cout << "Failed to create window" << std::endl;
@@ -48,7 +48,13 @@ void CreateWindow(PhysicsWorld &world)
 		return;
 	}
 
-	glViewport(0, 0, 800, 600);
+	// Use the actual framebuffer size (important on Windows with DPI scaling).
+	{
+		int fbw = 0;
+		int fbh = 0;
+		glfwGetFramebufferSize(window, &fbw, &fbh);
+		glViewport(0, 0, fbw, fbh);
+	}
 	// Allow renderer to control point size
 	glEnable(GL_PROGRAM_POINT_SIZE);
 	glEnable(GL_DEPTH_TEST);
@@ -114,6 +120,7 @@ void CreateWindow(PhysicsWorld &world)
 		int framebufferWidth = 0;
 		int framebufferHeight = 0;
 		glfwGetFramebufferSize(window, &framebufferWidth, &framebufferHeight);
+		glViewport(0, 0, framebufferWidth, framebufferHeight);
 		float aspectRatio = framebufferHeight > 0
 								? static_cast<float>(framebufferWidth) / static_cast<float>(framebufferHeight)
 								: 1.0f;

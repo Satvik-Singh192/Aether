@@ -48,6 +48,11 @@ void PhysicsWorld::setGravity(const Vec3 &new_gravity)
 	gravity = new_gravity;
 }
 
+const std::vector<DistanceConstraint> &PhysicsWorld::getDistanceConstraints() const
+{
+	return constraints;
+}
+
 std::size_t PhysicsWorld::getContactCount() const
 {
 	std::size_t total = 0;
