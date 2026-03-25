@@ -472,7 +472,14 @@ void CreateWindow(PhysicsWorld &world)
 				showBodyInspector = false;
 			}
 
-			if (ImGui::BeginPopupModal("Body Inspector", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+			const ImVec2 displaySize = ImGui::GetIO().DisplaySize;
+			const float menuBarHeight = ImGui::GetFrameHeight();
+			const ImVec2 inspectorPos(8.0f, menuBarHeight + 8.0f);
+			const ImVec2 inspectorSize(560.0f, displaySize.y - menuBarHeight - 16.0f);
+			ImGui::SetNextWindowPos(inspectorPos, ImGuiCond_Appearing);
+			ImGui::SetNextWindowSize(inspectorSize, ImGuiCond_Appearing);
+
+			if (ImGui::BeginPopupModal("Body Inspector", nullptr, ImGuiWindowFlags_NoResize))
 			{
 				RenderBodyInspectorContent(world, true);
 				ImGui::EndPopup();

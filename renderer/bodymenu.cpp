@@ -208,10 +208,22 @@ void RenderWorldMenuContent(PhysicsWorld &world)
 
 void RenderBodyInspectorContent(PhysicsWorld &world, bool showCloseButton)
 {
+	if (showCloseButton && ImGui::Button("Back"))
+	{
+		ImGui::CloseCurrentPopup();
+		return;
+	}
+
+	if (showCloseButton)
+		ImGui::Separator();
+
 	ImGui::SeparatorText("Bodies");
 
 	// show active bodies in the scene
-	ImGui::BeginChild("BodyList", ImVec2(0, 400), true);
+	float listHeight = ImGui::GetContentRegionAvail().y;
+	if (showCloseButton)
+		listHeight = (listHeight > 44.0f) ? (listHeight - 44.0f) : listHeight;
+	ImGui::BeginChild("BodyList", ImVec2(0, listHeight), true);
 
 	auto &bodies = world.getBodies();
 	for (auto &body : bodies)
@@ -263,10 +275,6 @@ void RenderBodyInspectorContent(PhysicsWorld &world, bool showCloseButton)
 	}
 
 	ImGui::EndChild();
-	if (showCloseButton && ImGui::Button("Close Inspector"))
-	{
-		ImGui::CloseCurrentPopup();
-	}
 }
 
 void RenderBodyMenu(PhysicsWorld &world)
