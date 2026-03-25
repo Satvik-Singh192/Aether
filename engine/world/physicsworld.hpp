@@ -1,14 +1,20 @@
 #pragma once
+#include"common_header.hpp"
 #include "core/rigidbody.hpp"
 #include "collision/collision.hpp"
 #include "collision/contactmanifold.hpp"
 #include "constraints/distance_constraints.hpp"
 #include <vector>
+#include<unordered_map>
 #include <cstddef>
 
 class PhysicsWorld {
 private: 
+	std::vector<std::uint32_t> bodies_to_delete;
 	std::vector<Rigidbody> bodies;
+	std::unordered_map<uint32_t,Rigidbody*>lookup_map;
+	void syncAllPointers();
+	void rebuildLookupTable();
 	std::vector<ContactManifold> manifolds;
 	std::vector<ContactManifold> prev_manifolds;
 
@@ -17,8 +23,10 @@ private:
 	BodyID next_body_id;
 public: 
 	PhysicsWorld();
+	Rigidbody* getBodyByID(uint32_t body_id);
 	std::uint32_t addBody(const Rigidbody& body);
 	std::uint32_t addBody(Rigidbody&& body);
+	PhysicsResult deleteBody(std::uint32_t body_id); // deletes the body and removes all the constraints in which the targeted body iz a mem
 	void addforce(const Vec3& force, std::uint32_t id);
 	void step(float dt);
 	void validate_body(Rigidbody& body);
@@ -45,6 +53,8 @@ public:
 		float stiffness,
 		float damping
 	);
+	PhysicsResult deleteConstraint(uint32_t first_body_id,uint32_t second_body_id); //delete ALL constraints between two given bodies
+	PhysicsResult deleteConstraint(uint32_t body_id);
 	void solve_constraints_vel(float dt);
 	void warm_start_constraints();
 };

@@ -280,8 +280,8 @@ bool buildRampBoxManifold(Rigidbody &A, Rigidbody &B, ContactManifold &manifold)
     if (!isValidVec3(manifold.normal) || manifold.normal.length() <= PHYSICS_EPSILON)
         return false;
 
-    std::cout << "RampBox Penetration: " << baseContact.penetration << "\n";
-    std::cout << "RampBox Normal: " << manifold.normal << "\n";
+    //std::cout << "RampBox Penetration: " << baseContact.penetration << "\n";
+    //std::cout << "RampBox Normal: " << manifold.normal << "\n";
     manifold.contact_count = 0;
 
     // keep first and best separated contact

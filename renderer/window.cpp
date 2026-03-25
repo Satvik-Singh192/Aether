@@ -193,7 +193,6 @@ void CreateWindow(PhysicsWorld &world)
 
 		// Process incoming inputs with frame-rate independent movement.
 		processInput(window, frametime, camera, appScreen == AppScreen::Running);
-
 		if (appScreen == AppScreen::Running && !isSimulationPaused)
 		{
 			accumulator += frametime;
