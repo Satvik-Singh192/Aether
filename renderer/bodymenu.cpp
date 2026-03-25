@@ -10,8 +10,15 @@
 #include "../engine/core/ramp_collider.hpp"
 #include "../engine/core/rigidbody.hpp"
 #include "../engine/core/sphere_collider.hpp"
+#include "../engine/math/vec3.hpp"
 
 static int shapeIndex = 0;
+static int linkBodyAIndex = 0;
+static int linkBodyBIndex = 1;
+static int linkKindIndex = 0;
+static float linkRestLength = 2.0f;
+static float linkStiffness = 5.0f;
+static float linkDamping = 2.0f;
 
 static float spawnPos[3] = {0.0f, 3.0f, 0.0f};
 static float spawnSpeed[3] = {0.0f, 0.0f, 0.0f};
@@ -88,6 +95,76 @@ void RenderBodyMenu(PhysicsWorld& world)
 
 	if (ImGui::Button("Add Body"))
 		spawn_body(world);
+
+	ImGui::Separator();
+
+	{
+		auto &bodies = world.getBodies();
+		const int n = static_cast<int>(bodies.size());
+		if (n < 2)
+		{
+			linkBodyAIndex = 0;
+			linkBodyBIndex = 0;
+		}
+		else
+		{
+			if (linkBodyAIndex >= n)
+				linkBodyAIndex = n - 1;
+			if (linkBodyBIndex >= n)
+				linkBodyBIndex = n - 1;
+			if (linkBodyAIndex == linkBodyBIndex)
+				linkBodyBIndex = (linkBodyAIndex + 1) % n;
+		}
+
+		ImGui::Text("Link two bodies");
+		std::vector<std::string> linkLabels;
+		linkLabels.reserve(bodies.size());
+		for (auto &b : bodies)
+		{
+			const char *t = "?";
+			if (b.collider)
+			{
+				if (b.collider->type == ShapeType::Sphere)
+					t = "Sphere";
+				else if (b.collider->type == ShapeType::Box)
+					t = "Box";
+				else if (b.collider->type == ShapeType::Ramp)
+					t = "Ramp";
+			}
+			linkLabels.push_back("ID " + std::to_string(b.id) + " (" + t + ")");
+		}
+		std::vector<const char *> linkItems;
+		linkItems.reserve(linkLabels.size());
+		for (auto &s : linkLabels)
+			linkItems.push_back(s.c_str());
+
+		if (n >= 2)
+		{
+			ImGui::Combo("Body A", &linkBodyAIndex, linkItems.data(), n);
+			ImGui::Combo("Body B", &linkBodyBIndex, linkItems.data(), n);
+			const char *linkNames[] = {"Rope", "Rod", "Spring"};
+			ImGui::Combo("Link type", &linkKindIndex, linkNames, 3);
+			ImGui::DragFloat("Rest length", &linkRestLength, 0.05f, 0.01f, 1000.0f);
+			ImGui::DragFloat("Stiffness", &linkStiffness, 0.05f, 0.0f, 1000.0f);
+			ImGui::DragFloat("Damping", &linkDamping, 0.05f, 0.0f, 1000.0f);
+			if (ImGui::Button("Add rope / rod / spring"))
+			{
+				if (linkBodyAIndex != linkBodyBIndex)
+				{
+					std::uint32_t idA = bodies[static_cast<std::size_t>(linkBodyAIndex)].id;
+					std::uint32_t idB = bodies[static_cast<std::size_t>(linkBodyBIndex)].id;
+					DistanceConstraint::TYPE t = DistanceConstraint::ROPE;
+					if (linkKindIndex == 1)
+						t = DistanceConstraint::ROD;
+					else if (linkKindIndex == 2)
+						t = DistanceConstraint::SPRING;
+					world.addDistanceConstraints(idA, idB, linkRestLength, t, linkStiffness, linkDamping);
+				}
+			}
+		}
+		else
+			ImGui::TextDisabled("Need at least two bodies to add a link.");
+	}
 
 	ImGui::Separator();
 

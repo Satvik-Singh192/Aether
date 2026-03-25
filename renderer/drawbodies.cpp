@@ -10,6 +10,7 @@
 #include "../engine/core/ramp_collider.hpp"
 #include "bodyselection.hpp"
 #include "bodyshaders.hpp"
+#include "drawconstraints.hpp"
 #include <algorithm>
 #include <cmath>
 
@@ -339,6 +340,14 @@ void RenderBodies(PhysicsWorld &world, const Camera &camera, float aspectRatio)
             drawSolidBody(body, 0.0f, r, g, b, 1.0f);
         }
 
+        float tintR, tintG, tintB;
+        GetBodyTint(tintR, tintG, tintB);
+        RenderDistanceConstraintsSolid(world, view, projection, solidProgram, solidVAO, solidVBO, lightDir, camPos,
+                                       tintR, tintG, tintB);
+
+        glBindVertexArray(solidVAO);
+        glBindBuffer(GL_ARRAY_BUFFER, solidVBO);
+
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         glDepthMask(GL_FALSE);
@@ -361,9 +370,13 @@ void RenderBodies(PhysicsWorld &world, const Camera &camera, float aspectRatio)
         glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
         glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
         glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
+
+        float lineTintR, lineTintG, lineTintB;
+        GetBodyTint(lineTintR, lineTintG, lineTintB);
+        RenderDistanceConstraintsWire(world, model, view, projection, shaderProgram, VAO, VBO, lineTintR, lineTintG,
+                                      lineTintB);
     }
 
-    // Time to hit on them bodies
     if (g_wireframeMode)
     {
         for (auto &body : world.getBodies())
@@ -511,6 +524,11 @@ void RenderBodies(PhysicsWorld &world, const Camera &camera, float aspectRatio)
                 glDisable(GL_BLEND);
         }
     }
+
+        float wTintR, wTintG, wTintB;
+        GetBodyTint(wTintR, wTintG, wTintB);
+        RenderDistanceConstraintsWire(world, model, view, projection, shaderProgram, VAO, VBO, wTintR, wTintG,
+                                      wTintB);
     }
 }
 
