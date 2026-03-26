@@ -8,6 +8,8 @@
 #include "../engine/core/box_collider.hpp"
 #include "../engine/core/sphere_collider.hpp"
 #include "../engine/core/ramp_collider.hpp"
+#include "../engine/math/mat3.hpp"
+#include "../engine/math/vec3.hpp"
 #include "bodyselection.hpp"
 #include "bodyshaders.hpp"
 #include "drawconstraints.hpp"
@@ -119,22 +121,28 @@ static void pushFace4(std::vector<float> &v, const glm::vec3 &a, const glm::vec3
     pushTri(v, a, na, cc, nc, d, nd); // 2 tris for a rec
 }
 
-static void pushBoxSolid(std::vector<float> &v, const glm::vec3 &c, const glm::vec3 &h) // creating solid shapes
+static glm::vec3 rotateOffset(const Mat3 &R, const glm::vec3 &o)
 {
-    const glm::vec3 p000 = c + glm::vec3(-h.x, -h.y, -h.z);
-    const glm::vec3 p001 = c + glm::vec3(-h.x, -h.y, +h.z);
-    const glm::vec3 p010 = c + glm::vec3(-h.x, +h.y, -h.z);
-    const glm::vec3 p011 = c + glm::vec3(-h.x, +h.y, +h.z);
-    const glm::vec3 p100 = c + glm::vec3(+h.x, -h.y, -h.z);
-    const glm::vec3 p101 = c + glm::vec3(+h.x, -h.y, +h.z);
-    const glm::vec3 p110 = c + glm::vec3(+h.x, +h.y, -h.z);
-    const glm::vec3 p111 = c + glm::vec3(+h.x, +h.y, +h.z);
-    const glm::vec3 nxp(-1.0f, 0.0f, 0.0f);
-    const glm::vec3 nx(1.0f, 0.0f, 0.0f);
-    const glm::vec3 nyn(0.0f, -1.0f, 0.0f);
-    const glm::vec3 ny(0.0f, 1.0f, 0.0f);
-    const glm::vec3 nzn(0.0f, 0.0f, -1.0f);
-    const glm::vec3 nz(0.0f, 0.0f, 1.0f);
+    Vec3 ro = R * Vec3(o.x, o.y, o.z);
+    return glm::vec3(ro.x, ro.y, ro.z);
+}
+
+static void pushBoxSolid(std::vector<float> &v, const glm::vec3 &c, const glm::vec3 &h, const Mat3 &R) // creating solid shapes
+{
+    const glm::vec3 p000 = c + rotateOffset(R, glm::vec3(-h.x, -h.y, -h.z));
+    const glm::vec3 p001 = c + rotateOffset(R, glm::vec3(-h.x, -h.y, +h.z));
+    const glm::vec3 p010 = c + rotateOffset(R, glm::vec3(-h.x, +h.y, -h.z));
+    const glm::vec3 p011 = c + rotateOffset(R, glm::vec3(-h.x, +h.y, +h.z));
+    const glm::vec3 p100 = c + rotateOffset(R, glm::vec3(+h.x, -h.y, -h.z));
+    const glm::vec3 p101 = c + rotateOffset(R, glm::vec3(+h.x, -h.y, +h.z));
+    const glm::vec3 p110 = c + rotateOffset(R, glm::vec3(+h.x, +h.y, -h.z));
+    const glm::vec3 p111 = c + rotateOffset(R, glm::vec3(+h.x, +h.y, +h.z));
+    const glm::vec3 nxp = rotateOffset(R, glm::vec3(-1.0f, 0.0f, 0.0f));
+    const glm::vec3 nx = rotateOffset(R, glm::vec3(1.0f, 0.0f, 0.0f));
+    const glm::vec3 nyn = rotateOffset(R, glm::vec3(0.0f, -1.0f, 0.0f));
+    const glm::vec3 ny = rotateOffset(R, glm::vec3(0.0f, 1.0f, 0.0f));
+    const glm::vec3 nzn = rotateOffset(R, glm::vec3(0.0f, 0.0f, -1.0f));
+    const glm::vec3 nz = rotateOffset(R, glm::vec3(0.0f, 0.0f, 1.0f));
     pushFace4(v, p000, nxp, p010, nxp, p011, nxp, p001, nxp);
     pushFace4(v, p100, nx, p110, nx, p111, nx, p101, nx);
     pushFace4(v, p000, nyn, p100, nyn, p101, nyn, p001, nyn);
@@ -290,12 +298,13 @@ void RenderBodies(PhysicsWorld &world, const Camera &camera, float aspectRatio)
             if (!body.collider)
                 return;
             const glm::vec3 c(body.position.x, body.position.y, body.position.z);
+            Mat3 R = body.orientation.toMat3();
             std::vector<float> solidVerts;
             solidVerts.reserve(4096);
             if (body.collider->type == ShapeType::Box)
             {
                 const auto *box = static_cast<const BoxCollider *>(body.collider);
-                pushBoxSolid(solidVerts, c, glm::vec3(box->halfsize.x, box->halfsize.y, box->halfsize.z));
+                pushBoxSolid(solidVerts, c, glm::vec3(box->halfsize.x, box->halfsize.y, box->halfsize.z), R);
             }
             else if (body.collider->type == ShapeType::Sphere)
             {
@@ -305,7 +314,24 @@ void RenderBodies(PhysicsWorld &world, const Camera &camera, float aspectRatio)
             else if (body.collider->type == ShapeType::Ramp)
             {
                 const auto *ramp = static_cast<const RampCollider *>(body.collider);
-                pushRampSolid(solidVerts, c, ramp->length, ramp->getHeight(), ramp->half_width_z);
+                std::vector<float> tmp;
+                tmp.reserve(2048);
+                pushRampSolid(tmp, glm::vec3(0.0f), ramp->length, ramp->getHeight(), ramp->half_width_z);
+
+                solidVerts.reserve(tmp.size());
+                for (std::size_t i = 0; i + 5 < tmp.size(); i += 6)
+                {
+                    glm::vec3 p(tmp[i + 0], tmp[i + 1], tmp[i + 2]);
+                    glm::vec3 n(tmp[i + 3], tmp[i + 4], tmp[i + 5]);
+                    p = c + rotateOffset(R, p);
+                    n = rotateOffset(R, n);
+                    solidVerts.push_back(p.x);
+                    solidVerts.push_back(p.y);
+                    solidVerts.push_back(p.z);
+                    solidVerts.push_back(n.x);
+                    solidVerts.push_back(n.y);
+                    solidVerts.push_back(n.z);
+                }
             }
             if (solidVerts.empty())
                 return;
@@ -385,6 +411,7 @@ void RenderBodies(PhysicsWorld &world, const Camera &camera, float aspectRatio)
             continue;
 
         const glm::vec3 c(body.position.x, body.position.y, body.position.z);
+        Mat3 R = body.orientation.toMat3();
 
         std::vector<float> bodyVertices;
         bodyVertices.reserve(72);
@@ -394,14 +421,14 @@ void RenderBodies(PhysicsWorld &world, const Camera &camera, float aspectRatio)
             const auto *box = static_cast<const BoxCollider *>(body.collider);
             const glm::vec3 h(box->halfsize.x, box->halfsize.y, box->halfsize.z);
 
-            const glm::vec3 p000 = c + glm::vec3(-h.x, -h.y, -h.z);
-            const glm::vec3 p001 = c + glm::vec3(-h.x, -h.y, +h.z);
-            const glm::vec3 p010 = c + glm::vec3(-h.x, +h.y, -h.z);
-            const glm::vec3 p011 = c + glm::vec3(-h.x, +h.y, +h.z);
-            const glm::vec3 p100 = c + glm::vec3(+h.x, -h.y, -h.z);
-            const glm::vec3 p101 = c + glm::vec3(+h.x, -h.y, +h.z);
-            const glm::vec3 p110 = c + glm::vec3(+h.x, +h.y, -h.z);
-            const glm::vec3 p111 = c + glm::vec3(+h.x, +h.y, +h.z);
+            const glm::vec3 p000 = c + rotateOffset(R, glm::vec3(-h.x, -h.y, -h.z));
+            const glm::vec3 p001 = c + rotateOffset(R, glm::vec3(-h.x, -h.y, +h.z));
+            const glm::vec3 p010 = c + rotateOffset(R, glm::vec3(-h.x, +h.y, -h.z));
+            const glm::vec3 p011 = c + rotateOffset(R, glm::vec3(-h.x, +h.y, +h.z));
+            const glm::vec3 p100 = c + rotateOffset(R, glm::vec3(+h.x, -h.y, -h.z));
+            const glm::vec3 p101 = c + rotateOffset(R, glm::vec3(+h.x, -h.y, +h.z));
+            const glm::vec3 p110 = c + rotateOffset(R, glm::vec3(+h.x, +h.y, -h.z));
+            const glm::vec3 p111 = c + rotateOffset(R, glm::vec3(+h.x, +h.y, +h.z));
 
             // bottom
             pushLine(bodyVertices, p000, p100);
@@ -436,23 +463,14 @@ void RenderBodies(PhysicsWorld &world, const Camera &camera, float aspectRatio)
             const float L = ramp->length;
             const float H = ramp->getHeight();
             const float w = ramp->half_width_z;
-            
-            const float x0 = c.x;
-            const float y0 = c.y;
-            const float x1 = c.x + L;
-            const float y1 = c.y + H;
 
-            const float z0 = c.z - w;
-            const float z1 = c.z + w;
+            const glm::vec3 p0z0 = c + rotateOffset(R, glm::vec3(0.0f, 0.0f, -w));
+            const glm::vec3 p1z0 = c + rotateOffset(R, glm::vec3(L, 0.0f, -w));
+            const glm::vec3 p2z0 = c + rotateOffset(R, glm::vec3(L, H, -w));
 
-            // Simple triangular prism, right triangle in X-Y, extruded along Z
-            const glm::vec3 p0z0(x0, y0, z0);
-            const glm::vec3 p1z0(x1, y0, z0);
-            const glm::vec3 p2z0(x1, y1, z0);
-
-            const glm::vec3 p0z1(x0, y0, z1);
-            const glm::vec3 p1z1(x1, y0, z1);
-            const glm::vec3 p2z1(x1, y1, z1);
+            const glm::vec3 p0z1 = c + rotateOffset(R, glm::vec3(0.0f, 0.0f, +w));
+            const glm::vec3 p1z1 = c + rotateOffset(R, glm::vec3(L, 0.0f, +w));
+            const glm::vec3 p2z1 = c + rotateOffset(R, glm::vec3(L, H, +w));
 
             // bottom face edges
             pushLine(bodyVertices, p0z0, p1z0);
