@@ -10,4 +10,5 @@ struct PhysicsResult{
     bool success;
     PhysicsError error;
     std::string message;
+    std::string debug_message="";
 };

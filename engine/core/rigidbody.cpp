@@ -1,7 +1,7 @@
 #include "core/rigidbody.hpp"
 #include "core/sphere_collider.hpp"
 #include "box_collider.hpp"
-
+#include<string>
 
 static Mat3 makeInverseInertiabody(const Collider* col, float mass) {
     if(mass<=0.0f || !col) {
@@ -49,8 +49,8 @@ Rigidbody::Rigidbody(
     const float MIN_MASS = PHYSICS_EPSILON;
     float effective_mass = mass;
 
-    if (mass <= 0.0f) {
-        std::cerr << "tried to create a rigidbody with non-positive mass, treating as static body\n";
+    if (mass < 0.0f) {
+        std::cerr << "tried to create a rigidbody with non-positive mass, treating as static body";
         effective_mass = 0.0f;
     }
     else if (mass < MIN_MASS) {

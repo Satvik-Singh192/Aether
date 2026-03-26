@@ -45,8 +45,31 @@ PhysicsResult PhysicsWorld::deleteBody(uint32_t body_id){
 	}
 	else{
 		deleteConstraint(body_id);
+		
 		bodies.erase(it,bodies.end());
 		syncAllPointers();
+
+		//delete all the manifolds and prev_manifolds where the target body is a member to prevent ghost collision
+		auto it=std::remove_if(manifolds.begin(),manifolds.end(),[body_id](const ContactManifold&manifold){
+			return (body_id==manifold.a_id||body_id==manifold.b_id);
+		});
+		if(it!=manifolds.end()){
+			#ifdef DEBUG_MODE
+				size_t count=std::distance(it,manifolds.end());
+				std::cout<<count<<" current manifolds deleted\n";
+			#endif
+			manifolds.erase(it,manifolds.end());
+		}
+		auto it=std::remove_if(prev_manifolds.begin(),prev_manifolds.end(),[body_id](const ContactManifold&manifold){
+			return (body_id==manifold.a_id||body_id==manifold.b_id);
+		});
+		if(it!=prev_manifolds.end()){
+			#ifdef DEBUG_MODE
+				size_t count=std::distance(it,prev_manifolds.end());
+				std::cout<<count<<" previous manifolds deleted\n";
+			#endif
+			prev_manifolds.erase(it,prev_manifolds.end());
+		}
 		return {true,PhysicsError::None,"Body id: "+std::to_string(body_id)+" deleted successfully"};
 	}
 }
@@ -127,6 +150,7 @@ void PhysicsWorld::step(float dt)
 	syncAllPointers();
 	for (auto &body : bodies)
 	{
+		std::cout<<body.id<<" "<<body.inverse_mass<<'\n';
 		if (body.inverse_mass == 0.0f)
 			continue;
 

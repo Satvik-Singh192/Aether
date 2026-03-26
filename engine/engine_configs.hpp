@@ -1,5 +1,7 @@
 #pragma once
 
+#define DEBUG_MODE
+
 constexpr float PHYSICS_FIXED_DTv=1.0f/60.0f;
 constexpr int PHYSICS_MAX_SUBSTEP=8; //how many max frame backlogs are allowed (if we dont limit this , we will spiral into infinte laggggg)
 
