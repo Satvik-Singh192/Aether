@@ -3,7 +3,8 @@
 
 enum class PhysicsError{
     None,
-    IDNotFound
+    IDNotFound,
+    InvalidRequest
 };
 
 struct PhysicsResult{

@@ -60,7 +60,7 @@ PhysicsResult PhysicsWorld::deleteBody(uint32_t body_id){
 			#endif
 			manifolds.erase(it,manifolds.end());
 		}
-		auto it=std::remove_if(prev_manifolds.begin(),prev_manifolds.end(),[body_id](const ContactManifold&manifold){
+		it=std::remove_if(prev_manifolds.begin(),prev_manifolds.end(),[body_id](const ContactManifold&manifold){
 			return (body_id==manifold.a_id||body_id==manifold.b_id);
 		});
 		if(it!=prev_manifolds.end()){
@@ -80,6 +80,14 @@ void PhysicsWorld::syncAllPointers(){
         c.a=lookup_map[c.a_id];
         c.b=lookup_map[c.b_id];
     }
+	for (auto& m:manifolds) {
+		m.a=lookup_map[m.a_id];
+		m.b=lookup_map[m.b_id];
+	}
+	for (auto& m:prev_manifolds) {
+		m.a=lookup_map[m.a_id];
+		m.b=lookup_map[m.b_id];
+	}
 }
 
 void PhysicsWorld::addforce(const Vec3 &force, std::uint32_t id)
@@ -150,7 +158,6 @@ void PhysicsWorld::step(float dt)
 	syncAllPointers();
 	for (auto &body : bodies)
 	{
-		std::cout<<body.id<<" "<<body.inverse_mass<<'\n';
 		if (body.inverse_mass == 0.0f)
 			continue;
 
@@ -539,7 +546,7 @@ void PhysicsWorld::solve_manifolds_pos()
 
 
 //methods for constraints
-void PhysicsWorld::addDistanceConstraints(
+PhysicsResult PhysicsWorld::addDistanceConstraints(
 		std::uint32_t a_id,
 		std::uint32_t b_id,
 		float rest_length,
@@ -554,8 +561,10 @@ void PhysicsWorld::addDistanceConstraints(
 			if(body.id==b_id)b=&body;
 		}
 		if(!a || !b){
-			std::cout<<"id requested when creating constraints was not found in bodies\n"<<a_id<<' '<<b_id<<'\n';
-			return;
+			return {false,PhysicsError::IDNotFound,"Invalid Body ID passed to Constraint creator"};
+		}
+		if(a->collider->type==ShapeType::Ramp||b->collider->type==ShapeType::Ramp){
+			return {false,PhysicsError::InvalidRequest,"Distance Constraints can't be applied to Ramps"};
 		}
 		constraints.push_back({
 		a_id,
@@ -568,6 +577,7 @@ void PhysicsWorld::addDistanceConstraints(
 		damping,
 		type
 	});
+	return {true,PhysicsError::None,"Added "+std::to_string(type)+" constraint successfully"};
 
 }
 

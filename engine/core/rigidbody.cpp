@@ -49,7 +49,7 @@ Rigidbody::Rigidbody(
     const float MIN_MASS = PHYSICS_EPSILON;
     float effective_mass = mass;
 
-    if (mass < 0.0f) {
+    if (mass <= 0.0f) {
         std::cerr << "tried to create a rigidbody with non-positive mass, treating as static body";
         effective_mass = 0.0f;
     }
