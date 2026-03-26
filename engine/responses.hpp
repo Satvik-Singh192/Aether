@@ -3,11 +3,13 @@
 
 enum class PhysicsError{
     None,
-    IDNotFound
+    IDNotFound,
+    InvalidRequest
 };
 
 struct PhysicsResult{
     bool success;
     PhysicsError error;
     std::string message;
+    std::string debug_message="";
 };

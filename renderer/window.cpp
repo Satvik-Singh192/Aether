@@ -192,7 +192,7 @@ void CreateWindow(PhysicsWorld &world)
 	AppScreen appScreen = AppScreen::StartScreen;
 	bool showControlsHelp = false;
 	bool showBodyInspector = false;
-	int selectedScenarioIndex = 31; // RampRampStress
+	int selectedScenarioIndex = 30; // RampRampStress
 	float startGravityY = world.getGravity().y;
 	int selectedGravityPreset = 2; // Earth
 	bool startWireframe = GetBodyDrawWireframeMode();

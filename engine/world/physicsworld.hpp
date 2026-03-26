@@ -45,7 +45,7 @@ public:
 
 
 	//methods for constraints
-	void addDistanceConstraints(
+	PhysicsResult addDistanceConstraints(
 		std::uint32_t a_id,
 		std::uint32_t b_id,
 		float rest_length,
