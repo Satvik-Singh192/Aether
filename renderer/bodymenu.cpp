@@ -1,6 +1,7 @@
 #include "bodymenu.hpp"
 
 #include <imgui.h>
+#include <cmath>
 #include <memory>
 #include <string>
 #include <vector>
@@ -37,6 +38,64 @@ static void show_tooltip(const char *text)
 {
 	if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
 		ImGui::SetTooltip("%s", text);
+}
+
+static std::string g_toast_text;
+static double g_toast_until = 0.0;
+
+static void RequestEngineToast(const std::string &text)
+{
+	if (text.empty())
+		return;
+	g_toast_text = text;
+	g_toast_until = ImGui::GetTime() + 2.0;
+}
+
+void RenderEnginePopups()
+{
+	if (g_toast_text.empty())
+		return;
+	if (ImGui::GetTime() > g_toast_until)
+	{
+		g_toast_text.clear();
+		return;
+	}
+
+	ImGui::SetNextWindowBgAlpha(0.85f);
+	ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x - 16.0f, ImGui::GetFrameHeight() + 24.0f), ImGuiCond_Always, ImVec2(1.0f, 0.0f));
+	ImGui::Begin("##engine_toast", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing);
+	ImGui::TextUnformatted(g_toast_text.c_str());
+	ImGui::End();
+}
+
+static float approx_radius_from_collider(const Collider *c)
+{
+	if (!c)
+		return 0.0f;
+	if (c->type == ShapeType::Sphere)
+		return static_cast<const SphereCollider *>(c)->radius;
+	if (c->type == ShapeType::Box)
+	{
+		const Vec3 &hs = static_cast<const BoxCollider *>(c)->halfsize;
+		return std::sqrt(hs.x * hs.x + hs.y * hs.y + hs.z * hs.z);
+	}
+	const RampCollider *rc = static_cast<const RampCollider *>(c);
+	const float height = rc->getHeight();
+	const float halfLen = rc->length * 0.5f;
+	const float halfH = height * 0.5f;
+	return std::sqrt(halfLen * halfLen + halfH * halfH + rc->half_width_z * rc->half_width_z);
+}
+
+static float approx_radius_for_new_shape()
+{
+	if (shapeIndex == 0)
+		return sphereRadius;
+	if (shapeIndex == 1)
+		return std::sqrt(boxHalfSize[0] * boxHalfSize[0] + boxHalfSize[1] * boxHalfSize[1] + boxHalfSize[2] * boxHalfSize[2]);
+	const float height = rampSlope * rampLength;
+	const float halfLen = rampLength * 0.5f;
+	const float halfH = height * 0.5f;
+	return std::sqrt(halfLen * halfLen + halfH * halfH + rampHalfWidthZ * rampHalfWidthZ);
 }
 
 static void spawn_body(PhysicsWorld &world)
@@ -109,8 +168,53 @@ void RenderAddBodyMenuContent(PhysicsWorld &world)
 	}
 
 	if (ImGui::Button("Add Body"))
-		spawn_body(world);
+	{
+		static float last_add_time = -1000.0f;
+		float now = ImGui::GetTime();
+		if (now - last_add_time < 2.0f)
+			RequestEngineToast("Too frequent requests");
+		else
+		{
+			last_add_time = now;
+			Vec3 pos(spawnPos[0], spawnPos[1], spawnPos[2]);
+			const float newRad = approx_radius_for_new_shape();
+			const auto &bodies = world.getBodies();
+			int overlap = 0;
+			for (auto &b : bodies)
+			{
+				if (!b.collider)
+					continue;
+				const float r = approx_radius_from_collider(b.collider);
+				const float dx = b.position.x - pos.x;
+				const float dy = b.position.y - pos.y;
+				const float dz = b.position.z - pos.z;
+				const float dist2 = dx * dx + dy * dy + dz * dz;
+				const float rsum = newRad + r;
+				const float thresh = rsum * 0.85f;
+				if (dist2 < thresh * thresh)
+					++overlap;
+				if (overlap >= 3)
+					break;
+			}
+			if (overlap >= 3)
+				RequestEngineToast("area too clustered to add a body");
+			else
+			{
+				spawn_body(world);
+				RequestEngineToast("Body was added successfully");
+			}
+		}
+	}
 	show_tooltip("Creates one rigid body with the current spawn parameters.");
+
+	if (ImGui::Button("Remove Selected Body"))
+	{
+		auto selected_id = GetSelectedBodyId();
+		PhysicsResult res = world.deleteBody(selected_id);
+		RequestEngineToast(res.message);
+		if (res.success)
+			SetSelectedBodyId(0);
+	}
 }
 
 void RenderConstraintMenuContent(PhysicsWorld &world)

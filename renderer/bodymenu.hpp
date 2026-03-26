@@ -7,3 +7,4 @@ void RenderAddBodyMenuContent(PhysicsWorld &world);
 void RenderConstraintMenuContent(PhysicsWorld &world);
 void RenderWorldMenuContent(PhysicsWorld &world);
 void RenderBodyInspectorContent(PhysicsWorld &world, bool showCloseButton = false);
+void RenderEnginePopups();

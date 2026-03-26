@@ -518,6 +518,7 @@ void CreateWindow(PhysicsWorld &world)
 			}
 		}
 
+		RenderEnginePopups();
 		ImGui::Render();
 		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
