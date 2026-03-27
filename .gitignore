@@ -76,6 +76,6 @@ build/_deps/
 
 # Architecture build folders
 Debug/
-Release/
 x64/
 x86/
+build_linux/
