@@ -79,3 +79,9 @@ Debug/
 x64/
 x86/
 build_linux/
+
+!release/
+!release/windows/
+!release/windows/Aether_Test.exe
+!release/windows/msvcp140.dll
+!release/windows/vcruntime140.dll
