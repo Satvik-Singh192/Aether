@@ -304,7 +304,11 @@ static void pushVelocityArrow(std::vector<float> &v, const Rigidbody &body, cons
     float sizeScale = 0.22f;
     if (!getArrowOrigin(body, dir, start, sizeScale))
         return;
-    const float totalLen = std::min(0.58f, std::max(0.22f, sizeScale * 0.62f));
+    float velocityMag = std::sqrt(sqlen);
+    constexpr float minArrowLen = 0.15f;
+    constexpr float maxArrowLen = 1.5f;
+    constexpr float velocityScale = 1.0f;
+    float totalLen = std::min(maxArrowLen, std::max(minArrowLen, velocityMag * velocityScale));
     const float headLen = totalLen * 0.34f;
     const float headW = std::max(0.03f, totalLen * 0.18f);
     glm::vec3 tip = start + dir * totalLen;
@@ -326,7 +330,7 @@ static void pushVelocityArrow(std::vector<float> &v, const Rigidbody &body, cons
     glm::vec3 w1 = shaftEnd - side * headW;
     glm::vec3 w2 = shaftEnd + up * headW;
     glm::vec3 w3 = shaftEnd - up * headW;
-    pushLine(v, start, shaftEnd);
+    pushLine(v, start, tip);
     pushLine(v, tip, w0);
     pushLine(v, tip, w1);
     pushLine(v, tip, w2);
