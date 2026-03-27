@@ -3,6 +3,7 @@
 #include <utility>
 #include <vector>
 #include <cfloat>
+#include <algorithm>
 
 PhysicsWorld::PhysicsWorld() : gravity(0.0f, PHYSICS_GRAVITY, 0.0f), next_body_id(1) {}
 
