@@ -187,7 +187,7 @@ void PhysicsWorld::step(float dt)
 		body.orientation=body.orientation+qdot*dt;
 		body.orientation=body.orientation.normalised();
 		body.angvel=body.angvel*ANGULAR_DAMPING;
-		const float ANG_SLEEP = 0.001f;
+		const float ANG_SLEEP = 0.01f;
         if (body.angvel.dot(body.angvel) < ANG_SLEEP * ANG_SLEEP) {
             body.angvel = Vec3();
         }
@@ -240,6 +240,8 @@ void PhysicsWorld::step(float dt)
 		if (body.inverse_mass == 0.0f)
 			continue;
 		body.velocity = body.velocity * PHYSICS_LINEAR_DAMPING;
+		if (std::abs(body.velocity.x) < 0.01f) body.velocity.x = 0;
+	if (std::abs(body.velocity.z) < 0.01f) body.velocity.z = 0;
 		float tangent_speed_sq = body.velocity.x * body.velocity.x + body.velocity.z * body.velocity.z;
 		if (tangent_speed_sq < PHYSICS_RESTING_TANGENT_SLEEP_THRESHOLD * PHYSICS_RESTING_TANGENT_SLEEP_THRESHOLD)
 		{
@@ -455,57 +457,93 @@ void PhysicsWorld::solve_manifolds_vel_iteration()
 				float delta_impulse = c.accumulated_normal_impulse - prev_normal_impulse;
 
 				Vec3 impulse = c.normal * delta_impulse;
+				float maxAngular=10.0;
 
 				a.velocity -= impulse * a.inverse_mass;
 				b.velocity += impulse * b.inverse_mass;
-				a.angvel-=a.inverse_inertia_world*c.rA.cross(impulse);
-				b.angvel+=b.inverse_inertia_world*c.rB.cross(impulse);
+
+				Vec3 torqueA=c.rA.cross(impulse);
+				if (torqueA.length() > maxAngular) {
+					torqueA = torqueA.normalized() * maxAngular;
+				}
+				Vec3 torqueB=c.rB.cross(impulse);
+				if (torqueB.length() > maxAngular) {
+					torqueB = torqueB.normalized() * maxAngular;
+				}
+				a.angvel-=a.inverse_inertia_world*torqueA;
+				b.angvel+=b.inverse_inertia_world*torqueB;
 
 				// lets handle friction now
 				// Recompute velocity at contact point with NEW velocities after normal impulse
+
 				vA = a.velocity + a.angvel.cross(c.rA);
 				vB = b.velocity + b.angvel.cross(c.rB);
 				rel_vel = vB - vA;
-				Vec3 tangent = rel_vel - c.normal * rel_vel.dot(c.normal);
+				float vn = rel_vel.dot(c.normal);
+				Vec3 tangent = rel_vel - c.normal * vn;
+
 				float tangent_length = tangent.length();
-				if (tangent_length > PHYSICS_EPSILON)
-				{
+				if (tangent_length > PHYSICS_EPSILON) {
 					tangent = tangent * (1.0f / tangent_length);
 					c.tangent = tangent;
-				}
-				else
-				{
+				} else {
 					float cached_len = c.tangent.length();
 					if (cached_len <= PHYSICS_EPSILON)
 						continue;
 					tangent = c.tangent * (1.0f / cached_len);
+					tangent_length = cached_len;
 				}
 
-				float jt = -rel_vel.dot(tangent);
+				float vt = rel_vel.dot(tangent);
+
+				const float REST_VN = 0.01f;
+				const float REST_VT = 0.02f;
+
+				bool isResting = (std::abs(vn) < REST_VN && std::abs(vt) < REST_VT);
+
 				Vec3 raXt = c.rA.cross(tangent);
 				Vec3 rbXt = c.rB.cross(tangent);
 
 				Vec3 angTA = a.inverse_inertia_world * raXt;
 				Vec3 angTB = b.inverse_inertia_world * rbXt;
 
-				float kTangent = a.inverse_mass + b.inverse_mass + tangent.dot(angTA.cross(c.rA) + angTB.cross(c.rB));
+				float kTangent = a.inverse_mass + b.inverse_mass +
+					tangent.dot(angTA.cross(c.rA) + angTB.cross(c.rB));
+
 				if (kTangent <= PHYSICS_EPSILON) continue;
-				jt /= kTangent;
+				float jt;
+				if (isResting) {
+					jt = -vt / kTangent;
+
+					jt *= 2.0f;
+				} else {
+					jt = -vt / kTangent;
+				}
 
 				float prev_tangent_impulse = c.accumulated_tangent_impulse;
 
 				float mu = c.friction_coeff;
 				float maxfriction = mu * c.accumulated_normal_impulse;
+
 				float new_tangent_impulse = prev_tangent_impulse + jt;
-				c.accumulated_tangent_impulse = std::max(-maxfriction, std::min(new_tangent_impulse, maxfriction));
+
+				c.accumulated_tangent_impulse =
+					std::max(-maxfriction, std::min(new_tangent_impulse, maxfriction));
 
 				float delta_tangent = c.accumulated_tangent_impulse - prev_tangent_impulse;
 
 				Vec3 friction_impulse = tangent * delta_tangent;
+
 				a.velocity -= friction_impulse * a.inverse_mass;
 				b.velocity += friction_impulse * b.inverse_mass;
+
 				a.angvel -= a.inverse_inertia_world * c.rA.cross(friction_impulse);
 				b.angvel += b.inverse_inertia_world * c.rB.cross(friction_impulse);
+
+				const float CONTACT_ANG_DAMP = 0.99f;
+
+				a.angvel= a.angvel*CONTACT_ANG_DAMP;
+				b.angvel= b.angvel*CONTACT_ANG_DAMP;
 			}
 		}
 }
