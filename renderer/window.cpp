@@ -191,7 +191,6 @@ void CreateWindow(PhysicsWorld &world)
 	Camera camera;
 	AppScreen appScreen = AppScreen::StartScreen;
 	bool showControlsHelp = false;
-	bool showBodyInspector = false;
 	int selectedScenarioIndex = 30; // RampRampStress
 	float startGravityY = world.getGravity().y;
 	int selectedGravityPreset = 2; // Earth
@@ -261,7 +260,7 @@ void CreateWindow(PhysicsWorld &world)
 			}
 		}
 
-		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+		glClearColor(0.01f, 0.01f, 0.015f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		int framebufferWidth = 0;
@@ -350,10 +349,6 @@ void CreateWindow(PhysicsWorld &world)
 				if (ImGui::BeginMenu("World"))
 				{
 					RenderWorldMenuContent(world);
-					if (ImGui::MenuItem("Open Body Inspector"))
-					{
-						showBodyInspector = true;
-					}
 					ImGui::EndMenu();
 				}
 
@@ -498,24 +493,24 @@ void CreateWindow(PhysicsWorld &world)
 		}
 		else
 		{
-			if (showBodyInspector)
-			{
-				ImGui::OpenPopup("Body Inspector");
-				showBodyInspector = false;
-			}
-
 			const ImVec2 displaySize = ImGui::GetIO().DisplaySize;
 			const float menuBarHeight = ImGui::GetFrameHeight();
+			float inspectorWidth = displaySize.x * 0.18f;
+			if (inspectorWidth < 280.0f)
+				inspectorWidth = 280.0f;
+			if (inspectorWidth > 340.0f)
+				inspectorWidth = 340.0f;
 			const ImVec2 inspectorPos(8.0f, menuBarHeight + 8.0f);
-			const ImVec2 inspectorSize(560.0f, displaySize.y - menuBarHeight - 16.0f);
-			ImGui::SetNextWindowPos(inspectorPos, ImGuiCond_Appearing);
-			ImGui::SetNextWindowSize(inspectorSize, ImGuiCond_Appearing);
-
-			if (ImGui::BeginPopupModal("Body Inspector", nullptr, ImGuiWindowFlags_NoResize))
+			const float inspectorHeight = (displaySize.y - menuBarHeight - 16.0f) * 0.5f;
+			const ImVec2 inspectorSize(inspectorWidth, inspectorHeight);
+			ImGui::SetNextWindowPos(inspectorPos, ImGuiCond_Always);
+			ImGui::SetNextWindowSize(inspectorSize, ImGuiCond_Always);
+			ImGuiWindowFlags inspectorFlags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+			if (ImGui::Begin("Body Inspector", nullptr, inspectorFlags))
 			{
-				RenderBodyInspectorContent(world, true);
-				ImGui::EndPopup();
+				RenderBodyInspectorContent(world, false);
 			}
+			ImGui::End();
 		}
 
 		RenderEnginePopups();
