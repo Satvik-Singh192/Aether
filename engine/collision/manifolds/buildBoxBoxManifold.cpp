@@ -150,7 +150,7 @@ bool buildBoxBoxManifold(Rigidbody& a, Rigidbody& b, ContactManifold& m){
         c.b_id = b.id;
         c.normal = normal;
         c.penetration = penetration;
-        c.contact_point = (a.position + b.position) * 0.5f;
+        c.contact_point = a.position + normal* 0.5f;
         c.restitution = (a.restitution + b.restitution) * 0.5f;
         c.friction_coeff = std::sqrt(a.friction * b.friction);
 
@@ -159,23 +159,11 @@ bool buildBoxBoxManifold(Rigidbody& a, Rigidbody& b, ContactManifold& m){
         return true;
     }
 
-    m.contacts[0]=candd[0];
-    m.contact_count=1;
+    int count = std::min((int)candd.size(), 4);
+    m.contact_count = count;
 
-    float md=0.0f;
-    int bidx=-1;
-    for(int i=1; i<candd.size();i++){
-        float dist = (candd[i].contact_point - candd[0].contact_point).length();
-
-        if (dist > md)
-        {
-            md = dist;
-            bidx = i;
-        }
-    }
-    if(bidx!=-1 && md>0.001f) {
-        m.contacts[1]=candd[bidx];
-        m.contact_count=2;
+    for (int i = 0; i < count; i++) {
+        m.contacts[i] = candd[i];
     }
     return true;
 
