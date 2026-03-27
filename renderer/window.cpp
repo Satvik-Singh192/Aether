@@ -2,7 +2,6 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <chrono>
-
 #include "../engine/world/physicsworld.hpp"
 #include "camera.hpp"
 #include "drawbodies.hpp"
@@ -31,7 +30,7 @@ void CreateWindow(PhysicsWorld &world)
 #endif
 
 	// Window creation
-	GLFWwindow *window = glfwCreateWindow(800, 600, "Window", NULL, NULL);
+	GLFWwindow *window = glfwCreateWindow(1200, 800, "Aether Project", NULL, NULL);
 	if (window == NULL)
 	{
 		std::cout << "Failed to create window" << std::endl;
@@ -48,34 +47,27 @@ void CreateWindow(PhysicsWorld &world)
 		return;
 	}
 
-	glViewport(0, 0, 800, 600);
-	// Allow renderer to control point size
+	glViewport(0, 0, 1200, 800);
 	glEnable(GL_PROGRAM_POINT_SIZE);
 	glEnable(GL_DEPTH_TEST);
 
-	// Initialize the body renderer
 	initDrawBodies();
 
 	const float dt = 1.0f / 60.0f;
 	const int MAX_SUBSTEPS = 8;
 	bool isSimulationPaused = false;
 
-	float simulation_time = 0.0f;
-	float total_runtime = 3.0f; // we will run the simulation for 3 seconds in the startung testing phase
-
 	auto last_time = std::chrono::high_resolution_clock::now();
 	float accumulator = 0.0f;
 	int frame = 0;
 	Camera camera;
 
-	// initialize ImGui once after OpenGL context creation.
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
 	ImGui::StyleColorsDark();
 	ImGui_ImplGlfw_InitForOpenGL(window, true);
 	ImGui_ImplOpenGL3_Init("#version 330 core");
 
-	// Loop to render frames
 	while (!glfwWindowShouldClose(window))
 	{
 		auto current_time = std::chrono::high_resolution_clock::now();
@@ -84,7 +76,6 @@ void CreateWindow(PhysicsWorld &world)
 		frametime = std::min(frametime, 0.25f);
 		last_time = current_time;
 
-		// Process incoming inputs with frame-rate independent movement.
 		processInput(window, frametime, camera);
 
 		if (!isSimulationPaused)
@@ -96,9 +87,7 @@ void CreateWindow(PhysicsWorld &world)
 			{
 				world.step(dt);
 				++substeps;
-
 				frame++;
-				simulation_time += dt;
 				accumulator -= dt;
 			}
 
@@ -108,7 +97,7 @@ void CreateWindow(PhysicsWorld &world)
 			}
 		}
 
-		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+		glClearColor(0.08f, 0.08f, 0.10f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		int framebufferWidth = 0;
@@ -176,11 +165,11 @@ void CreateWindow(PhysicsWorld &world)
 	ImGui::DestroyContext();
 
 	glfwTerminate();
-	return;
 }
 
 void framebuffer_size_callback(GLFWwindow *window, int width, int height)
 {
+	(void)window;
 	glViewport(0, 0, width, height);
 }
 

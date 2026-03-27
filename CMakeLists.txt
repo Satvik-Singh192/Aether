@@ -33,6 +33,7 @@ FetchContent_Declare(
     GIT_REPOSITORY https://github.com/g-truc/glm.git
     GIT_TAG 0.9.9.8
 )
+
 FetchContent_Declare(
     imgui
     GIT_REPOSITORY https://github.com/ocornut/imgui.git
@@ -81,7 +82,7 @@ add_executable(Aether_Test
     engine/collision/manifolds/buildRampBoxManifold.cpp
     engine/collision/manifolds/buildRampSphereManifold.cpp
     engine/collision/manifolds/buildRampRampManifold.cpp
-    renderer/window.cpp 
+    renderer/window.cpp
     renderer/camera.cpp
     renderer/drawbodies.cpp
     renderer/bodyshaders.cpp
@@ -105,7 +106,6 @@ target_include_directories(imgui PUBLIC
 )
 
 target_compile_definitions(imgui PRIVATE IMGUI_IMPL_OPENGL_LOADER_GLAD)
-
 target_link_libraries(imgui PRIVATE glfw OpenGL::GL)
 
 target_include_directories(Aether_Test PRIVATE engine)
