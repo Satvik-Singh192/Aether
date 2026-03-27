@@ -21,6 +21,7 @@ namespace
 	enum class AppScreen
 	{
 		StartScreen,
+		Guide,
 		Running
 	};
 
@@ -190,7 +191,10 @@ void CreateWindow(PhysicsWorld &world)
 	int frame = 0;
 	Camera camera;
 	AppScreen appScreen = AppScreen::StartScreen;
-	bool showControlsHelp = false;
+	AppScreen guideReturnScreen = AppScreen::StartScreen;
+	bool isGuideForStartFlow = false;
+	bool hasShownGuideThisSession = false;
+	bool skipGuideNextTime = false;
 	int selectedScenarioIndex = 30; // RampRampStress
 	float startGravityY = world.getGravity().y;
 	int selectedGravityPreset = 2; // Earth
@@ -286,11 +290,30 @@ void CreateWindow(PhysicsWorld &world)
 			}
 		};
 
+		auto beginRunningScreen = [&]()
+		{
+			appScreen = AppScreen::Running;
+			isSimulationPaused = false;
+			accumulator = 0.0f;
+			simulation_time = 0.0f;
+			frame = 0;
+		};
+
+		auto openGuideScreen = [&](AppScreen returnScreen, bool forStartFlow)
+		{
+			guideReturnScreen = returnScreen;
+			isGuideForStartFlow = forStartFlow;
+			hasShownGuideThisSession = true;
+			appScreen = AppScreen::Guide;
+			isSimulationPaused = true;
+			accumulator = 0.0f;
+		};
+
 		if (ImGui::BeginMainMenuBar())
 		{
 			if (ImGui::BeginMenu("App"))
 			{
-				if (ImGui::MenuItem("Pause Menu"))
+				if (ImGui::MenuItem("Menu"))
 				{
 					// Save current simulation state
 					lastSimulationScenario = selectedScenarioIndex;
@@ -306,9 +329,9 @@ void CreateWindow(PhysicsWorld &world)
 					isSimulationPaused = true;
 					accumulator = 0.0f;
 				}
-				if (ImGui::MenuItem("Controls Help"))
+				if (ImGui::MenuItem("Guide"))
 				{
-					showControlsHelp = true;
+					openGuideScreen(appScreen, false);
 				}
 				if (ImGui::MenuItem("Quit", "Esc"))
 				{
@@ -394,7 +417,7 @@ void CreateWindow(PhysicsWorld &world)
 			ImGui::SetNextWindowPos(ImVec2(displaySize.x * 0.5f, displaySize.y * 0.5f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
 			ImGui::SetNextWindowSize(ImVec2(640.0f, 460.0f), ImGuiCond_Always);
 
-			const char *startWindowTitle = hasActiveSim ? "Aether Studio - Pause Menu" : "Aether Studio - Start";
+			const char *startWindowTitle = hasActiveSim ? "Aether Studio - Menu" : "Aether Studio - Start";
 			if (ImGui::Begin(startWindowTitle, nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize))
 			{
 				auto centerText = [](const char *text, bool disabled)
@@ -433,29 +456,33 @@ void CreateWindow(PhysicsWorld &world)
 
 				if (centerButton(hasActiveSim ? "Resume Simulation" : "Start Simulation", ImVec2(300.0f, 44.0f)))
 				{
-					if (!hasActiveSim)
+					bool shouldOpenGuide = !hasActiveSim && !skipGuideNextTime && !hasShownGuideThisSession;
+					if (shouldOpenGuide)
 					{
-						reloadSelectedScenario();
+						openGuideScreen(AppScreen::StartScreen, true);
 					}
 					else
 					{
-						// Restore saved state
-						selectedScenarioIndex = lastSimulationScenario;
-						startGravityY = lastSimulationGravity;
-						selectedGravityPreset = lastSimulationGravityPreset;
-						startWireframe = lastSimulationWireframe;
-						startTint[0] = lastSimulationTint[0];
-						startTint[1] = lastSimulationTint[1];
-						startTint[2] = lastSimulationTint[2];
-						SetBodyDrawWireframeMode(startWireframe);
-						SetBodyTint(startTint[0], startTint[1], startTint[2]);
-					}
+						if (!hasActiveSim)
+						{
+							reloadSelectedScenario();
+						}
+						else
+						{
+							// Restore saved state
+							selectedScenarioIndex = lastSimulationScenario;
+							startGravityY = lastSimulationGravity;
+							selectedGravityPreset = lastSimulationGravityPreset;
+							startWireframe = lastSimulationWireframe;
+							startTint[0] = lastSimulationTint[0];
+							startTint[1] = lastSimulationTint[1];
+							startTint[2] = lastSimulationTint[2];
+							SetBodyDrawWireframeMode(startWireframe);
+							SetBodyTint(startTint[0], startTint[1], startTint[2]);
+						}
 
-					appScreen = AppScreen::Running;
-					isSimulationPaused = false;
-					accumulator = 0.0f;
-					simulation_time = 0.0f;
-					frame = 0;
+						beginRunningScreen();
+					}
 				}
 
 				ImGui::Dummy(ImVec2(0.0f, 12.0f));
@@ -468,30 +495,76 @@ void CreateWindow(PhysicsWorld &world)
 				ImGui::Separator();
 				ImGui::Dummy(ImVec2(0.0f, 4.0f));
 				centerText("v1.0.0 | Built with OpenGL + ImGui", true);
+			}
+			ImGui::End();
+		}
+		else if (appScreen == AppScreen::Guide)
+		{
+			const ImVec2 displaySize = ImGui::GetIO().DisplaySize;
+			ImGui::SetNextWindowPos(ImVec2(displaySize.x * 0.5f, displaySize.y * 0.5f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+			ImGui::SetNextWindowSize(ImVec2(760.0f, 560.0f), ImGuiCond_Always);
 
-				if (showControlsHelp)
+			if (ImGui::Begin("Aether Studio - Guide", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize))
+			{
+				ImGui::TextWrapped("Welcome to Aether Studio. This quick guide highlights the main features before you start simulating.");
+				ImGui::Spacing();
+
+				ImGui::SeparatorText("Camera Controls");
+				ImGui::BulletText("W / A / S / D : move the camera");
+				ImGui::BulletText("Right mouse drag : rotate view");
+				ImGui::BulletText("Mouse wheel : zoom in and out");
+
+				ImGui::SeparatorText("Simulation Controls");
+				ImGui::BulletText("Simulation menu lets you pause and resume physics");
+				ImGui::BulletText("Settings allows scenario reload and gravity changes");
+				ImGui::BulletText("Frame stats are shown live in the Simulation menu");
+
+				ImGui::SeparatorText("Bodies and Constraints");
+				ImGui::BulletText("Add Body menu spawns spheres, boxes, and ramps");
+				ImGui::BulletText("Constraints menu creates links like distance joints");
+				ImGui::BulletText("Body Inspector shows detailed state for selected bodies");
+
+				ImGui::SeparatorText("Visual Settings");
+				ImGui::BulletText("Toggle wireframe mode for collision-focused views");
+				ImGui::BulletText("Adjust body tint color for readability");
+				ImGui::BulletText("World and rendering options are available from top menus");
+
+				ImGui::SeparatorText("Scenarios");
+				ImGui::BulletText("Pick a test scenario from Settings");
+				ImGui::BulletText("Reload Selected Test Case applies your selection immediately");
+				ImGui::BulletText("Use Menu to return to start screen without closing the app");
+
+				ImGui::Spacing();
+				ImGui::Checkbox("Skip this guide next time", &skipGuideNextTime);
+				ImGui::Spacing();
+
+				if (ImGui::Button("Start Simulation", ImVec2(220.0f, 40.0f)))
 				{
-					ImGui::OpenPopup("Controls Help");
-					showControlsHelp = false;
+					if (isGuideForStartFlow)
+					{
+						reloadSelectedScenario();
+					}
+					isGuideForStartFlow = false;
+					beginRunningScreen();
 				}
 
-				if (ImGui::BeginPopupModal("Controls Help", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+				ImGui::SameLine();
+				const char *backLabel = isGuideForStartFlow ? "Back to Start Menu" : "Back";
+				if (ImGui::Button(backLabel, ImVec2(220.0f, 40.0f)))
 				{
-					ImGui::Text("W / A / S / D : Move camera");
-					ImGui::Text("Right Mouse Drag : Rotate camera");
-					ImGui::Text("Esc : Quit application");
-					ImGui::Text("Use top menu > App > Pause Menu to return here.");
-					ImGui::Spacing();
-					if (ImGui::Button("Close", ImVec2(140.0f, 0.0f)))
+					AppScreen targetScreen = isGuideForStartFlow ? AppScreen::StartScreen : guideReturnScreen;
+					isGuideForStartFlow = false;
+					appScreen = targetScreen;
+					if (targetScreen == AppScreen::Running)
 					{
-						ImGui::CloseCurrentPopup();
+						isSimulationPaused = false;
 					}
-					ImGui::EndPopup();
+					accumulator = 0.0f;
 				}
 			}
 			ImGui::End();
 		}
-		else
+		else if (appScreen == AppScreen::Running)
 		{
 			const ImVec2 displaySize = ImGui::GetIO().DisplaySize;
 			const float menuBarHeight = ImGui::GetFrameHeight();
