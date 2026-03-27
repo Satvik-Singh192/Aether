@@ -11,21 +11,44 @@
       "installRoot": "${projectDir}\\out\\install\\${name}",
       "cmakeCommandArgs": "-DVCPKG_MANIFEST_MODE=ON",
       "buildCommandArgs": "",
-      "ctestCommandArgs": ""
+      "ctestCommandArgs": "",
+      "variables": [
+        {
+          "name": "Rust_COMPILER",
+          "value": "C:/Users/shrey/.rustup/toolchains/stable-x86_64-pc-windows-msvc/bin/rustc.exe",
+          "type": "FILEPATH"
+        },
+        {
+          "name": "Rust_CARGO",
+          "value": "C:/Users/shrey/.cargo/bin/cargo.exe",
+          "type": "FILEPATH"
+        }
+      ]
     },
     {
       "name": "x64-Release",
       "generator": "Ninja",
       "configurationType": "RelWithDebInfo",
+      "inheritEnvironments": [
+        "msvc_x64_x64"
+      ],
       "buildRoot": "${projectDir}\\out\\build\\${name}",
       "installRoot": "${projectDir}\\out\\install\\${name}",
       "cmakeCommandArgs": "-DVCPKG_MANIFEST_MODE=ON",
       "buildCommandArgs": "",
       "ctestCommandArgs": "",
-      "inheritEnvironments": [
-        "msvc_x64_x64"
-      ],
-      "variables": []
+      "variables": [
+        {
+          "name": "Rust_COMPILER",
+          "value": "C:/Users/shrey/.rustup/toolchains/stable-x86_64-pc-windows-msvc/bin/rustc.exe",
+          "type": "FILEPATH"
+        },
+        {
+          "name": "Rust_CARGO",
+          "value": "C:/Users/shrey/.cargo/bin/cargo.exe",
+          "type": "FILEPATH"
+        }
+      ]
     }
   ]
 }

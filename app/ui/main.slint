@@ -1,0 +1,361 @@
+import { Button } from "std-widgets.slint";
+
+export component AppWindow inherits Window {
+    width: 900px;
+    height: 600px;
+    title: "Aether Engine";
+    background: root.in_simulation ? #00000000 : #0b0c10;
+
+    callback start_simulation();
+    callback back_to_menu();
+    callback toggle_pause();
+    callback reset_scene();
+    callback set_wireframe(bool);
+    callback set_tint_preset(int);
+    callback set_gravity(float);
+    callback spawn_sphere();
+    callback spawn_box();
+    callback spawn_ramp();
+
+    in-out property <bool> show_settings: false;
+    in-out property <bool> in_simulation: false;
+    in-out property <bool> paused: false;
+    in-out property <bool> wireframe: false;
+    in-out property <int> selected_scenario: 3;
+    in-out property <float> gravity_y: -9.81;
+    in-out property <int> body_count: 0;
+    in-out property <int> contact_count: 0;
+    in-out property <string> fps_text: "FPS: 0";
+
+    // Atmospheric background glows
+    Rectangle {
+        width: 600px;
+        height: 600px;
+        x: -150px;
+        y: -100px;
+        background: #45f3ff;
+        opacity: 0.15;
+        border-radius: 300px;
+    }
+
+    Rectangle {
+        width: 500px;
+        height: 500px;
+        x: 500px;
+        y: 200px;
+        background: #9d4edd;
+        opacity: 0.15;
+        border-radius: 250px;
+    }
+
+    // Glass-style dashboard panel (Main Menu)
+    Rectangle {
+        visible: !root.show_settings && !root.in_simulation;
+        width: 400px;
+        height: 450px;
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        background: #ffffff08;
+        border-radius: 24px;
+        border-width: 1px;
+        border-color: #ffffff26;
+
+        VerticalLayout {
+            padding: 40px;
+            spacing: 20px;
+
+            Text {
+                text: "AETHER";
+                font-size: 36px;
+                color: #45f3ff;
+                horizontal-alignment: center;
+            }
+
+            Text {
+                text: "Physics Simulation Engine";
+                font-size: 14px;
+                color: #ffffff99;
+                horizontal-alignment: center;
+            }
+
+            Rectangle {
+                height: 20px;
+                background: #00000000;
+            }
+
+            Button {
+                text: "START SIMULATION";
+                clicked => {
+                    root.start_simulation();
+                }
+            }
+
+            Button {
+                text: "SETTINGS";
+                clicked => {
+                    root.show_settings = true;
+                }
+            }
+        }
+    }
+
+    // Settings Panel
+    Rectangle {
+        visible: root.show_settings && !root.in_simulation;
+        width: 520px;
+        height: 470px;
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        background: #ffffff08;
+        border-radius: 24px;
+        border-width: 1px;
+        border-color: #ffffff26;
+
+        VerticalLayout {
+            padding: 28px;
+            spacing: 14px;
+
+            Text {
+                text: "Launcher Settings";
+                font-size: 28px;
+                color: #45f3ff;
+                horizontal-alignment: center;
+            }
+
+            Text {
+                text: "Choose startup scenario";
+                font-size: 14px;
+                color: #ffffff99;
+            }
+
+            HorizontalLayout {
+                spacing: 10px;
+                Button {
+                    text: root.selected_scenario == 0 ? "SphereSphere (Selected)" : "SphereSphere";
+                    clicked => {
+                        root.selected_scenario = 0;
+                    }
+                }
+                Button {
+                    text: root.selected_scenario == 3 ? "BoxRamp (Selected)" : "BoxRamp";
+                    clicked => {
+                        root.selected_scenario = 3;
+                    }
+                }
+                Button {
+                    text: root.selected_scenario == 31 ? "RampRampStress (Selected)" : "RampRampStress";
+                    clicked => {
+                        root.selected_scenario = 31;
+                    }
+                }
+            }
+
+            Rectangle {
+                height: 8px;
+                background: #00000000;
+            }
+
+            Text {
+                text: "Gravity preset";
+                font-size: 14px;
+                color: #ffffff99;
+            }
+
+            HorizontalLayout {
+                spacing: 10px;
+                Button {
+                    text: "Moon (-1.62)";
+                    clicked => {
+                        root.gravity_y = -1.62;
+                    }
+                }
+                Button {
+                    text: "Earth (-9.81)";
+                    clicked => {
+                        root.gravity_y = -9.81;
+                    }
+                }
+                Button {
+                    text: "Heavy (-20.0)";
+                    clicked => {
+                        root.gravity_y = -20.0;
+                    }
+                }
+            }
+
+            Text {
+                text: "Current gravity: " + root.gravity_y;
+                font-size: 13px;
+                color: #ffffffb3;
+            }
+
+            Rectangle {
+                height: 14px;
+                background: #00000000;
+            }
+
+            HorizontalLayout {
+                spacing: 12px;
+                Button {
+                    text: "BACK";
+                    clicked => {
+                        root.show_settings = false;
+                    }
+                }
+                Button {
+                    text: "START WITH THESE SETTINGS";
+                    clicked => {
+                        root.start_simulation();
+                    }
+                }
+            }
+        }
+    }
+
+    // Simulation HUD panel (Slint replacement for ImGui controls)
+    Rectangle {
+        visible: root.in_simulation;
+        x: 16px;
+        y: 16px;
+        width: 390px;
+        height: 560px;
+        background: #101726e8;
+        border-width: 1px;
+        border-color: #2b4f7acc;
+        border-radius: 16px;
+
+        VerticalLayout {
+            padding: 16px;
+            spacing: 10px;
+
+            Text {
+                text: "Simulation Controls";
+                font-size: 22px;
+                color: #77d9ff;
+            }
+
+            Text {
+                text: root.fps_text + " | Bodies: " + root.body_count + " | Contacts: " + root.contact_count;
+                font-size: 12px;
+                color: #d1e7ff;
+            }
+
+            HorizontalLayout {
+                spacing: 8px;
+                Button {
+                    text: root.paused ? "Resume" : "Pause";
+                    clicked => { root.toggle_pause(); }
+                }
+                Button {
+                    text: "Reset";
+                    clicked => { root.reset_scene(); }
+                }
+                Button {
+                    text: "Back";
+                    clicked => { root.back_to_menu(); }
+                }
+            }
+
+            HorizontalLayout {
+                spacing: 8px;
+                Button {
+                    text: root.wireframe ? "Wireframe ON" : "Wireframe OFF";
+                    clicked => {
+                        root.wireframe = !root.wireframe;
+                        root.set_wireframe(root.wireframe);
+                    }
+                }
+                Button {
+                    text: "Tint Neutral";
+                    clicked => { root.set_tint_preset(0); }
+                }
+                Button {
+                    text: "Tint Cool";
+                    clicked => { root.set_tint_preset(1); }
+                }
+            }
+
+            HorizontalLayout {
+                spacing: 8px;
+                Button {
+                    text: "Tint Warm";
+                    clicked => { root.set_tint_preset(2); }
+                }
+                Button {
+                    text: "Tint Neon";
+                    clicked => { root.set_tint_preset(3); }
+                }
+            }
+
+            Text {
+                text: "Gravity: " + root.gravity_y;
+                color: #d1e7ff;
+            }
+
+            HorizontalLayout {
+                spacing: 8px;
+                Button {
+                    text: "Moon";
+                    clicked => {
+                        root.gravity_y = -1.62;
+                        root.set_gravity(root.gravity_y);
+                    }
+                }
+                Button {
+                    text: "Earth";
+                    clicked => {
+                        root.gravity_y = -9.81;
+                        root.set_gravity(root.gravity_y);
+                    }
+                }
+                Button {
+                    text: "Heavy";
+                    clicked => {
+                        root.gravity_y = -20.0;
+                        root.set_gravity(root.gravity_y);
+                    }
+                }
+            }
+
+            HorizontalLayout {
+                spacing: 8px;
+                Button {
+                    text: "Gravity +1";
+                    clicked => {
+                        root.gravity_y += 1.0;
+                        root.set_gravity(root.gravity_y);
+                    }
+                }
+                Button {
+                    text: "Gravity -1";
+                    clicked => {
+                        root.gravity_y -= 1.0;
+                        root.set_gravity(root.gravity_y);
+                    }
+                }
+            }
+
+            Text {
+                text: "Add Body";
+                font-size: 16px;
+                color: #77d9ff;
+            }
+
+            HorizontalLayout {
+                spacing: 8px;
+                Button {
+                    text: "Spawn Sphere";
+                    clicked => { root.spawn_sphere(); }
+                }
+                Button {
+                    text: "Spawn Box";
+                    clicked => { root.spawn_box(); }
+                }
+                Button {
+                    text: "Spawn Ramp";
+                    clicked => { root.spawn_ramp(); }
+                }
+            }
+        }
+    }
+}

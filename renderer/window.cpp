@@ -2,7 +2,6 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <chrono>
-
 #include "../engine/world/physicsworld.hpp"
 #include "camera.hpp"
 #include "drawbodies.hpp"
@@ -176,15 +175,12 @@ void CreateWindow(PhysicsWorld &world)
 	glEnable(GL_PROGRAM_POINT_SIZE);
 	glEnable(GL_DEPTH_TEST);
 
-	// Initialize the body renderer
 	initDrawBodies();
 
 	const float dt = 1.0f / 60.0f;
 	const int MAX_SUBSTEPS = 8;
 	bool isSimulationPaused = false;
-
 	float simulation_time = 0.0f;
-	float total_runtime = 3.0f; // we will run the simulation for 3 seconds in the startung testing phase
 
 	auto last_time = std::chrono::high_resolution_clock::now();
 	float accumulator = 0.0f;
@@ -210,7 +206,6 @@ void CreateWindow(PhysicsWorld &world)
 	float lastSimulationTint[3] = {startTint[0], startTint[1], startTint[2]};
 	bool hasActiveSim = false;
 
-	// initialize ImGui once after OpenGL context creation.
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
 	LoadAetherFont();
@@ -252,7 +247,6 @@ void CreateWindow(PhysicsWorld &world)
 			{
 				world.step(dt);
 				++substeps;
-
 				frame++;
 				simulation_time += dt;
 				accumulator -= dt;
@@ -617,11 +611,11 @@ void CreateWindow(PhysicsWorld &world)
 	ImGui::DestroyContext();
 
 	glfwTerminate();
-	return;
 }
 
 void framebuffer_size_callback(GLFWwindow *window, int width, int height)
 {
+	(void)window;
 	glViewport(0, 0, width, height);
 }
 
