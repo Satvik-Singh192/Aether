@@ -23,6 +23,7 @@ static GLuint solidProgram;
 static GLuint VAO, VBO;
 static GLuint solidVAO, solidVBO;
 static bool g_wireframeMode = false;
+static bool showVelocityArrows = true;
 static float g_bodyTintR = 1.0f;
 static float g_bodyTintG = 1.0f;
 static float g_bodyTintB = 1.0f;
@@ -336,6 +337,8 @@ static void drawVelocityArrows(PhysicsWorld &world, GLuint prog, GLuint vao, GLu
                              GLint viewLoc, GLint projLoc, GLint colorLoc, const glm::mat4 &model,
                              const glm::mat4 &view, const glm::mat4 &projection)
 {
+    if (!showVelocityArrows)
+        return;
     std::vector<float> arrowVerts;
     std::unordered_set<BodyID> alive;
     alive.reserve(world.getBodies().size());
@@ -830,4 +833,14 @@ void GetBodyTint(float &r, float &g, float &b)
     r = g_bodyTintR;
     g = g_bodyTintG;
     b = g_bodyTintB;
+}
+
+void SetBodyVelocityArrowVisible(bool enabled)
+{
+    showVelocityArrows = enabled;
+}
+
+bool GetBodyVelocityArrowVisible()
+{
+    return showVelocityArrows;
 }

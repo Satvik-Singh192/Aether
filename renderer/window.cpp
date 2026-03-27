@@ -195,6 +195,7 @@ void CreateWindow(PhysicsWorld &world)
 	float startGravityY = world.getGravity().y;
 	int selectedGravityPreset = 2; // Earth
 	bool startWireframe = GetBodyDrawWireframeMode();
+	bool startShowVelocityArrows = GetBodyVelocityArrowVisible();
 	float startTint[3] = {1.0f, 1.0f, 1.0f};
 	GetBodyTint(startTint[0], startTint[1], startTint[2]);
 
@@ -203,6 +204,7 @@ void CreateWindow(PhysicsWorld &world)
 	float lastSimulationGravity = startGravityY;
 	int lastSimulationGravityPreset = selectedGravityPreset;
 	bool lastSimulationWireframe = startWireframe;
+	bool lastSimulationShowVelocityArrows = startShowVelocityArrows;
 	float lastSimulationTint[3] = {startTint[0], startTint[1], startTint[2]};
 	bool hasActiveSim = false;
 
@@ -221,6 +223,7 @@ void CreateWindow(PhysicsWorld &world)
 		Vec3 gravity = world.getGravity();
 		world.setGravity(Vec3(gravity.x, startGravityY, gravity.z));
 		SetBodyDrawWireframeMode(startWireframe);
+		SetBodyVelocityArrowVisible(startShowVelocityArrows);
 		SetBodyTint(startTint[0], startTint[1], startTint[2]);
 		isSimulationPaused = false;
 		accumulator = 0.0f;
@@ -297,6 +300,7 @@ void CreateWindow(PhysicsWorld &world)
 					lastSimulationGravity = startGravityY;
 					lastSimulationGravityPreset = selectedGravityPreset;
 					lastSimulationWireframe = startWireframe;
+					lastSimulationShowVelocityArrows = startShowVelocityArrows;
 					lastSimulationTint[0] = startTint[0];
 					lastSimulationTint[1] = startTint[1];
 					lastSimulationTint[2] = startTint[2];
@@ -377,6 +381,10 @@ void CreateWindow(PhysicsWorld &world)
 					{
 						SetBodyDrawWireframeMode(startWireframe);
 					}
+					if (ImGui::Checkbox("Show velocity arrows", &startShowVelocityArrows))
+					{
+						SetBodyVelocityArrowVisible(startShowVelocityArrows);
+					}
 					if (ImGui::ColorEdit3("Body color tint", startTint))
 					{
 						SetBodyTint(startTint[0], startTint[1], startTint[2]);
@@ -444,10 +452,12 @@ void CreateWindow(PhysicsWorld &world)
 						startGravityY = lastSimulationGravity;
 						selectedGravityPreset = lastSimulationGravityPreset;
 						startWireframe = lastSimulationWireframe;
+						startShowVelocityArrows = lastSimulationShowVelocityArrows;
 						startTint[0] = lastSimulationTint[0];
 						startTint[1] = lastSimulationTint[1];
 						startTint[2] = lastSimulationTint[2];
 						SetBodyDrawWireframeMode(startWireframe);
+						SetBodyVelocityArrowVisible(startShowVelocityArrows);
 						SetBodyTint(startTint[0], startTint[1], startTint[2]);
 					}
 
