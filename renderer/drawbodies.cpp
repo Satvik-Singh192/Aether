@@ -283,13 +283,45 @@ void RenderBodies(PhysicsWorld &world, const Camera &camera, float aspectRatio)
         GLint smLight = glGetUniformLocation(solidProgram, "uLightDir");
         GLint smSel = glGetUniformLocation(solidProgram, "uSelected");
         GLint smFloor = glGetUniformLocation(solidProgram, "uFloor");
-        glm::vec3 lightDir = glm::normalize(glm::vec3(0.4f, -0.75f, 0.35f));
+        // Environment lighting + fog.
+        GLint smSky = glGetUniformLocation(solidProgram, "uSkyColor");
+        GLint smGround = glGetUniformLocation(solidProgram, "uGroundColor");
+        GLint smFogColor = glGetUniformLocation(solidProgram, "uFogColor");
+        GLint smFogNear = glGetUniformLocation(solidProgram, "uFogNear");
+        GLint smFogFar = glGetUniformLocation(solidProgram, "uFogFar");
+
+        // Material parameters (per body, derived from tint).
+        GLint smMatAmbient = glGetUniformLocation(solidProgram, "material.ambient");
+        GLint smMatDiffuse = glGetUniformLocation(solidProgram, "material.diffuse");
+        GLint smMatSpecular = glGetUniformLocation(solidProgram, "material.specular");
+        GLint smMatShininess = glGetUniformLocation(solidProgram, "material.shininess");
+        glm::vec3 lightDir = glm::normalize(glm::vec3(5.0f, -1.1f, 1.0f));
         glm::vec3 camPos = camera.getPosition();
         glUniformMatrix4fv(smView, 1, GL_FALSE, glm::value_ptr(view));
         glUniformMatrix4fv(smProj, 1, GL_FALSE, glm::value_ptr(projection));
         glUniformMatrix4fv(smModel, 1, GL_FALSE, glm::value_ptr(model));
         glUniform3fv(smLight, 1, glm::value_ptr(lightDir));
         glUniform3fv(smCam, 1, glm::value_ptr(camPos));
+
+        const glm::vec3 skyColor(0.03f, 0.02f, 0.07f);
+        const glm::vec3 groundColor(0.01f, 0.01f, 0.015f);
+        const glm::vec3 fogColor(0.015f, 0.01f, 0.035f);
+        const float fogNear = 28.0f;
+        const float fogFar = 80.0f;
+
+        if (smSky >= 0)
+            glUniform3fv(smSky, 1, glm::value_ptr(skyColor));
+        if (smGround >= 0)
+            glUniform3fv(smGround, 1, glm::value_ptr(groundColor));
+        if (smFogColor >= 0)
+            glUniform3fv(smFogColor, 1, glm::value_ptr(fogColor));
+        if (smFogNear >= 0)
+            glUniform1f(smFogNear, fogNear);
+        if (smFogFar >= 0)
+            glUniform1f(smFogFar, fogFar);
+
+        const glm::vec3 specularColor(0.95f, 0.97f, 1.0f);
+        const float shininess = 64.0f;
 
         glBindVertexArray(solidVAO);
         glBindBuffer(GL_ARRAY_BUFFER, solidVBO);
@@ -339,15 +371,30 @@ void RenderBodies(PhysicsWorld &world, const Camera &camera, float aspectRatio)
             if (smFloor >= 0)
                 glUniform1f(smFloor, floorFlag);
             const bool isSelected = (body.id == GetSelectedBodyId());
+            float cr = ar, cg = ag, cb = ab, ca = aa;
+            if (isSelected && floorFlag < 0.5f)
+            {
+                cr = 1.0f;
+                cg = 0.92f;
+                cb = 0.35f;
+                ca = 1.0f;
+            }
             if (smCol >= 0)
             {
-                if (isSelected && floorFlag < 0.5f)
-                    glUniform4f(smCol, 1.0f, 0.92f, 0.35f, 1.0f);
-                else
-                    glUniform4f(smCol, ar, ag, ab, aa);
+                glUniform4f(smCol, cr, cg, cb, ca);
             }
             if (smSel >= 0)
                 glUniform1f(smSel, (isSelected && floorFlag < 0.5f) ? 1.0f : 0.0f);
+
+            if (smMatAmbient >= 0)
+                glUniform3f(smMatAmbient, cr, cg, cb);
+            if (smMatDiffuse >= 0)
+                glUniform3f(smMatDiffuse, cr, cg, cb);
+            if (smMatSpecular >= 0)
+                glUniform3fv(smMatSpecular, 1, glm::value_ptr(specularColor));
+            if (smMatShininess >= 0)
+                glUniform1f(smMatShininess, shininess);
+
             glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(solidVerts.size() / 6));
         };
 
