@@ -195,6 +195,19 @@ void RenderDistanceConstraintsSolid(
     GLint smLight = glGetUniformLocation(program, "uLightDir");
     GLint smSel = glGetUniformLocation(program, "uSelected");
     GLint smFloor = glGetUniformLocation(program, "uFloor");
+    // Environment lighting + fog.
+    GLint smSky = glGetUniformLocation(program, "uSkyColor");
+    GLint smGround = glGetUniformLocation(program, "uGroundColor");
+    GLint smFogColor = glGetUniformLocation(program, "uFogColor");
+    GLint smFogNear = glGetUniformLocation(program, "uFogNear");
+    GLint smFogFar = glGetUniformLocation(program, "uFogFar");
+
+    // Material parameters.
+    GLint smMatAmbient = glGetUniformLocation(program, "material.ambient");
+    GLint smMatDiffuse = glGetUniformLocation(program, "material.diffuse");
+    GLint smMatSpecular = glGetUniformLocation(program, "material.specular");
+    GLint smMatShininess = glGetUniformLocation(program, "material.shininess");
+
     glm::mat4 model = glm::mat4(1.0f);
     glUseProgram(program);
     glUniformMatrix4fv(smView, 1, GL_FALSE, glm::value_ptr(view));
@@ -206,6 +219,25 @@ void RenderDistanceConstraintsSolid(
         glUniform1f(smSel, 0.0f);
     if (smFloor >= 0)
         glUniform1f(smFloor, 0.0f);
+
+    const glm::vec3 skyColor(0.03f, 0.02f, 0.07f);
+    const glm::vec3 groundColor(0.01f, 0.01f, 0.015f);
+    const glm::vec3 fogColor(0.015f, 0.01f, 0.035f);
+    const float fogNear = 28.0f;
+    const float fogFar = 80.0f;
+
+    if (smSky >= 0)
+        glUniform3fv(smSky, 1, glm::value_ptr(skyColor));
+    if (smGround >= 0)
+        glUniform3fv(smGround, 1, glm::value_ptr(groundColor));
+    if (smFogColor >= 0)
+        glUniform3fv(smFogColor, 1, glm::value_ptr(fogColor));
+    if (smFogNear >= 0)
+        glUniform1f(smFogNear, fogNear);
+    if (smFogFar >= 0)
+        glUniform1f(smFogFar, fogFar);
+
+    const glm::vec3 specularColor(0.95f, 0.97f, 1.0f);
 
     glBindVertexArray(vao);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
@@ -231,6 +263,27 @@ void RenderDistanceConstraintsSolid(
         float r, g, b;
         constraintBaseColor(c.type, r, g, b);
         tintRgb(r, g, b, tintR, tintG, tintB);
+
+        // Constraint shader uses Material for lighting, and uColor only for alpha.
+        if (smMatAmbient >= 0)
+            glUniform3f(smMatAmbient, r, g, b);
+        if (smMatDiffuse >= 0)
+            glUniform3f(smMatDiffuse, r, g, b);
+        if (smMatSpecular >= 0)
+            glUniform3fv(smMatSpecular, 1, glm::value_ptr(specularColor));
+        if (smMatShininess >= 0)
+        {
+            // Small variety makes different constraint types read better.
+            float shininess = 64.0f;
+            if (c.type == DistanceConstraint::ROPE)
+                shininess = 24.0f;
+            else if (c.type == DistanceConstraint::ROD)
+                shininess = 96.0f;
+            else
+                shininess = 48.0f; // spring
+            glUniform1f(smMatShininess, shininess);
+        }
+
         if (smCol >= 0)
             glUniform4f(smCol, r, g, b, 1.0f);
         glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(solid.size() / 6));
