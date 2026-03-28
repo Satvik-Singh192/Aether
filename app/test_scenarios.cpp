@@ -328,7 +328,7 @@ namespace
         world.addBody(Rigidbody(Vec3(0.0f, 1.55f, 0.0f), Vec3(), &g_small_box, 1.0f));
         world.addBody(Rigidbody(Vec3(0.0f, 2.6f, 0.0f), Vec3(), &g_small_box, 1.0f));
         
-        world.addBody(Rigidbody(Vec3(-2.5f, 1.55f, 0.0f), Vec3(4.0f, 0.0f, 0.0f), &g_small_sphere, 0.5f));
+        world.addBody(Rigidbody(Vec3(-2.5f, 1.55f, 0.0f), Vec3(9.0f, 0.0f, 0.0f), &g_small_sphere, 0.5f));
     }
 
     void spawn_off_center_hit(PhysicsWorld &world)

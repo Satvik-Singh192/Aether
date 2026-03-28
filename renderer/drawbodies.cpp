@@ -15,15 +15,45 @@
 #include "drawconstraints.hpp"
 #include <algorithm>
 #include <cmath>
+#include <unordered_map>
+#include <unordered_set>
 
 static GLuint shaderProgram;
 static GLuint solidProgram;
 static GLuint VAO, VBO;
 static GLuint solidVAO, solidVBO;
 static bool g_wireframeMode = false;
+static bool showVelocityArrows = true;
 static float g_bodyTintR = 1.0f;
 static float g_bodyTintG = 1.0f;
 static float g_bodyTintB = 1.0f;
+struct ArrowRenderState
+{
+    glm::vec3 dir = glm::vec3(1.0f, 0.0f, 0.0f);
+    glm::vec3 velSmooth = glm::vec3(0.0f);
+    float speed = 0.0f;
+    glm::vec3 lastPos = glm::vec3(0.0f);
+    float posMoveSmooth = 0.0f;
+    int stillFrames = 0;
+    bool visible = false;
+    bool initialized = false;
+};
+static std::unordered_map<BodyID, ArrowRenderState> g_arrowRenderStates;
+
+namespace
+{
+constexpr float ARROW_VEL_SMOOTH = 0.055f;
+constexpr float ARROW_DIR_BLEND = 0.05f;
+constexpr float ARROW_SPEED_SMOOTH = 0.065f;
+constexpr float ARROW_POS_MOVE_SMOOTH = 0.28f;
+constexpr float ARROW_SHOW_SPEED = 0.19f;
+constexpr float ARROW_HIDE_SPEED = 0.048f;
+constexpr float ARROW_MOVE_REST = 0.0011f;
+constexpr int ARROW_STILL_FRAMES = 12;
+constexpr float ARROW_DIR_UPDATE_MIN_SPEED = 0.06f;
+constexpr float ARROW_SHOW_MOVE_FACTOR = 2.2f;
+constexpr float ARROW_DRAW_MIN_SPEED = 0.042f;
+}
 
 static void applyBodyTint(float &r, float &g, float &b)
 {
@@ -214,6 +244,190 @@ static bool looksLikeFloor(const Rigidbody &body) // check for floor
     const float hy = box->halfsize.y;
     const float hz = box->halfsize.z;
     return hy <= 0.15f && hx >= 40.0f && hz >= 40.0f;
+}
+
+static bool getArrowOrigin(const Rigidbody &body, const glm::vec3 &dir, glm::vec3 &origin, float &sizeScale)
+{
+    if (!body.collider)
+        return false;
+    const glm::vec3 c(body.position.x, body.position.y, body.position.z);
+    Mat3 R = body.orientation.toMat3();
+    if (body.collider->type == ShapeType::Sphere)
+    {
+        const auto *sphere = static_cast<const SphereCollider *>(body.collider);
+        float r = std::max(0.12f, sphere->radius);
+        origin = c + dir * (r + 0.06f);
+        sizeScale = r;
+        return true;
+    }
+    if (body.collider->type == ShapeType::Box)
+    {
+        const auto *box = static_cast<const BoxCollider *>(body.collider);
+        float ex = std::abs(dir.x * box->halfsize.x);
+        float ey = std::abs(dir.y * box->halfsize.y);
+        float ez = std::abs(dir.z * box->halfsize.z);
+        float support = ex + ey + ez;
+        support = std::max(0.12f, support);
+        float maxHalf = std::max(box->halfsize.x, std::max(box->halfsize.y, box->halfsize.z));
+        origin = c + dir * (support + 0.06f);
+        sizeScale = std::max(0.16f, maxHalf);
+        return true;
+    }
+    if (body.collider->type == ShapeType::Ramp)
+    {
+        const auto *ramp = static_cast<const RampCollider *>(body.collider);
+        glm::vec3 localAnchor(ramp->length * 0.65f, ramp->getHeight() * 0.72f, 0.0f);
+        glm::vec3 worldAnchor = c + rotateOffset(R, localAnchor);
+        glm::vec3 up = rotateOffset(R, glm::vec3(0.0f, 1.0f, 0.0f));
+        float upLen = glm::length(up);
+        if (upLen > 1e-5f)
+            up = up * (1.0f / upLen);
+        else
+            up = glm::vec3(0.0f, 1.0f, 0.0f);
+        origin = worldAnchor + up * 0.08f + dir * 0.06f;
+        sizeScale = std::max(0.18f, std::min(0.52f, std::max(ramp->length * 0.12f, ramp->getHeight() * 0.2f)));
+        return true;
+    }
+    origin = c + dir * 0.12f;
+    sizeScale = 0.22f;
+    return true;
+}
+
+static void pushVelocityArrow(std::vector<float> &v, const Rigidbody &body, const glm::vec3 &vel)
+{
+    float sqlen = vel.x * vel.x + vel.y * vel.y + vel.z * vel.z;
+    if (sqlen < ARROW_DRAW_MIN_SPEED * ARROW_DRAW_MIN_SPEED)
+        return;
+    float inv = 1.0f / std::sqrt(sqlen);
+    glm::vec3 dir(vel.x * inv, vel.y * inv, vel.z * inv);
+    glm::vec3 start;
+    float sizeScale = 0.22f;
+    if (!getArrowOrigin(body, dir, start, sizeScale))
+        return;
+    float velocityMag = std::sqrt(sqlen);
+    constexpr float minArrowLen = 0.15f;
+    constexpr float maxArrowLen = 1.5f;
+    constexpr float velocityScale = 1.0f;
+    float totalLen = std::min(maxArrowLen, std::max(minArrowLen, velocityMag * velocityScale));
+    const float headLen = totalLen * 0.34f;
+    const float headW = std::max(0.03f, totalLen * 0.18f);
+    glm::vec3 tip = start + dir * totalLen;
+    glm::vec3 shaftEnd = start + dir * (totalLen - headLen);
+    glm::vec3 aux(0.0f, 1.0f, 0.0f);
+    if (std::abs(dir.x * aux.x + dir.y * aux.y + dir.z * aux.z) > 0.92f)
+        aux = glm::vec3(1.0f, 0.0f, 0.0f);
+    glm::vec3 side = glm::cross(dir, aux);
+    float slen = glm::length(side);
+    if (slen < 1e-5f)
+        return;
+    side = side * (1.0f / slen);
+    glm::vec3 up = glm::cross(side, dir);
+    float ulen = glm::length(up);
+    if (ulen < 1e-5f)
+        return;
+    up = up * (1.0f / ulen);
+    glm::vec3 w0 = shaftEnd + side * headW;
+    glm::vec3 w1 = shaftEnd - side * headW;
+    glm::vec3 w2 = shaftEnd + up * headW;
+    glm::vec3 w3 = shaftEnd - up * headW;
+    pushLine(v, start, tip);
+    pushLine(v, tip, w0);
+    pushLine(v, tip, w1);
+    pushLine(v, tip, w2);
+    pushLine(v, tip, w3);
+}
+
+static void drawVelocityArrows(PhysicsWorld &world, GLuint prog, GLuint vao, GLuint vbo, GLint modelLoc,
+                             GLint viewLoc, GLint projLoc, GLint colorLoc, const glm::mat4 &model,
+                             const glm::mat4 &view, const glm::mat4 &projection)
+{
+    if (!showVelocityArrows)
+        return;
+    std::vector<float> arrowVerts;
+    std::unordered_set<BodyID> alive;
+    alive.reserve(world.getBodies().size());
+    for (auto &body : world.getBodies())
+    {
+        if (looksLikeFloor(body))
+            continue;
+        if (!body.collider)
+            continue;
+        alive.insert(body.id);
+        auto &state = g_arrowRenderStates[body.id];
+        glm::vec3 vel(body.velocity.x, body.velocity.y, body.velocity.z);
+        glm::vec3 pos(body.position.x, body.position.y, body.position.z);
+        float rawSpeed = glm::length(vel);
+        glm::vec3 rawDir = state.dir;
+        if (rawSpeed > 1e-5f)
+            rawDir = vel * (1.0f / rawSpeed);
+        if (!state.initialized)
+        {
+            state.dir = rawDir;
+            state.velSmooth = vel;
+            state.speed = rawSpeed;
+            state.lastPos = pos;
+            state.posMoveSmooth = 0.0f;
+            state.stillFrames = 0;
+            state.initialized = true;
+        }
+        float frameMove = glm::length(pos - state.lastPos);
+        state.lastPos = pos;
+        state.posMoveSmooth =
+            state.posMoveSmooth + (frameMove - state.posMoveSmooth) * ARROW_POS_MOVE_SMOOTH;
+        state.velSmooth = glm::mix(state.velSmooth, vel, ARROW_VEL_SMOOTH);
+        float smoothSpeed = glm::length(state.velSmooth);
+        state.speed = state.speed + (smoothSpeed - state.speed) * ARROW_SPEED_SMOOTH;
+        if (smoothSpeed > ARROW_DIR_UPDATE_MIN_SPEED)
+        {
+            glm::vec3 sd = state.velSmooth * (1.0f / smoothSpeed);
+            state.dir = glm::normalize(glm::mix(state.dir, sd, ARROW_DIR_BLEND));
+        }
+        bool likelyRest = (rawSpeed < ARROW_HIDE_SPEED && state.speed < ARROW_HIDE_SPEED &&
+                           smoothSpeed < ARROW_HIDE_SPEED && state.posMoveSmooth < ARROW_MOVE_REST);
+        if (likelyRest)
+            state.stillFrames += 1;
+        else
+            state.stillFrames = 0;
+        if (state.visible)
+        {
+            if (state.stillFrames > ARROW_STILL_FRAMES)
+                state.visible = false;
+        }
+        else
+        {
+            if ((state.speed > ARROW_SHOW_SPEED || rawSpeed > ARROW_SHOW_SPEED) &&
+                state.posMoveSmooth > ARROW_MOVE_REST * ARROW_SHOW_MOVE_FACTOR)
+                state.visible = true;
+        }
+        if (!state.visible)
+            continue;
+        glm::vec3 stableVel = state.dir * state.speed;
+        pushVelocityArrow(arrowVerts, body, stableVel);
+    }
+    std::vector<BodyID> stale;
+    stale.reserve(g_arrowRenderStates.size());
+    for (const auto &it : g_arrowRenderStates)
+    {
+        if (alive.find(it.first) == alive.end())
+            stale.push_back(it.first);
+    }
+    for (BodyID id : stale)
+    {
+        g_arrowRenderStates.erase(id);
+    }
+    if (arrowVerts.empty())
+        return;
+    glUseProgram(prog);
+    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+    glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
+    glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
+    glBindVertexArray(vao);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, arrowVerts.size() * sizeof(float), arrowVerts.data(), GL_DYNAMIC_DRAW);
+    if (colorLoc >= 0)
+        glUniform4f(colorLoc, 0.82f, 0.98f, 1.0f, 1.0f);
+    glLineWidth(4.0f);
+    glDrawArrays(GL_LINES, 0, static_cast<GLsizei>(arrowVerts.size() / 3));
 }
 
 void RenderBodies(PhysicsWorld &world, const Camera &camera, float aspectRatio)
@@ -448,6 +662,8 @@ void RenderBodies(PhysicsWorld &world, const Camera &camera, float aspectRatio)
         GetBodyTint(lineTintR, lineTintG, lineTintB);
         RenderDistanceConstraintsWire(world, model, view, projection, shaderProgram, VAO, VBO, lineTintR, lineTintG,
                                       lineTintB);
+        drawVelocityArrows(world, shaderProgram, VAO, VBO, modelLoc, viewLoc, projLoc, colorLoc, model, view,
+                           projection);
     }
 
     if (g_wireframeMode)
@@ -594,6 +810,8 @@ void RenderBodies(PhysicsWorld &world, const Camera &camera, float aspectRatio)
         GetBodyTint(wTintR, wTintG, wTintB);
         RenderDistanceConstraintsWire(world, model, view, projection, shaderProgram, VAO, VBO, wTintR, wTintG,
                                       wTintB);
+        drawVelocityArrows(world, shaderProgram, VAO, VBO, modelLoc, viewLoc, projLoc, colorLoc, model, view,
+                           projection);
     }
 }
 
@@ -619,4 +837,14 @@ void GetBodyTint(float &r, float &g, float &b)
     r = g_bodyTintR;
     g = g_bodyTintG;
     b = g_bodyTintB;
+}
+
+void SetBodyVelocityArrowVisible(bool enabled)
+{
+    showVelocityArrows = enabled;
+}
+
+bool GetBodyVelocityArrowVisible()
+{
+    return showVelocityArrows;
 }

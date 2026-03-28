@@ -5,6 +5,24 @@ Aether is a C++ project for building a simple real-time 3D rigid body physics si
 This project is being developed for FOSS 2026.  
 The goal is to implement core physics concepts from scratch and keep the architecture clean and modular.
 
+---
+
+##  Quick Run (No Setup Required)
+
+###  Windows
+1. Download the `release/windows` folder 
+2. Double click: Aether_Test.exe
+
+---
+
+###  Linux (Tested on Ubuntu)
+1. Open terminal in `release/linux`
+2. Run:
+```bash
+chmod +x Aether_Test
+./Aether_Test
+```
+
 ## Current Scope
 
 - Rigid body simulation
