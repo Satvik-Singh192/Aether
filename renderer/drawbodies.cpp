@@ -42,17 +42,17 @@ static std::unordered_map<BodyID, ArrowRenderState> g_arrowRenderStates;
 
 namespace
 {
-constexpr float ARROW_VEL_SMOOTH = 0.055f;
-constexpr float ARROW_DIR_BLEND = 0.05f;
-constexpr float ARROW_SPEED_SMOOTH = 0.065f;
-constexpr float ARROW_POS_MOVE_SMOOTH = 0.28f;
-constexpr float ARROW_SHOW_SPEED = 0.19f;
-constexpr float ARROW_HIDE_SPEED = 0.048f;
-constexpr float ARROW_MOVE_REST = 0.0011f;
-constexpr int ARROW_STILL_FRAMES = 12;
-constexpr float ARROW_DIR_UPDATE_MIN_SPEED = 0.06f;
-constexpr float ARROW_SHOW_MOVE_FACTOR = 2.2f;
-constexpr float ARROW_DRAW_MIN_SPEED = 0.042f;
+    constexpr float ARROW_VEL_SMOOTH = 0.055f;
+    constexpr float ARROW_DIR_BLEND = 0.05f;
+    constexpr float ARROW_SPEED_SMOOTH = 0.065f;
+    constexpr float ARROW_POS_MOVE_SMOOTH = 0.28f;
+    constexpr float ARROW_SHOW_SPEED = 0.19f;
+    constexpr float ARROW_HIDE_SPEED = 0.048f;
+    constexpr float ARROW_MOVE_REST = 0.0011f;
+    constexpr int ARROW_STILL_FRAMES = 12;
+    constexpr float ARROW_DIR_UPDATE_MIN_SPEED = 0.06f;
+    constexpr float ARROW_SHOW_MOVE_FACTOR = 2.2f;
+    constexpr float ARROW_DRAW_MIN_SPEED = 0.042f;
 }
 
 static void applyBodyTint(float &r, float &g, float &b)
@@ -104,7 +104,8 @@ static void pushLine(std::vector<float> &v, const glm::vec3 &a, const glm::vec3 
 
 static void pushCircleLines(std::vector<float> &v, const glm::vec3 &center, float radius, int segments, int planeAxis0, int planeAxis1)
 {
-    auto point = [&](float t) -> glm::vec3 {
+    auto point = [&](float t) -> glm::vec3
+    {
         glm::vec3 p = center;
         p[planeAxis0] += radius * std::cos(t);
         p[planeAxis1] += radius * std::sin(t);
@@ -183,7 +184,7 @@ static void pushBoxSolid(std::vector<float> &v, const glm::vec3 &c, const glm::v
 
 static void pushSphereSolid(std::vector<float> &v, const glm::vec3 &c, float r, int stacks, int slices) // creating spheres
 {
-    const float pi = 3.14159265f; // for angular calci
+    const float pi = 3.14159265f;       // for angular calci
     for (int si = 0; si < stacks; ++si) // vertical parse 0 -> pi
     {
         float t0 = (float)si / (float)stacks * pi;
@@ -276,7 +277,8 @@ static bool getArrowOrigin(const Rigidbody &body, const glm::vec3 &dir, glm::vec
     if (body.collider->type == ShapeType::Ramp)
     {
         const auto *ramp = static_cast<const RampCollider *>(body.collider);
-        glm::vec3 localAnchor(ramp->length * 0.65f, ramp->getHeight() * 0.72f, 0.0f);
+        const Vec3 comOffset = ramp->getLocalCenterOfMassOffset();
+        glm::vec3 localAnchor(ramp->length * 0.65f - comOffset.x, ramp->getHeight() * 0.72f - comOffset.y, 0.0f);
         glm::vec3 worldAnchor = c + rotateOffset(R, localAnchor);
         glm::vec3 up = rotateOffset(R, glm::vec3(0.0f, 1.0f, 0.0f));
         float upLen = glm::length(up);
@@ -338,8 +340,8 @@ static void pushVelocityArrow(std::vector<float> &v, const Rigidbody &body, cons
 }
 
 static void drawVelocityArrows(PhysicsWorld &world, GLuint prog, GLuint vao, GLuint vbo, GLint modelLoc,
-                             GLint viewLoc, GLint projLoc, GLint colorLoc, const glm::mat4 &model,
-                             const glm::mat4 &view, const glm::mat4 &projection)
+                               GLint viewLoc, GLint projLoc, GLint colorLoc, const glm::mat4 &model,
+                               const glm::mat4 &view, const glm::mat4 &projection)
 {
     if (!showVelocityArrows)
         return;
@@ -540,7 +542,8 @@ void RenderBodies(PhysicsWorld &world, const Camera &camera, float aspectRatio)
         glBindVertexArray(solidVAO);
         glBindBuffer(GL_ARRAY_BUFFER, solidVBO);
 
-        auto drawSolidBody = [&](Rigidbody &body, float floorFlag, float ar, float ag, float ab, float aa) {
+        auto drawSolidBody = [&](Rigidbody &body, float floorFlag, float ar, float ag, float ab, float aa)
+        {
             if (!body.collider)
                 return;
             const glm::vec3 c(body.position.x, body.position.y, body.position.z);
@@ -563,13 +566,15 @@ void RenderBodies(PhysicsWorld &world, const Camera &camera, float aspectRatio)
                 std::vector<float> tmp;
                 tmp.reserve(2048);
                 pushRampSolid(tmp, glm::vec3(0.0f), ramp->length, ramp->getHeight(), ramp->half_width_z);
+                const Vec3 comOffset = ramp->getLocalCenterOfMassOffset();
+                const glm::vec3 comLocal(comOffset.x, comOffset.y, comOffset.z);
 
                 solidVerts.reserve(tmp.size());
                 for (std::size_t i = 0; i + 5 < tmp.size(); i += 6)
                 {
                     glm::vec3 p(tmp[i + 0], tmp[i + 1], tmp[i + 2]);
                     glm::vec3 n(tmp[i + 3], tmp[i + 4], tmp[i + 5]);
-                    p = c + rotateOffset(R, p);
+                    p = c + rotateOffset(R, p - comLocal);
                     n = rotateOffset(R, n);
                     solidVerts.push_back(p.x);
                     solidVerts.push_back(p.y);
@@ -669,142 +674,144 @@ void RenderBodies(PhysicsWorld &world, const Camera &camera, float aspectRatio)
     if (g_wireframeMode)
     {
         for (auto &body : world.getBodies())
-    {
-        if (!body.collider)
-            continue;
-
-        const glm::vec3 c(body.position.x, body.position.y, body.position.z);
-        Mat3 R = body.orientation.toMat3();
-
-        std::vector<float> bodyVertices;
-        bodyVertices.reserve(72);
-        
-        if (body.collider->type == ShapeType::Box)
         {
-            const auto *box = static_cast<const BoxCollider *>(body.collider);
-            const glm::vec3 h(box->halfsize.x, box->halfsize.y, box->halfsize.z);
+            if (!body.collider)
+                continue;
 
-            const glm::vec3 p000 = c + rotateOffset(R, glm::vec3(-h.x, -h.y, -h.z));
-            const glm::vec3 p001 = c + rotateOffset(R, glm::vec3(-h.x, -h.y, +h.z));
-            const glm::vec3 p010 = c + rotateOffset(R, glm::vec3(-h.x, +h.y, -h.z));
-            const glm::vec3 p011 = c + rotateOffset(R, glm::vec3(-h.x, +h.y, +h.z));
-            const glm::vec3 p100 = c + rotateOffset(R, glm::vec3(+h.x, -h.y, -h.z));
-            const glm::vec3 p101 = c + rotateOffset(R, glm::vec3(+h.x, -h.y, +h.z));
-            const glm::vec3 p110 = c + rotateOffset(R, glm::vec3(+h.x, +h.y, -h.z));
-            const glm::vec3 p111 = c + rotateOffset(R, glm::vec3(+h.x, +h.y, +h.z));
+            const glm::vec3 c(body.position.x, body.position.y, body.position.z);
+            Mat3 R = body.orientation.toMat3();
 
-            // bottom
-            pushLine(bodyVertices, p000, p100);
-            pushLine(bodyVertices, p100, p101);
-            pushLine(bodyVertices, p101, p001);
-            pushLine(bodyVertices, p001, p000);
-            // top
-            pushLine(bodyVertices, p010, p110);
-            pushLine(bodyVertices, p110, p111);
-            pushLine(bodyVertices, p111, p011);
-            pushLine(bodyVertices, p011, p010);
-            // sides
-            pushLine(bodyVertices, p000, p010);
-            pushLine(bodyVertices, p100, p110);
-            pushLine(bodyVertices, p101, p111);
-            pushLine(bodyVertices, p001, p011);
-        }
-        else if (body.collider->type == ShapeType::Sphere)
-        {
-            const auto *sphere = static_cast<const SphereCollider *>(body.collider);
-            const float r = sphere->radius;
-            const int segments = 24;
+            std::vector<float> bodyVertices;
+            bodyVertices.reserve(72);
 
-            // 3 circles for a simple wire-sphere
-            pushCircleLines(bodyVertices, c, r, segments, 0, 1); // XY
-            pushCircleLines(bodyVertices, c, r, segments, 0, 2); // XZ
-            pushCircleLines(bodyVertices, c, r, segments, 1, 2); // YZ
-        }
-        else if (body.collider->type == ShapeType::Ramp)
-        {
-            const auto *ramp = static_cast<const RampCollider *>(body.collider);
-            const float L = ramp->length;
-            const float H = ramp->getHeight();
-            const float w = ramp->half_width_z;
-
-            const glm::vec3 p0z0 = c + rotateOffset(R, glm::vec3(0.0f, 0.0f, -w));
-            const glm::vec3 p1z0 = c + rotateOffset(R, glm::vec3(L, 0.0f, -w));
-            const glm::vec3 p2z0 = c + rotateOffset(R, glm::vec3(L, H, -w));
-
-            const glm::vec3 p0z1 = c + rotateOffset(R, glm::vec3(0.0f, 0.0f, +w));
-            const glm::vec3 p1z1 = c + rotateOffset(R, glm::vec3(L, 0.0f, +w));
-            const glm::vec3 p2z1 = c + rotateOffset(R, glm::vec3(L, H, +w));
-
-            // bottom face edges
-            pushLine(bodyVertices, p0z0, p1z0);
-            pushLine(bodyVertices, p0z1, p1z1);
-
-            // side face edges
-            pushLine(bodyVertices, p1z0, p2z0);
-            pushLine(bodyVertices, p1z1, p2z1);
-
-            // hypotenuse edges
-            pushLine(bodyVertices, p0z0, p2z0);
-            pushLine(bodyVertices, p0z1, p2z1);
-
-            // connect slices along Z
-            pushLine(bodyVertices, p0z0, p0z1);
-            pushLine(bodyVertices, p1z0, p1z1);
-            pushLine(bodyVertices, p2z0, p2z1);
-        }
-
-        if (!bodyVertices.empty())
-        {
-            glBufferData(GL_ARRAY_BUFFER, bodyVertices.size() * sizeof(float), bodyVertices.data(), GL_DYNAMIC_DRAW);
-
-            // Adding colour to wireframe based on stable body id
-            BodyID key = body.id;
-            float r = ((key * 73u) % 100) / 100.0f;
-            float g = ((key * 37u) % 100) / 100.0f;
-            float b = ((key * 19u) % 100) / 100.0f;
-
-            r = 0.5f + 0.5f * r;
-            g = 0.5f + 0.5f * g;
-            b = 0.5f + 0.5f * b;
-
-            const bool isSelected = (body.id == GetSelectedBodyId());
-            if (colorLoc >= 0)
+            if (body.collider->type == ShapeType::Box)
             {
-                if (looksLikeFloor(body) && !isSelected)
+                const auto *box = static_cast<const BoxCollider *>(body.collider);
+                const glm::vec3 h(box->halfsize.x, box->halfsize.y, box->halfsize.z);
+
+                const glm::vec3 p000 = c + rotateOffset(R, glm::vec3(-h.x, -h.y, -h.z));
+                const glm::vec3 p001 = c + rotateOffset(R, glm::vec3(-h.x, -h.y, +h.z));
+                const glm::vec3 p010 = c + rotateOffset(R, glm::vec3(-h.x, +h.y, -h.z));
+                const glm::vec3 p011 = c + rotateOffset(R, glm::vec3(-h.x, +h.y, +h.z));
+                const glm::vec3 p100 = c + rotateOffset(R, glm::vec3(+h.x, -h.y, -h.z));
+                const glm::vec3 p101 = c + rotateOffset(R, glm::vec3(+h.x, -h.y, +h.z));
+                const glm::vec3 p110 = c + rotateOffset(R, glm::vec3(+h.x, +h.y, -h.z));
+                const glm::vec3 p111 = c + rotateOffset(R, glm::vec3(+h.x, +h.y, +h.z));
+
+                // bottom
+                pushLine(bodyVertices, p000, p100);
+                pushLine(bodyVertices, p100, p101);
+                pushLine(bodyVertices, p101, p001);
+                pushLine(bodyVertices, p001, p000);
+                // top
+                pushLine(bodyVertices, p010, p110);
+                pushLine(bodyVertices, p110, p111);
+                pushLine(bodyVertices, p111, p011);
+                pushLine(bodyVertices, p011, p010);
+                // sides
+                pushLine(bodyVertices, p000, p010);
+                pushLine(bodyVertices, p100, p110);
+                pushLine(bodyVertices, p101, p111);
+                pushLine(bodyVertices, p001, p011);
+            }
+            else if (body.collider->type == ShapeType::Sphere)
+            {
+                const auto *sphere = static_cast<const SphereCollider *>(body.collider);
+                const float r = sphere->radius;
+                const int segments = 24;
+
+                // 3 circles for a simple wire-sphere
+                pushCircleLines(bodyVertices, c, r, segments, 0, 1); // XY
+                pushCircleLines(bodyVertices, c, r, segments, 0, 2); // XZ
+                pushCircleLines(bodyVertices, c, r, segments, 1, 2); // YZ
+            }
+            else if (body.collider->type == ShapeType::Ramp)
+            {
+                const auto *ramp = static_cast<const RampCollider *>(body.collider);
+                const float L = ramp->length;
+                const float H = ramp->getHeight();
+                const float w = ramp->half_width_z;
+                const Vec3 comOffset = ramp->getLocalCenterOfMassOffset();
+                const glm::vec3 comLocal(comOffset.x, comOffset.y, comOffset.z);
+
+                const glm::vec3 p0z0 = c + rotateOffset(R, glm::vec3(0.0f, 0.0f, -w) - comLocal);
+                const glm::vec3 p1z0 = c + rotateOffset(R, glm::vec3(L, 0.0f, -w) - comLocal);
+                const glm::vec3 p2z0 = c + rotateOffset(R, glm::vec3(L, H, -w) - comLocal);
+
+                const glm::vec3 p0z1 = c + rotateOffset(R, glm::vec3(0.0f, 0.0f, +w) - comLocal);
+                const glm::vec3 p1z1 = c + rotateOffset(R, glm::vec3(L, 0.0f, +w) - comLocal);
+                const glm::vec3 p2z1 = c + rotateOffset(R, glm::vec3(L, H, +w) - comLocal);
+
+                // bottom face edges
+                pushLine(bodyVertices, p0z0, p1z0);
+                pushLine(bodyVertices, p0z1, p1z1);
+
+                // side face edges
+                pushLine(bodyVertices, p1z0, p2z0);
+                pushLine(bodyVertices, p1z1, p2z1);
+
+                // hypotenuse edges
+                pushLine(bodyVertices, p0z0, p2z0);
+                pushLine(bodyVertices, p0z1, p2z1);
+
+                // connect slices along Z
+                pushLine(bodyVertices, p0z0, p0z1);
+                pushLine(bodyVertices, p1z0, p1z1);
+                pushLine(bodyVertices, p2z0, p2z1);
+            }
+
+            if (!bodyVertices.empty())
+            {
+                glBufferData(GL_ARRAY_BUFFER, bodyVertices.size() * sizeof(float), bodyVertices.data(), GL_DYNAMIC_DRAW);
+
+                // Adding colour to wireframe based on stable body id
+                BodyID key = body.id;
+                float r = ((key * 73u) % 100) / 100.0f;
+                float g = ((key * 37u) % 100) / 100.0f;
+                float b = ((key * 19u) % 100) / 100.0f;
+
+                r = 0.5f + 0.5f * r;
+                g = 0.5f + 0.5f * g;
+                b = 0.5f + 0.5f * b;
+
+                const bool isSelected = (body.id == GetSelectedBodyId());
+                if (colorLoc >= 0)
                 {
-                    glEnable(GL_BLEND);
-                    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-                    glUniform4f(colorLoc, 0.34f, 0.36f, 0.40f, 0.72f);
+                    if (looksLikeFloor(body) && !isSelected)
+                    {
+                        glEnable(GL_BLEND);
+                        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+                        glUniform4f(colorLoc, 0.34f, 0.36f, 0.40f, 0.72f);
+                    }
+                    else if (isSelected)
+                    {
+                        glUniform4f(colorLoc, 1.0f, 1.0f, 0.2f, 1.0f);
+                    }
+                    else
+                    {
+                        float tr = r;
+                        float tg = g;
+                        float tb = b;
+                        applyBodyTint(tr, tg, tb);
+                        glUniform4f(colorLoc, tr, tg, tb, 1.0f);
+                    }
                 }
-                else if (isSelected)
+                if (looksLikeFloor(body))
                 {
-                    glUniform4f(colorLoc, 1.0f, 1.0f, 0.2f, 1.0f);
+                    glEnable(GL_POLYGON_OFFSET_LINE);
+                    glPolygonOffset(2.5f, 25.0f);
                 }
+                if (body.id == GetSelectedBodyId())
+                    glLineWidth(4.0f);
                 else
-                {
-                    float tr = r;
-                    float tg = g;
-                    float tb = b;
-                    applyBodyTint(tr, tg, tb);
-                    glUniform4f(colorLoc, tr, tg, tb, 1.0f);
-                }
+                    glLineWidth(2.0f);
+                glDrawArrays(GL_LINES, 0, static_cast<GLsizei>(bodyVertices.size() / 3));
+                if (looksLikeFloor(body))
+                    glDisable(GL_POLYGON_OFFSET_LINE);
+                if (looksLikeFloor(body) && !isSelected)
+                    glDisable(GL_BLEND);
             }
-            if (looksLikeFloor(body))
-            {
-                glEnable(GL_POLYGON_OFFSET_LINE);
-                glPolygonOffset(2.5f, 25.0f);
-            }
-            if (body.id == GetSelectedBodyId())
-                glLineWidth(4.0f);
-            else
-                glLineWidth(2.0f);
-            glDrawArrays(GL_LINES, 0, static_cast<GLsizei>(bodyVertices.size() / 3));
-            if (looksLikeFloor(body))
-                glDisable(GL_POLYGON_OFFSET_LINE);
-            if (looksLikeFloor(body) && !isSelected)
-                glDisable(GL_BLEND);
         }
-    }
 
         float wTintR, wTintG, wTintB;
         GetBodyTint(wTintR, wTintG, wTintB);
