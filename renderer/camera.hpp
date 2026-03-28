@@ -6,6 +6,11 @@ class Camera
 {
 public:
     Camera();
+    Camera& setPosition(glm::vec3 pos) { position = pos; updateVectors(); return *this; }
+    Camera& setYaw(float y)            { yaw = y; updateVectors(); return *this; }
+    Camera& setPitch(float p)          { pitch = p; updateVectors(); return *this; }
+    Camera& setSpeed(float s)          { speed = s; return *this; }
+    Camera& setSensitivity(float sens) { mouseSensitivity = sens; return *this; }
 
     void moveForward(float deltaTime);
     void moveBackward(float deltaTime);

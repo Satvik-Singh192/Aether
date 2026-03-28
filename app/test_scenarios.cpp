@@ -1,5 +1,4 @@
 #include "test_scenarios.hpp"
-
 #include "core/box_collider.hpp"
 #include "core/rigidbody.hpp"
 #include "core/ramp_collider.hpp"
@@ -7,6 +6,10 @@
 #include "math/vec3.hpp"
 #include "world/physicsworld.hpp"
 #include <vector>
+#include<cmath>
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
 namespace
 {
@@ -17,6 +20,96 @@ namespace
     BoxCollider g_wide_box(Vec3(1.0f, 0.5f, 0.8f));
     RampCollider g_gentle_ramp(0.35f, 8.0f, 1.5f);
     RampCollider g_steep_ramp(0.70f, 6.0f, 1.2f);
+
+    Camera  defaultcamera=Camera();
+
+    Camera spawn_projectile_demo(PhysicsWorld &world)
+{
+    const float speed = 20.0f;
+    const float angle1 = 30.0f * M_PI / 180.0f;
+    const float angle2 = 60.0f * M_PI / 180.0f;
+
+    Vec3 start_pos(-10.0f, 0.5f, 0.0f);
+    Vec3 vel1(
+        speed * cos(angle1),
+        speed * sin(angle1),
+        0.0f
+    );
+    Vec3 vel2(
+        speed * cos(angle2),
+        speed * sin(angle2),
+        0.0f
+    );
+
+    world.addBody(Rigidbody(start_pos, vel1, &g_small_sphere, 1.0f));
+    world.addBody(Rigidbody(start_pos, vel2, &g_small_sphere, 1.0f));
+
+    return Camera().setPosition(glm::vec3(3.0,5.0,25.0));
+}
+
+    Camera spawn_perfect_elastic_collision(PhysicsWorld &world){
+        const float y = 0.5f;
+        Vec3 pos1(-8.0f, y, 0.0f);
+        Vec3 pos2(0.0f, y, 0.0f);
+        Vec3 vel1(10.0f, 0.0f, 0.0f);
+        Vec3 vel2(0.0f, 0.0f, 0.0f);
+        Rigidbody b1(pos1, vel1, &g_small_sphere, 1.0f);
+        Rigidbody b2(pos2, vel2, &g_small_sphere, 1.0f);
+        b1.restitution = 1.0f;
+        b2.restitution = 1.0f;
+        b1.friction = 0.0f;
+        b2.friction = 0.0f;
+
+        world.addBody(b1);
+        world.addBody(b2);
+        return Camera();
+    }
+    Camera spawn_perfect_inelastic_collision(PhysicsWorld &world)
+{
+    const float y = 0.5f;
+
+    Vec3 pos1(-8.0f, y, 0.0f);
+    Vec3 pos2(0.0f, y, 0.0f);
+
+    Vec3 vel1(10.0f, 0.0f, 0.0f);
+    Vec3 vel2(0.0f, 0.0f, 0.0f);
+
+    Rigidbody b1(pos1, vel1, &g_small_sphere, 1.0f);
+    Rigidbody b2(pos2, vel2, &g_small_sphere, 1.0f);
+
+    b1.restitution = 0.0f;
+    b2.restitution = 0.0f;
+
+    b1.friction = 0.0f;
+    b2.friction = 0.0f;
+
+    world.addBody(b1);
+    world.addBody(b2);
+    return Camera();
+}
+    Camera spawn_collision_partial(PhysicsWorld &world)
+{
+    const float y = 0.5f;
+
+    Vec3 pos1(-8.0f, y, 0.0f);
+    Vec3 pos2(0.0f, y, 0.0f);
+
+    Vec3 vel1(10.0f, 0.0f, 0.0f);
+    Vec3 vel2(0.0f, 0.0f, 0.0f);
+
+    Rigidbody b1(pos1, vel1, &g_small_sphere, 1.0f);
+    Rigidbody b2(pos2, vel2, &g_small_sphere, 1.0f);
+
+    b1.restitution = 0.5f;
+    b2.restitution = 0.5f;
+
+    b1.friction = 0.1f;
+    b2.friction = 0.1f;
+
+    world.addBody(b1);
+    world.addBody(b2);
+    return Camera();
+}
 
     void add_floor(PhysicsWorld &world)
     {
@@ -441,126 +534,23 @@ namespace
 
 }
 
-void LoadSingleTestScenario(PhysicsWorld &world, TestCase test_case)
+Camera LoadSingleTestScenario(PhysicsWorld &world, TestCase test_case)
 {
     add_floor(world);
 
     switch (test_case)
     {
-    case TestCase::SphereSphere:
-        spawn_sphere_sphere_case(world);
+    case TestCase::ProjectMotion:
+        return spawn_projectile_demo(world);
         break;
-    case TestCase::BoxBox:
-        spawn_box_box_case(world);
-        break;
-    case TestCase::SphereBox:
-        spawn_sphere_box_case(world);
-        break;
-    case TestCase::BoxRamp:
-        spawn_box_ramp_case(world);
-        break;
-    case TestCase::SphereRamp:
-        spawn_sphere_ramp_case(world);
-        break;
-    case TestCase::BoxStack:
-        spawn_box_stack(world);
-        break;
-    case TestCase::PyramidStack:
-        spawn_pyramid_stack(world);
-        break;
-    case TestCase::ManySpheres:
-        spawn_many_spheres(world);
-        break;
-    case TestCase::ManyBoxes:
-        spawn_many_boxes(world);
-        break;
-    case TestCase::MixedPile:
-        spawn_mixed_pile(world);
-        break;
-    case TestCase::BouncyBalls:
-        spawn_bouncy_balls(world);
-        break;
-    case TestCase::SlidingRampRow:
-        spawn_sliding_ramp_row(world);
-        break;
-    case TestCase::ChainCollide:
-        spawn_chain_collide(world);
-        break;
-    case TestCase::RandomScatter:
-        spawn_random_scatter(world);
-        break;
-    case TestCase::StressTestLarge:
-        spawn_stress_test_large(world);
-        break;
-    case TestCase::RopeBasic:
-        spawn_rope_basic(world);
-        break;
-    case TestCase::RodBasic:
-        spawn_rod_basic(world);
-        break;
-    case TestCase::SpringBasic:
-        spawn_spring_basic(world);
-        break;
-    case TestCase::RopeChain:
-        spawn_rope_chain(world);
-        break;
-    case TestCase::RodChain:
-        spawn_rod_chain(world);
-        break;
-    case TestCase::SoftBody:
-        spawn_soft_body_grid(world);
-        break;
-    case TestCase::RopeCollision:
-        spawn_rope_with_collision(world);
-        break;
-
-    case TestCase::RampDropOnSphere:
-        spawn_ramp_drop_on_sphere_case(world);
-        break;
-
-    case TestCase::RampRampStress:
-        spawn_ramp_ramp_stress_case(world);
-        break;
-
-    // ===== ANGULAR PHYSICS TESTS =====
-    case TestCase::AngularTorque:
-        spawn_angular_torque(world);
-        break;
-
-    case TestCase::AngularImpact:
-        spawn_angular_impact(world);
-        break;
-
-    case TestCase::AngularStack:
-        spawn_angular_stack(world);
-        break;
-
-    case TestCase::OffCenterHit:
-        spawn_off_center_hit(world);
-        break;
-
-    case TestCase::BoxCornerCollision:
-        spawn_box_corner_collision(world);
-        break;
-
-    case TestCase::StackTipping:
-        spawn_stack_tipping(world);
-        break;
-
-    case TestCase::SphereRolling:
-        spawn_sphere_rolling(world);
-        break;
-    case TestCase::Boxtopple:
-   
-        spawn_box_45_topple(world);
-        break;
-        
-
-    // ===== Default =====
-    case TestCase::BoxSphereRamp:
+    case TestCase::PerfectElasticCollision:
+        return spawn_perfect_elastic_collision(world);
+    case TestCase::PerfectInelasticCollision:
+        return spawn_perfect_inelastic_collision(world);
+    case TestCase::Collision:
+        return spawn_collision_partial(world);
     default:
-        spawn_box_sphere_ramp_case(world);
+        return spawn_projectile_demo(world);
         break;
-    
     }
 }
