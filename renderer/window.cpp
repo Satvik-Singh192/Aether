@@ -30,6 +30,7 @@ namespace
 		TestCase::PerfectElasticCollision,
 		TestCase::PerfectInelasticCollision,
 		TestCase::Collision,
+		TestCase::BuoyancyTest
 		};
 
 	constexpr const char *kTestCaseNames[] = {
