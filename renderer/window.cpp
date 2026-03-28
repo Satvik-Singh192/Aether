@@ -26,74 +26,18 @@ namespace
 	};
 
 	constexpr TestCase kTestCases[] = {
-		TestCase::SphereSphere,
-		TestCase::BoxBox,
-		TestCase::SphereBox,
-		TestCase::BoxRamp,
-		TestCase::SphereRamp,
-		TestCase::BoxSphereRamp,
-		TestCase::BoxStack,
-		TestCase::PyramidStack,
-		TestCase::ManySpheres,
-		TestCase::ManyBoxes,
-		TestCase::MixedPile,
-		TestCase::BouncyBalls,
-		TestCase::SlidingRampRow,
-		TestCase::ChainCollide,
-		TestCase::RandomScatter,
-		TestCase::StressTestLarge,
-		TestCase::RopeBasic,
-		TestCase::RodBasic,
-		TestCase::SpringBasic,
-		TestCase::RopeChain,
-		TestCase::RodChain,
-		TestCase::SoftBody,
-		TestCase::RopeCollision,
-		TestCase::AngularTorque,
-		TestCase::AngularImpact,
-		TestCase::AngularStack,
-		TestCase::OffCenterHit,
-		TestCase::BoxCornerCollision,
-		TestCase::StackTipping,
-		TestCase::SphereRolling,
-		TestCase::RampDropOnSphere,
-		TestCase::RampRampStress,
-		TestCase::Boxtopple};
+		TestCase::ProjectMotion,
+		TestCase::PerfectElasticCollision,
+		TestCase::PerfectInelasticCollision,
+		TestCase::Collision,
+		};
 
 	constexpr const char *kTestCaseNames[] = {
-		"Sphere Sphere",
-		"Box Box",
-		"Sphere Box",
-		"Box Ramp",
-		"Sphere Ramp",
-		"Box Sphere Ramp",
-		"Box Stack",
-		"Pyramid Stack",
-		"Many Spheres",
-		"Many Boxes",
-		"Mixed Pile",
-		"Bouncy Balls",
-		"Sliding Ramp Row",
-		"Chain Collide",
-		"Random Scatter",
-		"Stress Test Large",
-		"Rope Basic",
-		"Rod Basic",
-		"Spring Basic",
-		"Rope Chain",
-		"Rod Chain",
-		"Soft Body",
-		"Rope Collision",
-		"Angular Torque",
-		"Angular Impact",
-		"Angular Stack",
-		"Off Center Hit",
-		"Box Corner Collision",
-		"Stack Tipping",
-		"Sphere Rolling",
-		"Ramp Drop On Sphere",
-		"Ramp Ramp Stress",
-		"Box Topple"};
+		"Projectile Motion",
+		"Perfectly Elastic Collision",
+		"Perfectly Inelastic Collision",
+		"Realistic Collision"
+		};
 
 	constexpr const char *kGravityPresetNames[] = {
 		"Mercury (3.70 m/s^2)",
@@ -224,7 +168,7 @@ void CreateWindow(PhysicsWorld &world)
 	auto reloadSelectedScenario = [&]()
 	{
 		world = PhysicsWorld();
-		LoadSingleTestScenario(world, kTestCases[selectedScenarioIndex]);
+		camera=LoadSingleTestScenario(world, kTestCases[selectedScenarioIndex]);
 		Vec3 gravity = world.getGravity();
 		world.setGravity(Vec3(gravity.x, startGravityY, gravity.z));
 		SetBodyDrawWireframeMode(startWireframe);
