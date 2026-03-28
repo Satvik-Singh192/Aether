@@ -287,7 +287,8 @@ void RenderConstraintMenuContent(PhysicsWorld &world)
 						t = DistanceConstraint::ROD;
 					else if (linkKindIndex == 2)
 						t = DistanceConstraint::SPRING;
-					world.addDistanceConstraints(idA, idB, linkRestLength, t, linkStiffness, linkDamping);
+					PhysicsResult res = world.addDistanceConstraints(idA, idB, linkRestLength, t, linkStiffness, linkDamping);
+					RequestEngineToast(res.message);
 				}
 			}
 		}
