@@ -4,10 +4,16 @@
 #include "core/sphere_collider.hpp"
 #include <algorithm>
 #include <cmath>
-#include <iostream>
 
 namespace
 {
+    float clampRange(float value, float a, float b)
+    {
+        const float lo = std::min(a, b);
+        const float hi = std::max(a, b);
+        return std::max(lo, std::min(value, hi));
+    }
+
     float clampValue(float value, float minValue, float maxValue)
     {
         return std::max(minValue, std::min(value, maxValue));
@@ -78,7 +84,7 @@ bool buildRampSphereManifold(Rigidbody &A, Rigidbody &B, ContactManifold &manifo
         const float tUnclamped = (localCenter.x * length + localCenter.y * height) / dirLengthSq;
         const float t = clampValue(tUnclamped, 0.0f, 1.0f);
 
-        const Vec3 closestOnSlope(length * t, height * t, clampValue(localCenter.z, -halfWidthZ, halfWidthZ));
+        const Vec3 closestOnSlope(length * t, height * t, clampRange(localCenter.z, -halfWidthZ, halfWidthZ));
         const Vec3 delta = localCenter - closestOnSlope;
         const float distSq = delta.dot(delta);
 
@@ -119,9 +125,9 @@ bool buildRampSphereManifold(Rigidbody &A, Rigidbody &B, ContactManifold &manifo
 
     {
         const Vec3 bottomClosest(
-            clampValue(localCenter.x, 0.0f, length),
+            clampRange(localCenter.x, 0.0f, length),
             0.0f,
-            clampValue(localCenter.z, -halfWidthZ, halfWidthZ));
+            clampRange(localCenter.z, -halfWidthZ, halfWidthZ));
         const Vec3 delta = localCenter - bottomClosest;
         const float distSq = delta.dot(delta);
 
@@ -157,8 +163,8 @@ bool buildRampSphereManifold(Rigidbody &A, Rigidbody &B, ContactManifold &manifo
     {
         const Vec3 backClosest(
             length,
-            clampValue(localCenter.y, 0.0f, height),
-            clampValue(localCenter.z, -halfWidthZ, halfWidthZ));
+            clampRange(localCenter.y, 0.0f, height),
+            clampRange(localCenter.z, -halfWidthZ, halfWidthZ));
         const Vec3 delta = localCenter - backClosest;
         const float distSq = delta.dot(delta);
 
