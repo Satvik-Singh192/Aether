@@ -36,3 +36,6 @@ constexpr float PHYSICS_RESTING_NORMAL_SLEEP_THRESHOLD=0.04f;
 constexpr float PHYSICS_SLEEP_VELOCITY_THRESHOLD=0.005f;
 //ROTATION//
 constexpr float ANGULAR_DAMPING = 0.995f;
+
+//Buoyancy//
+constexpr float PI = 3.14159265359f;

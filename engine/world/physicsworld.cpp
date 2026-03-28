@@ -5,7 +5,7 @@
 #include <vector>
 #include <cfloat>
 #include <algorithm>
-
+#include "core/buoyancy.hpp"
 PhysicsWorld::PhysicsWorld() : gravity(0.0f, PHYSICS_GRAVITY, 0.0f), next_body_id(1) {}
 
 std::uint32_t PhysicsWorld::addBody(const Rigidbody &body)
@@ -191,6 +191,12 @@ void PhysicsWorld::step(float dt)
 		body.applyForce(GravityForce);
 		if (body.position.y <= -15)
 			bodies_to_delete.push_back(body.id);
+	}
+	Fluid testfluid(1000.0f,2.0f,0.3f);
+	for(auto &body:bodies){
+		if(body.inverse_mass!=0.0f){
+			ApplyBuoyancy(body,testfluid,fabs(gravity.y));
+			}
 	}
 
 	for (auto &body : bodies)
