@@ -2,26 +2,14 @@
 #include "collision/collision.hpp"
 #include "core/box_collider.hpp"
 #include "core/ramp_collider.hpp"
+#include "collision/obb.hpp"
 #include <algorithm>
 #include <cfloat>
 #include <cmath>
-#include <iostream>
 #include <vector>
-#include <glm/common.hpp>
-#include "collision/obb.hpp"
 
 namespace
 {
-    float clampValue(float v, float lo, float hi)
-    {
-        return std::max(lo, std::min(v, hi));
-    }
-
-    bool overlaps1D(float minA, float maxA, float minB, float maxB)
-    {
-        return maxA >= minB && maxB >= minA;
-    }
-
     bool isValidFloat(float v)
     {
         return std::isfinite(v);
@@ -32,160 +20,225 @@ namespace
         return isValidFloat(v.x) && isValidFloat(v.y) && isValidFloat(v.z);
     }
 
-    void projectVerts(const std::vector<Vec3> &verts, const Vec3 &axis, float &min, float &max)
+    bool overlaps1D(float minA, float maxA, float minB, float maxB)
     {
-        min = max = verts[0].dot(axis);
-        for (int i = 1; i < verts.size(); i++)
+        return maxA >= minB && maxB >= minA;
+    }
+
+    void projectVerts(const std::vector<Vec3> &verts, const Vec3 &axis, float &minV, float &maxV)
+    {
+        minV = maxV = verts[0].dot(axis);
+        for (size_t i = 1; i < verts.size(); ++i)
         {
-            float p = verts[i].dot(axis);
-            min = std::min(min, p);
-            max = std::max(max, p);
+            const float p = verts[i].dot(axis);
+            minV = std::min(minV, p);
+            maxV = std::max(maxV, p);
         }
     }
 
-    float computeAabbOverlapOnAxis(const Vec3 &axisN,
-                                   const Vec3 &centerA,
-                                   const Vec3 &halfA,
-                                   const Vec3 &centerB,
-                                   const Vec3 &halfB)
+    std::vector<Vec3> getOBBCorners(const OBB &obb)
     {
-        const float distance = std::abs((centerB - centerA).dot(axisN));
-        const float radiusA =
-            std::abs(axisN.x) * halfA.x +
-            std::abs(axisN.y) * halfA.y +
-            std::abs(axisN.z) * halfA.z;
-        const float radiusB =
-            std::abs(axisN.x) * halfB.x +
-            std::abs(axisN.y) * halfB.y +
-            std::abs(axisN.z) * halfB.z;
-        return radiusA + radiusB - distance;
+        std::vector<Vec3> corners;
+        corners.reserve(8);
+
+        for (int sx = -1; sx <= 1; sx += 2)
+        {
+            for (int sy = -1; sy <= 1; sy += 2)
+            {
+                for (int sz = -1; sz <= 1; sz += 2)
+                {
+                    Vec3 corner = obb.center;
+                    corner += obb.axis[0] * (obb.halfsize.x * static_cast<float>(sx));
+                    corner += obb.axis[1] * (obb.halfsize.y * static_cast<float>(sy));
+                    corner += obb.axis[2] * (obb.halfsize.z * static_cast<float>(sz));
+                    corners.push_back(corner);
+                }
+            }
+        }
+
+        return corners;
     }
 
-    bool isPointOnRampSlope(const Rigidbody &rampBody, const RampCollider &ramp, const Vec3 &worldPoint)
+    bool pointInTriangle2D(float px, float py, float ax, float ay, float bx, float by, float cx, float cy)
     {
-        const Vec3 local = worldPoint - rampBody.position;
+        const auto edgeSign = [](float x1, float y1, float x2, float y2, float x3, float y3)
+        {
+            return (x1 - x3) * (y2 - y3) - (x2 - x3) * (y1 - y3);
+        };
+
+        const float d1 = edgeSign(px, py, ax, ay, bx, by);
+        const float d2 = edgeSign(px, py, bx, by, cx, cy);
+        const float d3 = edgeSign(px, py, cx, cy, ax, ay);
+
+        const bool hasNeg = (d1 < -PHYSICS_EPSILON) || (d2 < -PHYSICS_EPSILON) || (d3 < -PHYSICS_EPSILON);
+        const bool hasPos = (d1 > PHYSICS_EPSILON) || (d2 > PHYSICS_EPSILON) || (d3 > PHYSICS_EPSILON);
+
+        return !(hasNeg && hasPos);
+    }
+
+    bool pointInsideRamp(const Rigidbody &rampBody, const RampCollider &ramp, const Vec3 &worldPoint)
+    {
+        const Mat3 rot = rampBody.orientation.toMat3();
+        const Mat3 rotT = rot.transpose();
+        const Vec3 comLocal = ramp.getLocalCenterOfMassOffset();
+        const Vec3 local = comLocal + (rotT * (worldPoint - rampBody.position));
+        if (std::abs(local.z) > ramp.getHalfWidthZ() + 0.01f)
+            return false;
+
         const float length = ramp.getLength();
         const float height = ramp.getHeight();
-        const float dirLenSq = length * length + height * height;
-
-        if (dirLenSq <= PHYSICS_EPSILON)
-            return false;
-
-        const float t = (local.x * length + local.y * height) / dirLenSq;
-        if (t < -0.05f || t > 1.05f)
-            return false;
-
-        return std::abs(local.z) <= ramp.getHalfWidthZ() + 0.05f;
+        return pointInTriangle2D(local.x, local.y,
+                                 0.0f, 0.0f,
+                                 length, 0.0f,
+                                 length, height);
     }
 
-    void pushUniqueContact(std::vector<Contact> &contacts, const Contact &c)
+    Vec3 supportPoint(const OBB &obb, const Vec3 &dir)
+    {
+        Vec3 p = obb.center;
+        p += obb.axis[0] * (obb.axis[0].dot(dir) >= 0.0f ? obb.halfsize.x : -obb.halfsize.x);
+        p += obb.axis[1] * (obb.axis[1].dot(dir) >= 0.0f ? obb.halfsize.y : -obb.halfsize.y);
+        p += obb.axis[2] * (obb.axis[2].dot(dir) >= 0.0f ? obb.halfsize.z : -obb.halfsize.z);
+        return p;
+    }
+
+    Vec3 supportPointOnVerts(const std::vector<Vec3> &verts, const Vec3 &dir)
+    {
+        Vec3 best = verts[0];
+        float bestProj = best.dot(dir);
+        for (size_t i = 1; i < verts.size(); ++i)
+        {
+            const float p = verts[i].dot(dir);
+            if (p > bestProj)
+            {
+                bestProj = p;
+                best = verts[i];
+            }
+        }
+        return best;
+    }
+
+    void pushUniqueContact(std::vector<Contact> &contacts, const Contact &candidate)
     {
         constexpr float kMinDistSq = 0.0004f;
         for (const Contact &existing : contacts)
         {
-            const Vec3 d = existing.contact_point - c.contact_point;
+            const Vec3 d = existing.contact_point - candidate.contact_point;
             if (d.dot(d) <= kMinDistSq)
                 return;
         }
-        contacts.push_back(c);
+        contacts.push_back(candidate);
     }
 }
 
 // A is ramp, B is box.
-bool buildRampBoxManifold(Rigidbody &A, Rigidbody &B, ContactManifold &manifold)
+bool buildRampBoxManifold(Rigidbody &A, Rigidbody &B, ContactManifold &m)
 {
     auto *ramp = static_cast<RampCollider *>(A.collider);
     auto *box = static_cast<BoxCollider *>(B.collider);
-
     if (!ramp || !box)
         return false;
 
     const float length = ramp->getLength();
     const float height = ramp->getHeight();
+    const float halfWidthZ = ramp->getHalfWidthZ();
 
-    // Validate ramp has reasonable dimensions
-    if (std::abs(length) <= PHYSICS_EPSILON || std::abs(height) <= PHYSICS_EPSILON)
+    if (std::abs(length) <= PHYSICS_EPSILON || std::abs(height) <= PHYSICS_EPSILON || halfWidthZ <= PHYSICS_EPSILON)
         return false;
 
-    const Vec3 half = box->getHalfExtents();
-    const Vec3 rampHalf(
-        std::abs(length) * 0.5f,
-        std::abs(height) * 0.5f,
-        ramp->getHalfWidthZ());
-    const Vec3 boxMin = B.position - half;
-    const Vec3 boxMax = B.position + half;
+    const Mat3 rampRot = A.orientation.toMat3();
+    const Vec3 rampComLocal = ramp->getLocalCenterOfMassOffset();
 
-    float rampMinX = A.position.x;
-    float rampMaxX = A.position.x + length;
-    if (rampMinX > rampMaxX)
-        std::swap(rampMinX, rampMaxX);
+    const OBB boxObb = makeOBB(B, box);
+    const std::vector<Vec3> boxVerts = getOBBCorners(boxObb);
 
-    float rampMinY = A.position.y;
-    float rampMaxY = A.position.y + height;
-    if (rampMinY > rampMaxY)
-        std::swap(rampMinY, rampMaxY);
-
-    float rampMinZ = A.position.z - ramp->getHalfWidthZ();
-    float rampMaxZ = A.position.z + ramp->getHalfWidthZ();
-
-    // Broad phase AABB test
-    if (!overlaps1D(boxMin.x, boxMax.x, rampMinX, rampMaxX) ||
-        !overlaps1D(boxMin.y, boxMax.y, rampMinY, rampMaxY) ||
-        !overlaps1D(boxMin.z, boxMax.z, rampMinZ, rampMaxZ))
-    {
-        return false;
-    }
-
-    const float mag = std::sqrt(height * height + length * length);
-    if (mag <= PHYSICS_EPSILON)
-        return false;
-
-    Vec3 rampNormal(-height / mag, length / mag, 0.0f);
-    if (!isValidVec3(rampNormal) || rampNormal.length() <= PHYSICS_EPSILON)
-        return false;
-
-    // Build ramp vertices (6 total: base quad + top slope edge)
     std::vector<Vec3> rampVerts;
-    rampVerts.push_back(A.position + Vec3(0, 0, -ramp->getHalfWidthZ()));
-    rampVerts.push_back(A.position + Vec3(length, 0, -ramp->getHalfWidthZ()));
-    rampVerts.push_back(A.position + Vec3(0, 0, ramp->getHalfWidthZ()));
-    rampVerts.push_back(A.position + Vec3(length, 0, ramp->getHalfWidthZ()));
-    rampVerts.push_back(A.position + Vec3(length, height, -ramp->getHalfWidthZ()));
-    rampVerts.push_back(A.position + Vec3(length, height, ramp->getHalfWidthZ()));
+    rampVerts.reserve(6);
+    rampVerts.push_back(A.position + (rampRot * (Vec3(0.0f, 0.0f, -halfWidthZ) - rampComLocal)));
+    rampVerts.push_back(A.position + (rampRot * (Vec3(0.0f, 0.0f, halfWidthZ) - rampComLocal)));
+    rampVerts.push_back(A.position + (rampRot * (Vec3(length, 0.0f, -halfWidthZ) - rampComLocal)));
+    rampVerts.push_back(A.position + (rampRot * (Vec3(length, 0.0f, halfWidthZ) - rampComLocal)));
+    rampVerts.push_back(A.position + (rampRot * (Vec3(length, height, -halfWidthZ) - rampComLocal)));
+    rampVerts.push_back(A.position + (rampRot * (Vec3(length, height, halfWidthZ) - rampComLocal)));
 
-    // Build box vertices (8 total)
-    std::vector<Vec3> boxVerts;
-    for (int sx = -1; sx <= 1; sx += 2)
-        for (int sy = -1; sy <= 1; sy += 2)
-            for (int sz = -1; sz <= 1; sz += 2)
-                boxVerts.push_back(B.position + Vec3(sx * half.x, sy * half.y, sz * half.z));
-
-    // Build SAT axes: ramp normal + cardinals + edge cross products
-    std::vector<Vec3> axes;
-    axes.push_back(rampNormal);
-    axes.push_back(Vec3(1.0f, 0.0f, 0.0f));
-    axes.push_back(Vec3(0.0f, 1.0f, 0.0f));
-    axes.push_back(Vec3(0.0f, 0.0f, 1.0f));
-
-    // Add edge cross products: ramp slope edge × box edges
-    Vec3 rampEdge(length, height, 0.0f);
-    Vec3 boxEdges[3] = {
-        Vec3(1.0f, 0.0f, 0.0f),
-        Vec3(0.0f, 1.0f, 0.0f),
-        Vec3(0.0f, 0.0f, 1.0f)};
-
-    for (int i = 0; i < 3; i++)
+    float rampMinX = FLT_MAX;
+    float rampMaxX = -FLT_MAX;
+    float rampMinY = FLT_MAX;
+    float rampMaxY = -FLT_MAX;
+    float rampMinZ = FLT_MAX;
+    float rampMaxZ = -FLT_MAX;
+    for (const Vec3 &v : rampVerts)
     {
-        Vec3 axis = rampEdge.cross(boxEdges[i]);
-        if (axis.length() > 1e-6f)
-            axes.push_back(axis.normalized());
+        rampMinX = std::min(rampMinX, v.x);
+        rampMaxX = std::max(rampMaxX, v.x);
+        rampMinY = std::min(rampMinY, v.y);
+        rampMaxY = std::max(rampMaxY, v.y);
+        rampMinZ = std::min(rampMinZ, v.z);
+        rampMaxZ = std::max(rampMaxZ, v.z);
     }
 
-    // SAT: project all vertices onto each axis
+    float boxMinX = FLT_MAX;
+    float boxMaxX = -FLT_MAX;
+    float boxMinY = FLT_MAX;
+    float boxMaxY = -FLT_MAX;
+    float boxMinZ = FLT_MAX;
+    float boxMaxZ = -FLT_MAX;
+    for (const Vec3 &v : boxVerts)
+    {
+        boxMinX = std::min(boxMinX, v.x);
+        boxMaxX = std::max(boxMaxX, v.x);
+        boxMinY = std::min(boxMinY, v.y);
+        boxMaxY = std::max(boxMaxY, v.y);
+        boxMinZ = std::min(boxMinZ, v.z);
+        boxMaxZ = std::max(boxMaxZ, v.z);
+    }
+
+    if (!overlaps1D(boxMinX, boxMaxX, rampMinX, rampMaxX) ||
+        !overlaps1D(boxMinY, boxMaxY, rampMinY, rampMaxY) ||
+        !overlaps1D(boxMinZ, boxMaxZ, rampMinZ, rampMaxZ))
+    {
+        return false;
+    }
+
+    const float slopeLen = std::sqrt(length * length + height * height);
+    if (slopeLen <= PHYSICS_EPSILON)
+        return false;
+
+    const Vec3 slopeNormal = rampRot * Vec3(-height / slopeLen, length / slopeLen, 0.0f);
+    const Vec3 baseNormal = rampRot * Vec3(0.0f, -1.0f, 0.0f);
+    const Vec3 backNormal = rampRot * Vec3((length >= 0.0f) ? 1.0f : -1.0f, 0.0f, 0.0f);
+    const Vec3 sideNormal = rampRot * Vec3(0.0f, 0.0f, 1.0f);
+
+    const Vec3 rampDirs[] = {
+        rampRot * Vec3(1.0f, 0.0f, 0.0f),
+        rampRot * Vec3(0.0f, 1.0f, 0.0f),
+        rampRot * Vec3(0.0f, 0.0f, 1.0f),
+        rampRot * Vec3(length, height, 0.0f)};
+
+    std::vector<Vec3> satAxes;
+    satAxes.reserve(18);
+    satAxes.push_back(slopeNormal);
+    satAxes.push_back(baseNormal);
+    satAxes.push_back(backNormal);
+    satAxes.push_back(sideNormal);
+    satAxes.push_back(boxObb.axis[0]);
+    satAxes.push_back(boxObb.axis[1]);
+    satAxes.push_back(boxObb.axis[2]);
+
+    for (const Vec3 &rampDir : rampDirs)
+    {
+        for (int i = 0; i < 3; ++i)
+        {
+            const Vec3 axis = rampDir.cross(boxObb.axis[i]);
+            if (axis.length() > 1e-6f)
+                satAxes.push_back(axis);
+        }
+    }
+
     float minOverlap = FLT_MAX;
     Vec3 bestAxis;
 
-    for (const Vec3 &rawAxis : axes)
+    for (const Vec3 &rawAxis : satAxes)
     {
         const float axisLen = rawAxis.length();
         if (axisLen <= PHYSICS_EPSILON)
@@ -193,12 +246,14 @@ bool buildRampBoxManifold(Rigidbody &A, Rigidbody &B, ContactManifold &manifold)
 
         const Vec3 axis = rawAxis * (1.0f / axisLen);
 
-        float minA, maxA, minB, maxB;
-        projectVerts(rampVerts, axis, minA, maxA);
-        projectVerts(boxVerts, axis, minB, maxB);
+        float minRamp = 0.0f;
+        float maxRamp = 0.0f;
+        float minBox = 0.0f;
+        float maxBox = 0.0f;
+        projectVerts(rampVerts, axis, minRamp, maxRamp);
+        projectVerts(boxVerts, axis, minBox, maxBox);
 
-        float overlap = std::min(maxA, maxB) - std::max(minA, minB);
-
+        const float overlap = std::min(maxRamp, maxBox) - std::max(minRamp, minBox);
         if (overlap <= PHYSICS_EPSILON)
             return false;
 
@@ -212,82 +267,90 @@ bool buildRampBoxManifold(Rigidbody &A, Rigidbody &B, ContactManifold &manifold)
     if (minOverlap == FLT_MAX || !isValidVec3(bestAxis) || bestAxis.length() <= PHYSICS_EPSILON)
         return false;
 
-    Vec3 normal = bestAxis;
-    if (normal.dot(B.position - A.position) < 0.0f)
-        normal = normal * -1.0f;
+    Vec3 normal = bestAxis.normalized();
 
-    const float penetration = minOverlap;
-    if (!isValidFloat(penetration) || penetration <= PHYSICS_EPSILON)
-        return false;
-
-    // Create base contact
-    Contact baseContact;
-    baseContact.a = &A;
-    baseContact.b = &B;
-    baseContact.normal = normal;
-    baseContact.penetration = penetration;
-    baseContact.contact_point = Vec3(
-        clampValue(B.position.x, rampMinX, rampMaxX),
-        clampValue(B.position.y, rampMinY, rampMaxY),
-        clampValue(B.position.z, rampMinZ, rampMaxZ));
-    baseContact.restitution = (A.restitution + B.restitution) * 0.5f;
-    baseContact.friction_coeff = std::sqrt(A.friction * B.friction);
-
-    if (!isValidVec3(baseContact.normal) || !isValidVec3(baseContact.contact_point) ||
-        !isValidFloat(baseContact.penetration) || baseContact.penetration <= PHYSICS_EPSILON)
     {
-        return false;
-    }
+        const Vec3 upAxis(0.0f, 1.0f, 0.0f);
+        float minRampY = 0.0f;
+        float maxRampY = 0.0f;
+        float minBoxY = 0.0f;
+        float maxBoxY = 0.0f;
+        projectVerts(rampVerts, upAxis, minRampY, maxRampY);
+        projectVerts(boxVerts, upAxis, minBoxY, maxBoxY);
+        const float overlapY = std::min(maxRampY, maxBoxY) - std::max(minRampY, minBoxY);
 
-    std::vector<Contact> candidates;
-    pushUniqueContact(candidates, baseContact);
-
-    for (int sx = -1; sx <= 1; sx += 2)
-    {
-        for (int sy = -1; sy <= 1; sy += 2)
+        if (overlapY > PHYSICS_EPSILON && overlapY <= (minOverlap * 1.35f))
         {
-            for (int sz = -1; sz <= 1; sz += 2)
+            const Vec3 centerDelta = B.position - A.position;
+            const bool stronglyVertical = std::abs(centerDelta.y) >= std::max(std::abs(centerDelta.x), std::abs(centerDelta.z));
+            if (stronglyVertical)
             {
-                const Vec3 corner = B.position + Vec3(sx * half.x, sy * half.y, sz * half.z);
-                const float cornerDist = (corner - A.position).dot(normal);
-
-                // only project if corner is on penetrating side
-                if (cornerDist >= 0.0f)
-                    continue;
-
-                const Vec3 projected = corner - normal * cornerDist;
-
-                // validate projected point is on ramp slope surface
-                if (!isPointOnRampSlope(A, *ramp, projected))
-                    continue;
-
-                Contact c = baseContact;
-                c.contact_point = projected;
-                c.penetration = std::min(-cornerDist, penetration);
-                if (isValidVec3(c.contact_point) && isValidFloat(c.penetration) && c.penetration > PHYSICS_EPSILON)
-                    pushUniqueContact(candidates, c);
+                minOverlap = overlapY;
+                normal = upAxis;
             }
         }
+    }
+
+    if ((B.position - A.position).dot(normal) < 0.0f)
+        normal = normal * -1.0f;
+
+    if (!isValidVec3(normal) || minOverlap <= PHYSICS_EPSILON || !isValidFloat(minOverlap))
+        return false;
+
+    Contact base;
+    base.a = &A;
+    base.b = &B;
+    base.a_id = A.id;
+    base.b_id = B.id;
+    base.normal = normal;
+    base.penetration = minOverlap;
+    base.restitution = (A.restitution + B.restitution) * 0.5f;
+    base.friction_coeff = std::sqrt(A.friction * B.friction);
+
+    const Vec3 boxSupport = supportPoint(boxObb, normal * -1.0f);
+    const Vec3 rampSupport = supportPointOnVerts(rampVerts, normal);
+    base.contact_point = (boxSupport + rampSupport) * 0.5f;
+
+    std::vector<Contact> candidates;
+    candidates.reserve(6);
+    if (isValidVec3(base.contact_point) && isValidFloat(base.penetration))
+        pushUniqueContact(candidates, base);
+
+    for (const Vec3 &corner : boxVerts)
+    {
+        if (!pointInsideRamp(A, *ramp, corner))
+            continue;
+
+        Contact c = base;
+        c.contact_point = corner;
+        c.penetration = minOverlap;
+        if (isValidVec3(c.contact_point) && isValidFloat(c.penetration) && c.penetration > PHYSICS_EPSILON)
+            pushUniqueContact(candidates, c);
+    }
+
+    for (const Vec3 &rv : rampVerts)
+    {
+        if (!pointInsideOBB(rv, boxObb))
+            continue;
+
+        Contact c = base;
+        c.contact_point = rv;
+        c.penetration = minOverlap;
+        if (isValidVec3(c.contact_point) && isValidFloat(c.penetration) && c.penetration > PHYSICS_EPSILON)
+            pushUniqueContact(candidates, c);
     }
 
     if (candidates.empty())
         return false;
 
-    // build manifold from candidates
-    manifold.a = &A;
-    manifold.b = &B;
-    manifold.a_id = A.id;
-    manifold.b_id = B.id;
-    manifold.normal = normal;
-    if (!isValidVec3(manifold.normal) || manifold.normal.length() <= PHYSICS_EPSILON)
-        return false;
+    m.a = &A;
+    m.b = &B;
+    m.a_id = A.id;
+    m.b_id = B.id;
+    m.normal = normal;
+    m.contact_count = 0;
 
-    //std::cout << "RampBox Penetration: " << baseContact.penetration << "\n";
-    //std::cout << "RampBox Normal: " << manifold.normal << "\n";
-    manifold.contact_count = 0;
-
-    // keep first and best separated contact
-    manifold.contacts[manifold.contact_count++] = candidates[0];
+    m.contacts[m.contact_count++] = candidates[0];
 
     if (candidates.size() > 1)
     {
@@ -295,123 +358,27 @@ bool buildRampBoxManifold(Rigidbody &A, Rigidbody &B, ContactManifold &manifold)
         int bestIdx = -1;
         for (size_t i = 1; i < candidates.size(); ++i)
         {
-            const Vec3 d = candidates[i].contact_point - manifold.contacts[0].contact_point;
+            const Vec3 d = candidates[i].contact_point - candidates[0].contact_point;
             const float distSq = d.dot(d);
             if (distSq > bestDistSq)
             {
                 bestDistSq = distSq;
-                bestIdx = i;
+                bestIdx = static_cast<int>(i);
             }
         }
 
         if (bestIdx >= 0 && bestDistSq > 0.0004f)
-        {
-            manifold.contacts[manifold.contact_count++] = candidates[bestIdx];
-        }
+            m.contacts[m.contact_count++] = candidates[bestIdx];
     }
 
-    for (int i = 0; i < manifold.contact_count; ++i)
+    for (int i = 0; i < m.contact_count; ++i)
     {
-        manifold.contacts[i].a = manifold.a;
-        manifold.contacts[i].b = manifold.b;
-        manifold.contacts[i].a_id = manifold.a_id;
-        manifold.contacts[i].b_id = manifold.b_id;
-        manifold.contacts[i].normal = manifold.normal;
+        m.contacts[i].a = m.a;
+        m.contacts[i].b = m.b;
+        m.contacts[i].a_id = m.a_id;
+        m.contacts[i].b_id = m.b_id;
+        m.contacts[i].normal = m.normal;
     }
 
-    return manifold.contact_count > 0;
+    return m.contact_count > 0;
 }
-// bool buildRampBoxManifold(Rigidbody &A, Rigidbody &B, ContactManifold &m) {
-//     auto *ramp=static_cast<RampCollider *>(A.collider);
-//     auto *box=static_cast<BoxCollider *>(B.collider);
-//     if(!ramp ||!box) return false;
-
-//     Vec3 half (
-//         ramp->getLength()*0.5f,
-//         ramp->getHeight()*0.5f,
-//         ramp->getHalfWidthZ()*0.5f
-
-
-//     );
-//     Vec3 boxMin = B.position - half;
-//     Vec3 boxMax = B.position + half;
-
-//     float length = ramp->getLength();
-//     float height = ramp->getHeight();
-
-//     float rampMinX = A.position.x;
-//     float rampMaxX = A.position.x + length;
-//     if (rampMinX > rampMaxX) std::swap(rampMinX, rampMaxX);
-
-//     float rampMinY = A.position.y;
-//     float rampMaxY = A.position.y + height;
-//     if (rampMinY > rampMaxY) std::swap(rampMinY, rampMaxY);
-
-//     float rampMinZ = A.position.z - ramp->getHalfWidthZ();
-//     float rampMaxZ = A.position.z + ramp->getHalfWidthZ();
-
-//     if (boxMax.x < rampMinX || boxMin.x > rampMaxX ||
-//         boxMax.y < rampMinY || boxMin.y > rampMaxY ||
-//         boxMax.z < rampMinZ || boxMin.z > rampMaxZ)
-//         return false;
-//     OBB obb = makeOBB(B,box);
-//     float mag=std::sqrt(length*length + height*height);
-//     if(mag<1e-6f) return false;
-    
-//     Vec3 rampNormal(-height/mag, length/mag, 0.0f);
-//     auto getSupport= [&](const Vec3 &n) {
-//         Vec3 p=obb.center;
-//         p-=obb.axis[0]*box->halfsize.x * ((obb.axis[0].dot(n) >0) ? 1.0f : -1.0f);
-//         p -= obb.axis[1] * box->halfsize.y * ((obb.axis[1].dot(n) > 0) ? 1.0f : -1.0f);
-//         p -= obb.axis[2] * box->halfsize.z * ((obb.axis[2].dot(n) > 0) ? 1.0f : -1.0f);
-//         return p;
-    
-//     };
-//     Vec3 slopeNormal = rampNormal;
-//     Vec3 slopeSupport=getSupport(slopeNormal);
-//     float slopeDist=(slopeSupport -A.position).dot(slopeNormal);
-//     float slopePenetration=-slopeDist;
-//     Vec3 upNormal(0.0f,1.0f, 0.0f);
-//     Vec3 upSupport = getSupport(upNormal);
-//     float upDist=(upSupport -A.position).dot(upNormal);
-//     float upPenetration=-upDist;
-//     Vec3 normal;
-//     Vec3 contactPoint;
-//     float penetration;
-//     bool useUp =false;
-//     if(upPenetration>0.0f) {
-//         if(std::abs(slopeNormal.y)<0.5 || upPenetration > slopePenetration)
-//         useUp =  true;
-//     }
-//     if(useUp) {
-//         normal =upNormal;
-//         contactPoint=slopeSupport;
-//         penetration=upPenetration;
-//     } else {
-//         normal = slopeNormal;
-//         contactPoint = slopeSupport;
-//         penetration = slopePenetration;
-//     }
-//     if(penetration<0.001f) return false;
-//     m.a=&A;
-//     m.b=&B;
-//     m.a_id=A.id;
-//     m.b_id=B.id;
-//     m.normal=normal;
-//     Contact c;
-//     c.a=&A;
-//     c.b=&B;
-//     c.a_id=A.id;
-//     c.b_id=B.id;
-//     c.normal=normal;
-//     c.penetration=penetration;
-//     c.contact_point=contactPoint;
-//     c.restitution=(A.restitution +B.restitution)*0.5f;
-//     c.friction_coeff=std::sqrt(A.friction*B.friction);
-//     m.contacts[0]=c;
-//     m.contact_count=1;
-//     return true;
-
-
-
-// }

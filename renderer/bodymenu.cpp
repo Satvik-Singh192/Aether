@@ -206,15 +206,6 @@ void RenderAddBodyMenuContent(PhysicsWorld &world)
 		}
 	}
 	show_tooltip("Creates one rigid body with the current spawn parameters.");
-
-	if (ImGui::Button("Remove Selected Body"))
-	{
-		auto selected_id = GetSelectedBodyId();
-		PhysicsResult res = world.deleteBody(selected_id);
-		RequestEngineToast(res.message);
-		if (res.success)
-			SetSelectedBodyId(0);
-	}
 }
 
 void RenderConstraintMenuContent(PhysicsWorld &world)
@@ -380,6 +371,23 @@ void RenderBodyInspectorContent(PhysicsWorld &world, bool showCloseButton)
 	}
 
 	ImGui::EndChild();
+
+	ImGui::SeparatorText("Selected Body Actions");
+	const BodyID selectedId = GetSelectedBodyId();
+	if (selectedId == 0)
+		ImGui::BeginDisabled();
+
+	if (ImGui::Button("Remove Selected Body"))
+	{
+		PhysicsResult res = world.deleteBody(selectedId);
+		RequestEngineToast(res.message);
+		if (res.success)
+			SetSelectedBodyId(0);
+	}
+	show_tooltip("Deletes the currently selected body from the world.");
+
+	if (selectedId == 0)
+		ImGui::EndDisabled();
 }
 
 void RenderBodyMenu(PhysicsWorld &world)
