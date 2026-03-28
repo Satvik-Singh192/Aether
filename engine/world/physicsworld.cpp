@@ -235,8 +235,11 @@ void PhysicsWorld::step(float dt)
 	}
 	solve_manifolds_pos();
 
+	// Apply angular damping once per frame after all solver iterations
+	const float CONTACT_ANG_DAMP = 0.99f;
 	for (auto &body : bodies)
 	{
+		body.angvel = body.angvel * CONTACT_ANG_DAMP;
 		if (body.inverse_mass == 0.0f)
 			continue;
 		body.velocity = body.velocity * PHYSICS_LINEAR_DAMPING;
@@ -418,7 +421,6 @@ void PhysicsWorld::warm_start_manifolds()
 
 void PhysicsWorld::solve_manifolds_vel_iteration()
 { //now it solves only 1 iteration of manifold , we move the iteration outside this function
-	const float RESTITUTION_VELOCITY_THRESHOLD = 0.1f;
 		for (auto &m : manifolds)
 		{
 			Rigidbody &a = *m.a;
@@ -437,7 +439,7 @@ void PhysicsWorld::solve_manifolds_vel_iteration()
 				float relvel_along_normal = rel_vel.dot(c.normal);
 
 				float target_post_normal_velocity = 0.0f;
-				if (c.pre_solve_normal_velocity < -RESTITUTION_VELOCITY_THRESHOLD)
+				if (c.pre_solve_normal_velocity < -PHYSICS_RESTITUTION_VELOCITY_THRESHOLD)
 				{
 					target_post_normal_velocity = -c.restitution * c.pre_solve_normal_velocity;
 				}
@@ -514,38 +516,27 @@ void PhysicsWorld::solve_manifolds_vel_iteration()
 				float jt;
 				if (isResting) {
 					jt = -vt / kTangent;
-
-					jt *= 2.0f;
-				} else {
-					jt = -vt / kTangent;
-				}
-
-				float prev_tangent_impulse = c.accumulated_tangent_impulse;
-
-				float mu = c.friction_coeff;
-				float maxfriction = mu * c.accumulated_normal_impulse;
-
-				float new_tangent_impulse = prev_tangent_impulse + jt;
-
-				c.accumulated_tangent_impulse =
-					std::max(-maxfriction, std::min(new_tangent_impulse, maxfriction));
-
-				float delta_tangent = c.accumulated_tangent_impulse - prev_tangent_impulse;
-
-				Vec3 friction_impulse = tangent * delta_tangent;
-
-				a.velocity -= friction_impulse * a.inverse_mass;
-				b.velocity += friction_impulse * b.inverse_mass;
-
-				a.angvel -= a.inverse_inertia_world * c.rA.cross(friction_impulse);
-				b.angvel += b.inverse_inertia_world * c.rB.cross(friction_impulse);
-
-				const float CONTACT_ANG_DAMP = 0.99f;
-
-				a.angvel= a.angvel*CONTACT_ANG_DAMP;
-				b.angvel= b.angvel*CONTACT_ANG_DAMP;
+				jt *= 0.1f; //dampening to the friction
+			} else {
+				jt = -vt / kTangent;
 			}
+
+			float prev_tangent_impulse = c.accumulated_tangent_impulse;
+			float mu = c.friction_coeff;
+			float maxfriction = mu * c.accumulated_normal_impulse;
+			float new_tangent_impulse = prev_tangent_impulse + jt;
+			c.accumulated_tangent_impulse = std::max(-maxfriction, std::min(new_tangent_impulse, maxfriction));
+			
+			float delta_tangent = c.accumulated_tangent_impulse - prev_tangent_impulse;
+			Vec3 friction_impulse = tangent * delta_tangent;
+
+			a.velocity -= friction_impulse * a.inverse_mass;
+			b.velocity += friction_impulse * b.inverse_mass;
+
+			a.angvel -= a.inverse_inertia_world * c.rA.cross(friction_impulse);
+			b.angvel += b.inverse_inertia_world * c.rB.cross(friction_impulse);
 		}
+	}
 }
 
 void PhysicsWorld::solve_manifolds_pos()
