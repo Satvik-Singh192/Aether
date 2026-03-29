@@ -12,7 +12,10 @@ enum class TestCase
     MomentumTransfer,
     CenterOfMassTopple,
     ConstraintPlayground,
-    AngularImpulse
+    AngularImpulse,
+    AngularStack,
+    CornerCollision,
+    RollingFriction
 
 };
 

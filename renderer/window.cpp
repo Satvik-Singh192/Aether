@@ -34,7 +34,10 @@ namespace
 		TestCase::MomentumTransfer,
 		TestCase::CenterOfMassTopple,
 		TestCase::ConstraintPlayground,
-		TestCase::AngularImpulse
+		TestCase::AngularImpulse,
+		TestCase::AngularStack,
+		TestCase::CornerCollision,
+		TestCase::RollingFriction
 		};
 
 	constexpr const char *kTestCaseNames[] = {
@@ -46,7 +49,10 @@ namespace
 		"Momentum Transfer Line",
 		"Center of Mass Topple",
 		"Constraint Playground",
-		"Angular Impulse Lab"
+		"Angular Impulse Lab",
+		"Angular Stack Push",
+		"Corner Collision Torque",
+		"Rolling vs Sliding"
 		};
 
 	constexpr const char *kTestCaseDescriptions[] = {
@@ -58,7 +64,10 @@ namespace
 		"A Newton's-cradle style lineup highlights momentum transfer through a chain.",
 		"Side impacts on a tall stack reveal how torque about the COM drives tipping.",
 		"Rope, rod, and spring constraints run side-by-side for Hooke's law comparisons.",
-		"Off-center hits demonstrate how tangential impulses spin bodies up."
+		"Off-center hits demonstrate how tangential impulses spin bodies up.",
+		"Sequential pushes on a block tower highlight angular momentum build-up.",
+		"Corner-to-corner impacts show how contact point offsets create torque.",
+		"Contrast high-friction rolling with sliding motion on ramps and flats."
 		};
 		
 
