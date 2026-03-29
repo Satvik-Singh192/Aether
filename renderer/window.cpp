@@ -39,6 +39,8 @@ namespace
 		TestCase::CornerCollision,
 		TestCase::RollingFriction
 		};
+		TestCase::BuoyancyTest
+	};
 
 	constexpr const char *kTestCaseNames[] = {
 		"Projectile Motion Lab",
@@ -54,6 +56,8 @@ namespace
 		"Corner Collision Torque",
 		"Rolling vs Sliding"
 		};
+		"Buoyancy Test"
+	};
 
 	constexpr const char *kTestCaseDescriptions[] = {
 		"Compare low and high launch angles to visualize projectile motion trajectories.",

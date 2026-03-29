@@ -1,6 +1,7 @@
 #pragma once
 #include"common_header.hpp"
 #include "core/rigidbody.hpp"
+#include "core/buoyancy.hpp"
 #include "collision/collision.hpp"
 #include "collision/contactmanifold.hpp"
 #include "constraints/distance_constraints.hpp"
@@ -23,6 +24,9 @@ private:
 	Vec3 gravity;
 	BodyID next_body_id;
 public: 
+	bool enable_buoyancy = false;
+	Fluid water_fluid = Fluid(2.0f, 2.0f, 0.3f);
+	
 	PhysicsWorld();
 	Rigidbody* getBodyByID(uint32_t body_id);
 	std::uint32_t addBody(const Rigidbody& body);

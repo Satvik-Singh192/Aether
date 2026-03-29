@@ -17,6 +17,7 @@ enum class TestCase
     CornerCollision,
     RollingFriction
 
+    BuoyancyTest
 };
 
 Camera LoadSingleTestScenario(PhysicsWorld &world, TestCase test_case);
