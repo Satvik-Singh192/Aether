@@ -8,7 +8,7 @@ enum class TestCase
     PerfectElasticCollision,
     PerfectInelasticCollision,
     Collision,
-
+    BuoyancyTest
 };
 
 Camera LoadSingleTestScenario(PhysicsWorld &world, TestCase test_case);

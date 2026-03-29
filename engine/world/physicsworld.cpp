@@ -5,7 +5,7 @@
 #include <vector>
 #include <cfloat>
 #include <algorithm>
-
+#include "core/buoyancy.hpp"
 PhysicsWorld::PhysicsWorld() : gravity(0.0f, PHYSICS_GRAVITY, 0.0f), next_body_id(1) {}
 
 std::uint32_t PhysicsWorld::addBody(const Rigidbody &body)
@@ -191,6 +191,16 @@ void PhysicsWorld::step(float dt)
 		body.applyForce(GravityForce);
 		if (body.position.y <= -15)
 			bodies_to_delete.push_back(body.id);
+	}
+	// We use a much lower fluid density than 1000.0f to match the artifical 1.0f masses in the test scenarios.
+	// Since volume is ~1.0m^3 and mass is ~1.0kg, density of 2.0f makes it float realistically.
+	if (enable_buoyancy)
+	{
+		for(auto &body:bodies){
+			if(body.inverse_mass!=0.0f){
+				ApplyBuoyancy(body, water_fluid, fabs(gravity.y));
+			}
+		}
 	}
 
 	for (auto &body : bodies)

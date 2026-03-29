@@ -30,14 +30,16 @@ namespace
 		TestCase::PerfectElasticCollision,
 		TestCase::PerfectInelasticCollision,
 		TestCase::Collision,
-		};
+		TestCase::BuoyancyTest
+	};
 
 	constexpr const char *kTestCaseNames[] = {
 		"Projectile Motion",
 		"Perfectly Elastic Collision",
 		"Perfectly Inelastic Collision",
-		"Realistic Collision"
-		};
+		"Realistic Collision",
+		"Buoyancy Test"
+	};
 
 	constexpr const char *kGravityPresetNames[] = {
 		"Mercury (3.70 m/s^2)",
