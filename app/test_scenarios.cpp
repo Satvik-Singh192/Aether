@@ -536,6 +536,8 @@ namespace
 
 Camera LoadSingleTestScenario(PhysicsWorld &world, TestCase test_case)
 {
+    world.enable_buoyancy = false; // only when boyancy testcase
+
     add_floor(world);
 
     switch (test_case)
@@ -549,6 +551,12 @@ Camera LoadSingleTestScenario(PhysicsWorld &world, TestCase test_case)
         return spawn_perfect_inelastic_collision(world);
     case TestCase::Collision:
         return spawn_collision_partial(world);
+    case TestCase::BuoyancyTest:
+        world.enable_buoyancy = true;
+        world.water_fluid = Fluid(2.0f, 2.0f, 0.3f);
+        world.addBody(Rigidbody(Vec3(0.0f, 5.0f, 0.0f), Vec3(), &g_small_sphere, 0.5f));
+        world.addBody(Rigidbody(Vec3(3.0f, 5.0f, 0.0f), Vec3(), &g_small_box, 0.6f));
+        return Camera();
     default:
         return spawn_projectile_demo(world);
         break;

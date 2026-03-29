@@ -192,11 +192,15 @@ void PhysicsWorld::step(float dt)
 		if (body.position.y <= -15)
 			bodies_to_delete.push_back(body.id);
 	}
-	Fluid testfluid(1000.0f,2.0f,0.3f);
-	for(auto &body:bodies){
-		if(body.inverse_mass!=0.0f){
-			ApplyBuoyancy(body,testfluid,fabs(gravity.y));
+	// We use a much lower fluid density than 1000.0f to match the artifical 1.0f masses in the test scenarios.
+	// Since volume is ~1.0m^3 and mass is ~1.0kg, density of 2.0f makes it float realistically.
+	if (enable_buoyancy)
+	{
+		for(auto &body:bodies){
+			if(body.inverse_mass!=0.0f){
+				ApplyBuoyancy(body, water_fluid, fabs(gravity.y));
 			}
+		}
 	}
 
 	for (auto &body : bodies)

@@ -8,8 +8,9 @@
 #include <glm/glm.hpp>
 void ApplyBuoyancyToSphere(Rigidbody& body, const Fluid&fluid, float gravity) {
     if(body.inverse_mass==0.0f) return;
-    SphereCollider* sphere =dynamic_cast<SphereCollider*> (body.collider);
-    if(!sphere) return;
+    if(body.collider->type != ShapeType::Sphere) return;
+    
+    SphereCollider* sphere = static_cast<SphereCollider*>(body.collider);
     float radius =sphere->radius;
     float depth =fluid.height -body.position.y;
     float submergedvol=0.0f;
@@ -41,9 +42,10 @@ void ApplyBuoyancyToSphere(Rigidbody& body, const Fluid&fluid, float gravity) {
         if(body.inverse_mass==0.0f) {
             return;
         }
-        BoxCollider* box = dynamic_cast<BoxCollider*>(body.collider);
+        if(body.collider->type != ShapeType::Box) return;
+        
+        BoxCollider* box = static_cast<BoxCollider*>(body.collider);
 
-        if(!box) return;
         Vec3 half_size=box->halfsize;
         float bottom=body.position.y -half_size.y;
         float top=body.position.y+ half_size.y;

@@ -48,6 +48,7 @@ add_executable(Aether_Test
     engine/math/mat.cpp
     engine/math/quat.cpp
     engine/core/rigidbody.cpp
+    engine/core/buoyancy.cpp
     engine/world/physicsworld.cpp
     engine/collision/sphere_sphere.cpp
     engine/collision/box_box.cpp
