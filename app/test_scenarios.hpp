@@ -8,6 +8,11 @@ enum class TestCase
     PerfectElasticCollision,
     PerfectInelasticCollision,
     Collision,
+    InclinedPlane,
+    MomentumTransfer,
+    CenterOfMassTopple,
+    ConstraintPlayground,
+    AngularImpulse
 
 };
 

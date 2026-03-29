@@ -111,12 +111,18 @@ namespace
     return Camera();
 }
 
+    Camera spawn_incline_demo(PhysicsWorld& world){
+        world.addBody(Rigidbody(Vec3(-2.0f, 0.3f, 0.0f), Vec3(0.0f, 0.0f, 0.0f), &g_steep_ramp, 0.0f));
+        world.addBody(Rigidbody(Vec3(3.4f,6.0f,0.0f),Vec3(0.0f,0.0f,0.0f),&g_small_sphere,2.0f));
+        return Camera();
+    }
+
     void add_floor(PhysicsWorld &world)
     {
         // Keep floor top at y=0 so scenario bodies spawn above, not inside.
         world.addBody(Rigidbody(Vec3(0.0f, -0.1f, 0.0f), Vec3(), &g_floor, 0.0f, PHYSICS_DEFAULT_FRICTION, 0.0f));
     }
-
+    
     void spawn_box_stack(PhysicsWorld &world)
     {
         // stack of boxes: spawn each box higher so they fall into place one-by-one
@@ -549,6 +555,27 @@ Camera LoadSingleTestScenario(PhysicsWorld &world, TestCase test_case)
         return spawn_perfect_inelastic_collision(world);
     case TestCase::Collision:
         return spawn_collision_partial(world);
+    case TestCase::InclinedPlane:
+        return spawn_incline_demo(world);
+    case TestCase::MomentumTransfer:
+        // Conservation-of-momentum chain (Newton's cradle style)
+        spawn_chain_collide(world);
+        return Camera().setPosition(glm::vec3(-1.0f, 6.0f, 24.0f));
+    case TestCase::CenterOfMassTopple:
+        // Demonstrates torque-induced tipping of a stacked tower
+        spawn_stack_tipping(world);
+        return Camera().setPosition(glm::vec3(0.0f, 5.0f, 20.0f));
+    case TestCase::ConstraintPlayground:
+        // Rope, rod, and spring links side-by-side for comparison
+        spawn_rope_basic(world);
+        spawn_rod_basic(world);
+        spawn_spring_basic(world);
+        spawn_rope_chain(world);
+        return Camera().setPosition(glm::vec3(-2.0f, 9.0f, 28.0f));
+    case TestCase::AngularImpulse:
+        // Off-center collisions that inject angular momentum
+        spawn_off_center_hit(world);
+        return Camera().setPosition(glm::vec3(0.0f, 6.0f, 22.0f));
     default:
         return spawn_projectile_demo(world);
         break;

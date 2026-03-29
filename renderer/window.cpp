@@ -30,14 +30,37 @@ namespace
 		TestCase::PerfectElasticCollision,
 		TestCase::PerfectInelasticCollision,
 		TestCase::Collision,
+		TestCase::InclinedPlane,
+		TestCase::MomentumTransfer,
+		TestCase::CenterOfMassTopple,
+		TestCase::ConstraintPlayground,
+		TestCase::AngularImpulse
 		};
 
 	constexpr const char *kTestCaseNames[] = {
-		"Projectile Motion",
+		"Projectile Motion Lab",
 		"Perfectly Elastic Collision",
 		"Perfectly Inelastic Collision",
-		"Realistic Collision"
+		"Realistic Collision",
+		"Inclined Plane Roll",
+		"Momentum Transfer Line",
+		"Center of Mass Topple",
+		"Constraint Playground",
+		"Angular Impulse Lab"
 		};
+
+	constexpr const char *kTestCaseDescriptions[] = {
+		"Compare low and high launch angles to visualize projectile motion trajectories.",
+		"Observe conservation of momentum and energy with two identical spheres.",
+		"See how kinetic energy is lost when colliding bodies stick together.",
+		"Study partially elastic impacts with friction to mimic everyday collisions.",
+		"Watch gravity components down a ramp to discuss inclined-plane forces.",
+		"A Newton's-cradle style lineup highlights momentum transfer through a chain.",
+		"Side impacts on a tall stack reveal how torque about the COM drives tipping.",
+		"Rope, rod, and spring constraints run side-by-side for Hooke's law comparisons.",
+		"Off-center hits demonstrate how tangential impulses spin bodies up."
+		};
+		
 
 	constexpr const char *kGravityPresetNames[] = {
 		"Mercury (3.70 m/s^2)",
@@ -63,7 +86,8 @@ namespace
 		11.15f,
 		0.62f};
 
-	static_assert((sizeof(kTestCases) / sizeof(kTestCases[0])) == (sizeof(kTestCaseNames) / sizeof(kTestCaseNames[0])), "Test case arrays must stay aligned");
+	static_assert((sizeof(kTestCases) / sizeof(kTestCases[0])) == (sizeof(kTestCaseNames) / sizeof(kTestCaseNames[0])), "Test case name array must stay aligned");
+	static_assert((sizeof(kTestCases) / sizeof(kTestCases[0])) == (sizeof(kTestCaseDescriptions) / sizeof(kTestCaseDescriptions[0])), "Test case description array must stay aligned");
 	static_assert((sizeof(kGravityPresetNames) / sizeof(kGravityPresetNames[0])) == (sizeof(kGravityPresetValues) / sizeof(kGravityPresetValues[0])), "Gravity preset arrays must stay aligned");
 }
 
@@ -329,6 +353,8 @@ void CreateWindow(PhysicsWorld &world)
 					ImGui::SeparatorText("Scenario");
 					ImGui::Combo("Test Scenario", &selectedScenarioIndex, kTestCaseNames, static_cast<int>(sizeof(kTestCaseNames) / sizeof(kTestCaseNames[0])));
 					ShowTooltip("Choose a test case and use reload to apply it now.");
+					ImGui::TextWrapped("Concept: %s", kTestCaseDescriptions[selectedScenarioIndex]);
+					ImGui::Dummy(ImVec2(0.0f, 2.0f));
 
 					if (ImGui::Button("Reload Selected Test Case", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f)))
 					{
