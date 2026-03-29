@@ -30,7 +30,12 @@ namespace
 		TestCase::PerfectElasticCollision,
 		TestCase::PerfectInelasticCollision,
 		TestCase::Collision,
-		TestCase::BuoyancyTest
+		TestCase::BuoyancyTest,
+		TestCase::RelativeVelocity,
+		TestCase::NewtonThirdLaw,
+		TestCase::BoxToppleOnRamp,
+		TestCase::SphereToppleOnRamp,
+		TestCase::CollisionCauseTopple
 	};
 
 	constexpr const char *kTestCaseNames[] = {
@@ -38,7 +43,12 @@ namespace
 		"Perfectly Elastic Collision",
 		"Perfectly Inelastic Collision",
 		"Realistic Collision",
-		"Buoyancy Test"
+		"Buoyancy Test",
+		"Relative Velocity",
+		"Newton's Third Law",
+		"Box Topple on Ramp",
+		"Sphere Topple on Ramp",
+		"Collision Cause Topple"
 	};
 
 	constexpr const char *kGravityPresetNames[] = {
@@ -82,6 +92,9 @@ static void ShowTooltip(const char *text)
 
 void CreateWindow(PhysicsWorld &world)
 {
+	// Initialize test scenario mapping
+	InitializeTestMap();
+
 	// Initialize and configure GLFW
 	glfwInit();
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);

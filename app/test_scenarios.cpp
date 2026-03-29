@@ -11,6 +11,20 @@
 #define M_PI 3.14159265358979323846
 #endif
 
+std::vector<std::string> chapters = {"Kinematics", "Laws of Motion", "Collision", "Rotation", "Fluids", "Thermal Properties"};
+std::unordered_map<std::string, std::vector<TestCase>> testmap;
+
+void InitializeTestMap()
+{
+    testmap["Kinematics"] = {TestCase::ProjectMotion, TestCase::RelativeVelocity};
+    testmap["Laws of Motion"] = {TestCase::NewtonThirdLaw};
+    testmap["Collision"] = {TestCase::PerfectElasticCollision, TestCase::PerfectInelasticCollision, TestCase::Collision};
+    testmap["Rotation"] = {TestCase::BoxToppleOnRamp, TestCase::SphereToppleOnRamp, TestCase::CollisionCauseTopple};
+    testmap["Fluids"] = {TestCase::BuoyancyTest};
+    testmap["Thermal Properties"] = {};
+}
+
+
 namespace
 {
     BoxCollider g_floor(Vec3(100.0f, 0.1f, 100.0f));
@@ -109,6 +123,92 @@ namespace
     world.addBody(b1);
     world.addBody(b2);
     return Camera();
+}
+
+    Camera spawn_relative_velocity(PhysicsWorld &world)
+{
+
+    
+    const float y = 0.5f;
+    
+    Vec3 pos1(-8.0f, y, 0.0f);
+    Vec3 pos2(8.0f, y, 0.0f);
+    
+    Vec3 vel1(15.0f, 0.0f, 0.0f);  
+    Vec3 vel2(5.0f, 0.0f, 0.0f);  
+    
+    Rigidbody b1(pos1, vel1, &g_small_sphere, 1.0f);
+    Rigidbody b2(pos2, vel2, &g_small_sphere, 1.0f);
+    
+    b1.restitution = 0.0f;
+    b2.restitution = 0.0f;
+    b1.friction = 0.0f;
+    b2.friction = 0.0f;
+    
+    world.addBody(b1);
+    world.addBody(b2);
+    
+    return Camera().setPosition(glm::vec3(0.0f, 3.0f, 20.0f));
+}
+
+    Camera spawn_newton_third_law(PhysicsWorld &world)
+{
+    
+    
+    const float y = 0.5f;
+    Vec3 pos1(-10.0f, y, 0.0f);
+    Vec3 vel1(12.0f, 0.0f, 0.0f);
+    Rigidbody light_body(pos1, vel1, &g_small_sphere, 0.5f);
+    
+    Vec3 pos2(10.0f, y, 0.0f);
+    Vec3 vel2(-6.0f, 0.0f, 0.0f);
+    Rigidbody heavy_body(pos2, vel2, &g_big_sphere, 2.0f);
+    light_body.restitution = 1.0f;
+    heavy_body.restitution = 1.0f;
+    light_body.friction = 0.0f;
+    heavy_body.friction = 0.0f;
+    
+    world.addBody(light_body);
+    world.addBody(heavy_body);
+    return Camera().setPosition(glm::vec3(0.0f, 3.0f, 25.0f));
+}
+
+    Camera spawn_box_topple_on_ramp(PhysicsWorld &world)
+{
+    
+    world.addBody(Rigidbody(Vec3(0.0f, 0.0f, 0.0f), Vec3(), &g_steep_ramp, 0.0f));
+    Rigidbody toppling_box(Vec3(0.0f, 4.0f, 0.0f), Vec3(), &g_wide_box, 1.5f);
+    toppling_box.friction = 0.3f;
+    toppling_box.restitution = 0.4f;
+    world.addBody(toppling_box);
+    
+    return Camera().setPosition(glm::vec3(8.0f, 6.0f, 20.0f));
+}
+
+    Camera spawn_sphere_topple_on_ramp(PhysicsWorld &world)
+{
+    world.addBody(Rigidbody(Vec3(0.0f, 0.0f, 0.0f), Vec3(), &g_steep_ramp, 0.0f));
+    Rigidbody rolling_sphere(Vec3(0.0f, 4.0f, 0.0f), Vec3(), &g_big_sphere, 1.2f);
+    rolling_sphere.friction = 0.2f;
+    rolling_sphere.restitution = 0.6f;
+    world.addBody(rolling_sphere);
+    
+    return Camera().setPosition(glm::vec3(8.0f, 6.0f, 20.0f));
+}
+
+    Camera spawn_collision_cause_topple(PhysicsWorld &world)
+{ world.addBody(Rigidbody(Vec3(0.0f, 0.0f, 0.0f), Vec3(), &g_gentle_ramp, 0.0f));
+ 
+    Rigidbody moving_box(Vec3(-8.0f, 6.0f, 0.0f), Vec3(8.0f, 0.0f, 0.0f), &g_small_box, 2.0f);
+    moving_box.friction = 0.1f;
+    moving_box.restitution = 0.5f;
+    world.addBody(moving_box);
+    Rigidbody target_sphere(Vec3(4.0f, 1.0f, 0.0f), Vec3(), &g_small_sphere, 1.0f);
+    target_sphere.friction = 0.2f;
+    target_sphere.restitution = 0.7f;
+    world.addBody(target_sphere);
+    
+    return Camera().setPosition(glm::vec3(0.0f, 4.0f, 20.0f));
 }
 
     void add_floor(PhysicsWorld &world)
@@ -551,6 +651,16 @@ Camera LoadSingleTestScenario(PhysicsWorld &world, TestCase test_case)
         return spawn_perfect_inelastic_collision(world);
     case TestCase::Collision:
         return spawn_collision_partial(world);
+    case TestCase::RelativeVelocity:
+        return spawn_relative_velocity(world);
+    case TestCase::NewtonThirdLaw:
+        return spawn_newton_third_law(world);
+    case TestCase::BoxToppleOnRamp:
+        return spawn_box_topple_on_ramp(world);
+    case TestCase::SphereToppleOnRamp:
+        return spawn_sphere_topple_on_ramp(world);
+    case TestCase::CollisionCauseTopple:
+        return spawn_collision_cause_topple(world);
     case TestCase::BuoyancyTest:
         world.enable_buoyancy = true;
         world.water_fluid = Fluid(2.0f, 2.0f, 0.3f);
