@@ -22,6 +22,11 @@ public:
 	Vec3 acctork;
 	Mat3 inverse_inertia_body;   //for local
  	Mat3 inverse_inertia_world;  //for world
+	bool thermal_enabled = false;
+	float temperature = 293.15f;
+	float heat_capacity = 900.0f;
+	float thermal_conductivity = 0.5f;
+	float thermal_emissivity = 0.85f;
 
 	/*
 	- Collider is a pointer cuz if we just write "Collider collider;" then the collider will always be a generic one
@@ -46,4 +51,6 @@ public:
 	void clearForces();
 	void clearAccum();
 	void updateworldinvinertia();
+	float getMass() const;
+	float getThermalMass() const;
 };

@@ -1,7 +1,9 @@
 #include "bodymenu.hpp"
 
 #include <imgui.h>
+#include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <memory>
 #include <string>
 #include <vector>
@@ -12,6 +14,7 @@
 #include "../engine/core/rigidbody.hpp"
 #include "../engine/core/sphere_collider.hpp"
 #include "../engine/math/vec3.hpp"
+#include "thermal_palette.hpp"
 
 static int shapeIndex = 0;
 static int linkBodyAIndex = 0;
@@ -49,6 +52,50 @@ static void RequestEngineToast(const std::string &text)
 		return;
 	g_toast_text = text;
 	g_toast_until = ImGui::GetTime() + 2.0;
+}
+
+static void RenderThermalLegend(const PhysicsWorld &world)
+{
+	if (!world.thermal_settings.enabled)
+		return;
+
+	ImGui::SeparatorText("Heat Scale");
+	float legendWidth = ImGui::GetContentRegionAvail().x;
+	if (legendWidth <= 0.0f)
+		legendWidth = 1.0f;
+	const float barHeight = 18.0f;
+	ImVec2 pos = ImGui::GetCursorScreenPos();
+	ImDrawList *drawList = ImGui::GetWindowDrawList();
+	const int segments = 64;
+	for (int i = 0; i < segments; ++i)
+	{
+		float t0 = static_cast<float>(i) / static_cast<float>(segments);
+		float t1 = static_cast<float>(i + 1) / static_cast<float>(segments);
+		glm::vec3 c0 = SampleThermalGradient(t0);
+		glm::vec3 c1 = SampleThermalGradient(t1);
+		ImU32 col0 = ImColor(c0.r, c0.g, c0.b, 1.0f);
+		ImU32 col1 = ImColor(c1.r, c1.g, c1.b, 1.0f);
+		float x0 = pos.x + t0 * legendWidth;
+		float x1 = pos.x + t1 * legendWidth;
+		drawList->AddRectFilledMultiColor(ImVec2(x0, pos.y), ImVec2(x1, pos.y + barHeight), col0, col1, col1, col0);
+	}
+	drawList->AddRect(ImVec2(pos.x, pos.y), ImVec2(pos.x + legendWidth, pos.y + barHeight), ImGui::GetColorU32(ImGuiCol_Border));
+	ImGui::Dummy(ImVec2(legendWidth, barHeight + 6.0f));
+
+	auto formatLabel = [](const char *prefix, float value) {
+		char buffer[32];
+		std::snprintf(buffer, sizeof(buffer), "%s %.0fK", prefix, value);
+		return std::string(buffer);
+	};
+	const std::string coldLabel = formatLabel("Cold", world.thermal_settings.min_visual_temperature);
+	const std::string hotLabel = formatLabel("Hot", world.thermal_settings.max_visual_temperature);
+	const float startX = ImGui::GetCursorPosX();
+	ImGui::TextUnformatted(coldLabel.c_str());
+	ImGui::SameLine();
+	float hotWidth = ImGui::CalcTextSize(hotLabel.c_str()).x;
+	ImGui::SetCursorPosX(startX + legendWidth - hotWidth);
+	ImGui::TextUnformatted(hotLabel.c_str());
+	ImGui::Spacing();
 }
 
 void RenderEnginePopups()
@@ -101,14 +148,20 @@ static float approx_radius_for_new_shape()
 static void spawn_body(PhysicsWorld &world)
 {
 	Collider *collider_ptr = nullptr;
+	int shapeChoice = shapeIndex;
+	if (world.thermal_spawn_controls.lock_to_basic_shapes && shapeChoice > 1)
+	{
+		shapeChoice = std::min(shapeChoice, 1);
+		shapeIndex = shapeChoice;
+	}
 
-	if (shapeIndex == 0) // spawn sphere
+	if (shapeChoice == 0) // spawn sphere
 	{
 		auto c = std::make_unique<SphereCollider>(sphereRadius);
 		collider_ptr = c.get();
 		ownedColliders.push_back(std::move(c));
 	}
-	else if (shapeIndex == 1) // spawn box
+	else if (shapeChoice == 1) // spawn box
 	{
 		auto c = std::make_unique<BoxCollider>(Vec3(boxHalfSize[0], boxHalfSize[1], boxHalfSize[2]));
 		collider_ptr = c.get();
@@ -128,15 +181,35 @@ static void spawn_body(PhysicsWorld &world)
 		collider_ptr,
 		spawnMass);
 	b.force_accum = Vec3(spawnForce[0], spawnForce[1], spawnForce[2]);
+	if (world.thermal_spawn_controls.enabled)
+	{
+		b.thermal_enabled = true;
+		b.temperature = world.thermal_spawn_controls.spawn_temperature;
+		b.heat_capacity = world.thermal_spawn_controls.spawn_heat_capacity;
+		b.thermal_conductivity = world.thermal_spawn_controls.spawn_conductivity;
+		b.thermal_emissivity = world.thermal_spawn_controls.spawn_emissivity;
+	}
 	SetSelectedBodyId(world.addBody(std::move(b)));
 }
 
 void RenderAddBodyMenuContent(PhysicsWorld &world)
 {
 	ImGui::SeparatorText("Spawn Body");
-	const char *shapeNames[] = {"Sphere", "Box", "Ramp"};
-	ImGui::Combo("Add Shape", &shapeIndex, shapeNames, 3);
+	const bool restrictShapes = world.thermal_spawn_controls.lock_to_basic_shapes;
+	const char *shapeNamesFull[] = {"Sphere", "Box", "Ramp"};
+	const char *shapeNamesLimited[] = {"Sphere", "Box"};
+	if (restrictShapes && shapeIndex > 1)
+	{
+		shapeIndex = 0;
+	}
+	const char **shapeNames = restrictShapes ? shapeNamesLimited : shapeNamesFull;
+	int shapeCount = restrictShapes ? 2 : 3;
+	ImGui::Combo("Add Shape", &shapeIndex, shapeNames, shapeCount);
 	show_tooltip("Choose which collider type to create for the next body.");
+	if (restrictShapes)
+	{
+		ImGui::TextColored(ImVec4(0.95f, 0.65f, 0.25f, 1.0f), "Thermal scenario: only spheres and boxes are available.");
+	}
 
 	ImGui::DragFloat3("Position", spawnPos, 0.1f);
 	show_tooltip("Initial world-space position for the new body.");
@@ -165,6 +238,19 @@ void RenderAddBodyMenuContent(PhysicsWorld &world)
 		show_tooltip("Ramp size along the forward axis.");
 		ImGui::DragFloat("Ramp HalfWidthZ", &rampHalfWidthZ, 0.1f);
 		show_tooltip("Half-width of the ramp across the Z axis.");
+	}
+
+	if (world.thermal_spawn_controls.enabled)
+	{
+		ImGui::SeparatorText("Thermal Properties");
+		ImGui::DragFloat("Spawn Temperature (K)", &world.thermal_spawn_controls.spawn_temperature, 1.0f, 100.0f, 1000.0f);
+		show_tooltip("Temperature assigned to newly spawned bodies inside the heat transfer lab.");
+		ImGui::DragFloat("Spawn Heat Capacity", &world.thermal_spawn_controls.spawn_heat_capacity, 5.0f, 10.0f, 5000.0f);
+		show_tooltip("Higher heat capacity slows down temperature changes.");
+		ImGui::DragFloat("Spawn Conductivity", &world.thermal_spawn_controls.spawn_conductivity, 0.01f, 0.0f, 5.0f);
+		show_tooltip("Controls how quickly bodies exchange heat via contacts.");
+		ImGui::DragFloat("Spawn Emissivity", &world.thermal_spawn_controls.spawn_emissivity, 0.01f, 0.0f, 1.5f);
+		show_tooltip("Higher emissivity radiates heat faster to nearby bodies.");
 	}
 
 	if (ImGui::Button("Add Body"))
@@ -314,6 +400,10 @@ void RenderBodyInspectorContent(PhysicsWorld &world, bool showCloseButton)
 		ImGui::Separator();
 
 	ImGui::SeparatorText("Bodies");
+	if (world.thermal_settings.enabled)
+	{
+		RenderThermalLegend(world);
+	}
 
 	// show active bodies in the scene
 	float listHeight = ImGui::GetContentRegionAvail().y;
@@ -354,6 +444,11 @@ void RenderBodyInspectorContent(PhysicsWorld &world, bool showCloseButton)
 		ImGui::Text("Pos: %.3f %.3f %.3f", body.position.x, body.position.y, body.position.z);
 		ImGui::Text("Speed: %.3f %.3f %.3f", body.velocity.x, body.velocity.y, body.velocity.z);
 		ImGui::Text("Force: %.3f %.3f %.3f", body.force_accum.x, body.force_accum.y, body.force_accum.z);
+		if (body.thermal_enabled)
+		{
+			ImGui::Text("Temp: %.1f K", body.temperature);
+			ImGui::Text("k: %.2f | emiss: %.2f", body.thermal_conductivity, body.thermal_emissivity);
+		}
 
 		if (isSelected && isLive)
 		{
@@ -364,6 +459,14 @@ void RenderBodyInspectorContent(PhysicsWorld &world, bool showCloseButton)
 			float editForce[3] = {body.force_accum.x, body.force_accum.y, body.force_accum.z};
 			if (ImGui::DragFloat3("Edit Force", editForce, 0.1f))
 				body.force_accum = Vec3(editForce[0], editForce[1], editForce[2]);
+			if (body.thermal_enabled)
+			{
+				float editTemp = body.temperature;
+				if (ImGui::DragFloat("Edit Temperature", &editTemp, 0.5f, 100.0f, 1000.0f))
+				{
+					body.temperature = editTemp;
+				}
+			}
 		}
 
 		ImGui::Separator();

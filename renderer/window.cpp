@@ -38,7 +38,8 @@ namespace
 		TestCase::AngularStack,
 		TestCase::CornerCollision,
 		TestCase::RollingFriction,
-		TestCase::BuoyancyTest
+		TestCase::BuoyancyTest,
+		TestCase::HeatTransferDemo
 	};
 
 	constexpr const char *kTestCaseNames[] = {
@@ -54,7 +55,8 @@ namespace
 		"Angular Stack Push",
 		"Corner Collision Torque",
 		"Rolling vs Sliding",
-		"Buoyancy Test"
+		"Buoyancy Test",
+		"Heat Transfer Lab"
 	};
 
 	constexpr const char *kTestCaseDescriptions[] = {
@@ -70,7 +72,8 @@ namespace
 		"Sequential pushes on a block tower highlight angular momentum build-up.",
 		"Corner-to-corner impacts show how contact point offsets create torque.",
 		"Contrast high-friction rolling with sliding motion on ramps and flats.",
-		"Observe how buoyant forces affect floating objects in simulated fluids."
+		"Observe how buoyant forces affect floating objects in simulated fluids.",
+		"Watch boxes and spheres equalize heat via conduction and radiation with temperature-driven colors."
 	};
 		
 
