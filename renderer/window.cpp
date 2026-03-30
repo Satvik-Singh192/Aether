@@ -39,7 +39,12 @@ namespace
 		TestCase::CornerCollision,
 		TestCase::RollingFriction,
 		TestCase::BuoyancyTest,
-		TestCase::HeatTransferDemo
+		TestCase::HeatTransferDemo,
+		TestCase::RelativeVelocity,
+		TestCase::NewtonThirdLaw,
+		TestCase::BoxToppleOnRamp,
+		TestCase::SphereToppleOnRamp,
+		TestCase::CollisionCauseTopple
 	};
 
 	constexpr const char *kTestCaseNames[] = {
@@ -56,7 +61,12 @@ namespace
 		"Corner Collision Torque",
 		"Rolling vs Sliding",
 		"Buoyancy Test",
-		"Heat Transfer Lab"
+		"Heat Transfer Lab",
+		"Relative Velocity",
+		"Newton's Third Law",
+		"Box Topple on Ramp",
+		"Sphere Topple on Ramp",
+		"Collision Cause Topple"
 	};
 
 	constexpr const char *kTestCaseDescriptions[] = {
@@ -73,8 +83,15 @@ namespace
 		"Corner-to-corner impacts show how contact point offsets create torque.",
 		"Contrast high-friction rolling with sliding motion on ramps and flats.",
 		"Observe how buoyant forces affect floating objects in simulated fluids.",
-		"Watch boxes and spheres equalize heat via conduction and radiation with temperature-driven colors."
+		"Watch boxes and spheres equalize heat via conduction and radiation with temperature-driven colors.",
+		"",
+		"",
+		"",
+		"",
+		""
 	};
+		
+
 		
 
 	constexpr const char *kGravityPresetNames[] = {
@@ -119,6 +136,9 @@ static void ShowTooltip(const char *text)
 
 void CreateWindow(PhysicsWorld &world)
 {
+	// Initialize test scenario mapping
+	InitializeTestMap();
+
 	// Initialize and configure GLFW
 	glfwInit();
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
