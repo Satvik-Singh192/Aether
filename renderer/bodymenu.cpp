@@ -28,6 +28,8 @@ static float spawnPos[3] = {0.0f, 3.0f, 0.0f};
 static float spawnSpeed[3] = {0.0f, 0.0f, 0.0f};
 static float spawnForce[3] = {0.0f, 0.0f, 0.0f};
 static float spawnMass = 1.0f;
+static float spawnDensity = 1.0f;
+static float spawnVolume = 0.5235988f;
 
 static float sphereRadius = 0.5f;
 static float boxHalfSize[3] = {0.5f, 0.5f, 0.5f};
@@ -36,6 +38,106 @@ static float rampLength = 8.0f;
 static float rampHalfWidthZ = 1.5f;
 
 static std::vector<std::unique_ptr<Collider>> ownedColliders;
+
+static constexpr float kPi = 3.14159265358979323846f;
+
+static float sphereVolumeFromRadius(float radius)
+{
+	radius = std::max(0.0f, radius);
+	return (4.0f / 3.0f) * kPi * radius * radius * radius;
+}
+
+static float sphereRadiusFromVolume(float volume)
+{
+	volume = std::max(0.0f, volume);
+	if (volume <= 0.0f)
+		return 0.0f;
+	return std::cbrt((3.0f * volume) / (4.0f * kPi));
+}
+
+static void setBodyMassAndInertia(Rigidbody &body, float mass)
+{
+	const float MIN_MASS = PHYSICS_EPSILON;
+	float effective_mass = mass;
+
+	if (mass <= 0.0f)
+	{
+		effective_mass = 0.0f;
+	}
+	else if (mass < MIN_MASS)
+	{
+		effective_mass = MIN_MASS;
+	}
+
+	body.inverse_mass = (effective_mass > 0.0f) ? (1.0f / effective_mass) : 0.0f;
+	const float actual_mass = (body.inverse_mass > 0.0f) ? (1.0f / body.inverse_mass) : 0.0f;
+
+	if (!body.collider || actual_mass <= 0.0f)
+	{
+		body.inverse_inertia_body = Mat3::identity() * 0.0f;
+		body.updateworldinvinertia();
+		return;
+	}
+
+	if (body.collider->type == ShapeType::Sphere)
+	{
+		const auto *sphere = static_cast<const SphereCollider *>(body.collider);
+		const float I = 0.4f * actual_mass * sphere->radius * sphere->radius;
+		const float invI = (I > PHYSICS_EPSILON) ? (1.0f / I) : 0.0f;
+		body.inverse_inertia_body = Mat3::diag(invI, invI, invI);
+	}
+	else if (body.collider->type == ShapeType::Box)
+	{
+		const auto *box = static_cast<const BoxCollider *>(body.collider);
+		const Vec3 e = box->halfsize * 2.0f;
+
+		const float Ix = (actual_mass / 12.0f) * (e.y * e.y + e.z * e.z);
+		const float Iy = (actual_mass / 12.0f) * (e.x * e.x + e.z * e.z);
+		const float Iz = (actual_mass / 12.0f) * (e.x * e.x + e.y * e.y);
+
+		body.inverse_inertia_body = Mat3::diag(
+			Ix > PHYSICS_EPSILON ? (1.0f / Ix) : 0.0f,
+			Iy > PHYSICS_EPSILON ? (1.0f / Iy) : 0.0f,
+			Iz > PHYSICS_EPSILON ? (1.0f / Iz) : 0.0f);
+	}
+	else
+	{
+		body.inverse_inertia_body = Mat3::identity() * 0.0f;
+	}
+
+	body.updateworldinvinertia();
+}
+
+static bool isBuoyancyHelperWall(const PhysicsWorld &world, const Rigidbody &body)
+{
+	if (!world.enable_buoyancy)
+		return false;
+	if (body.inverse_mass != 0.0f)
+		return false;
+	if (!body.collider || body.collider->type != ShapeType::Box)
+		return false;
+
+	const Fluid &fluid = world.water_fluid;
+	const float halfSize = fluid.beaker_half_size;
+	constexpr float wallThickness = 0.2f;
+	constexpr float wallHalf = wallThickness / 2.0f;
+	const float tol = 0.02f;
+
+	const auto *box = static_cast<const BoxCollider *>(body.collider);
+	const Vec3 hs = box->halfsize;
+
+	const bool matchesXWall = (std::abs(hs.x - wallHalf) < tol) && (std::abs(hs.y - halfSize) < tol) && (std::abs(hs.z - halfSize) < tol);
+	const bool matchesZWall = (std::abs(hs.z - wallHalf) < tol) && (std::abs(hs.y - halfSize) < tol) && (std::abs(hs.x - halfSize) < tol);
+
+	const float bottomHalfX = std::max(0.01f, halfSize - wallThickness);
+	const float bottomHalfY = wallHalf;
+	const float bottomHalfZ = std::max(0.01f, halfSize - wallThickness);
+	const bool matchesBottom = (std::abs(hs.x - bottomHalfX) < tol) &&
+							   (std::abs(hs.y - bottomHalfY) < tol) &&
+							   (std::abs(hs.z - bottomHalfZ) < tol);
+
+	return matchesXWall || matchesZWall || matchesBottom;
+}
 
 static void show_tooltip(const char *text)
 {
@@ -148,7 +250,29 @@ static float approx_radius_for_new_shape()
 static void spawn_body(PhysicsWorld &world)
 {
 	Collider *collider_ptr = nullptr;
+
 	int shapeChoice = shapeIndex;
+	if (world.enable_buoyancy)
+	{
+		if (shapeChoice < 0 || shapeChoice > 1)
+			shapeChoice = 0;
+		shapeIndex = shapeChoice;
+
+		spawnMass = spawnDensity * spawnVolume;
+		spawnSpeed[0] = spawnSpeed[1] = spawnSpeed[2] = 0.0f;
+		spawnForce[0] = spawnForce[1] = spawnForce[2] = 0.0f;
+
+		if (shapeChoice == 0)
+		{
+			sphereRadius = sphereRadiusFromVolume(spawnVolume);
+		}
+		else if (shapeChoice == 1)
+		{
+			const float h = std::cbrt(std::max(0.0f, spawnVolume) / 8.0f);
+			boxHalfSize[0] = boxHalfSize[1] = boxHalfSize[2] = h;
+		}
+	}
+
 	if (world.thermal_spawn_controls.lock_to_basic_shapes && shapeChoice > 1)
 	{
 		shapeChoice = std::min(shapeChoice, 1);
@@ -195,6 +319,90 @@ static void spawn_body(PhysicsWorld &world)
 void RenderAddBodyMenuContent(PhysicsWorld &world)
 {
 	ImGui::SeparatorText("Spawn Body");
+	if (world.enable_buoyancy)
+	{
+		if (shapeIndex < 0 || shapeIndex > 1)
+			shapeIndex = 0;
+		const char *buoyShapes[] = {"Sphere", "Box"};
+		ImGui::Combo("Add Shape", &shapeIndex, buoyShapes, 2);
+
+		const Vec3 fluidCenter = world.water_fluid.beaker_center;
+		const float halfSize = 4.0f;
+		const float minX = fluidCenter.x - halfSize;
+		const float maxX = fluidCenter.x + halfSize;
+		const float minZ = fluidCenter.z - halfSize;
+		const float maxZ = fluidCenter.z + halfSize;
+
+		ImGui::DragFloat("X", &spawnPos[0], 0.1f);
+		ImGui::DragFloat("Y", &spawnPos[1], 0.1f);
+		ImGui::DragFloat("Z", &spawnPos[2], 0.1f);
+		spawnPos[0] = std::max(minX, std::min(maxX, spawnPos[0]));
+		spawnPos[2] = std::max(minZ, std::min(maxZ, spawnPos[2]));
+
+		ImGui::DragFloat("Density", &spawnDensity, 0.05f, 0.01f, 100000.0f);
+		const float prevVolume = spawnVolume;
+		ImGui::DragFloat("Volume", &spawnVolume, 0.01f, 0.0001f, 100.0f);
+		if (spawnVolume > 100.0f)
+			spawnVolume = prevVolume;
+
+		if (ImGui::Button("Add Body"))
+		{
+			static float last_add_time = -1000.0f;
+			float now = ImGui::GetTime();
+			if (now - last_add_time < 2.0f)
+				RequestEngineToast("Too frequent requests");
+			else
+			{
+				last_add_time = now;
+				Vec3 pos(spawnPos[0], spawnPos[1], spawnPos[2]);
+				if (std::abs(pos.x - fluidCenter.x) > halfSize || std::abs(pos.z - fluidCenter.z) > halfSize)
+				{
+					RequestEngineToast("Body spawn must be inside beaker X/Z.");
+				}
+				else
+				{
+					if (shapeIndex == 0)
+						sphereRadius = sphereRadiusFromVolume(spawnVolume);
+					else
+					{
+						const float h = std::cbrt(std::max(0.0f, spawnVolume) / 8.0f);
+						boxHalfSize[0] = boxHalfSize[1] = boxHalfSize[2] = h;
+					}
+					const float newRad = approx_radius_for_new_shape();
+					const auto &bodies = world.getBodies();
+					int overlap = 0;
+					for (auto &b : bodies)
+					{
+						if (!b.collider)
+							continue;
+						if (b.inverse_mass == 0.0f)
+							continue;
+						const float r = approx_radius_from_collider(b.collider);
+						const float dx = b.position.x - pos.x;
+						const float dy = b.position.y - pos.y;
+						const float dz = b.position.z - pos.z;
+						const float dist2 = dx * dx + dy * dy + dz * dz;
+						const float rsum = newRad + r;
+						const float thresh = rsum * 0.85f;
+						if (dist2 < thresh * thresh)
+							++overlap;
+						if (overlap >= 4)
+							break;
+					}
+					if (overlap >= 4)
+						RequestEngineToast("area too clustered to add a body");
+					else
+					{
+						spawn_body(world);
+						RequestEngineToast("Body was added successfully");
+					}
+				}
+			}
+		}
+		show_tooltip("Creates one rigid body with the current spawn parameters.");
+		return;
+	}
+
 	const bool restrictShapes = world.thermal_spawn_controls.lock_to_basic_shapes;
 	const char *shapeNamesFull[] = {"Sphere", "Box", "Ramp"};
 	const char *shapeNamesLimited[] = {"Sphere", "Box"};
@@ -269,6 +477,8 @@ void RenderAddBodyMenuContent(PhysicsWorld &world)
 			for (auto &b : bodies)
 			{
 				if (!b.collider)
+					continue;
+				if (world.enable_buoyancy && b.inverse_mass == 0.0f)
 					continue;
 				const float r = approx_radius_from_collider(b.collider);
 				const float dx = b.position.x - pos.x;
@@ -416,6 +626,12 @@ void RenderBodyInspectorContent(PhysicsWorld &world, bool showCloseButton)
 	{
 		ImGui::PushID(body.id);
 
+		if (isBuoyancyHelperWall(world, body))
+		{
+			ImGui::PopID();
+			continue;
+		}
+
 		if (!body.collider)
 		{
 			ImGui::PopID();
@@ -452,13 +668,63 @@ void RenderBodyInspectorContent(PhysicsWorld &world, bool showCloseButton)
 
 		if (isSelected && isLive)
 		{
-			float editSpeed[3] = {body.velocity.x, body.velocity.y, body.velocity.z};
-			if (ImGui::DragFloat3("Edit Speed", editSpeed, 0.1f))
-				body.velocity = Vec3(editSpeed[0], editSpeed[1], editSpeed[2]);
+			if (world.enable_buoyancy)
+			{
+				if (body.collider->type == ShapeType::Sphere)
+				{
+					SphereCollider *sphere = static_cast<SphereCollider *>(body.collider);
+					const float currentVolume = sphereVolumeFromRadius(sphere->radius);
+					const float currentMass = (body.inverse_mass > 0.0f) ? (1.0f / body.inverse_mass) : 0.0f;
+					const float currentDensity = (currentVolume > 1e-6f) ? (currentMass / currentVolume) : 0.0f;
 
-			float editForce[3] = {body.force_accum.x, body.force_accum.y, body.force_accum.z};
-			if (ImGui::DragFloat3("Edit Force", editForce, 0.1f))
-				body.force_accum = Vec3(editForce[0], editForce[1], editForce[2]);
+					float editVolume = currentVolume;
+					float editDensity = currentDensity;
+					const float prevVolume = editVolume;
+					bool volChanged = ImGui::DragFloat("Volume", &editVolume, 0.01f, 0.0001f, 100.0f);
+					if (editVolume > 100.0f)
+						editVolume = prevVolume;
+					bool densChanged = ImGui::DragFloat("Density", &editDensity, 0.05f, 0.01f, 100000.0f);
+
+					if (volChanged || densChanged)
+					{
+						sphere->radius = sphereRadiusFromVolume(editVolume);
+						setBodyMassAndInertia(body, editDensity * editVolume);
+					}
+				}
+				else if (body.collider->type == ShapeType::Box)
+				{
+					BoxCollider *box = static_cast<BoxCollider *>(body.collider);
+					const Vec3 hs = box->halfsize;
+					const float currentVolume = (2.0f * hs.x) * (2.0f * hs.y) * (2.0f * hs.z);
+					const float currentMass = (body.inverse_mass > 0.0f) ? (1.0f / body.inverse_mass) : 0.0f;
+					const float currentDensity = (currentVolume > 1e-6f) ? (currentMass / currentVolume) : 0.0f;
+
+					float editVolume = currentVolume;
+					float editDensity = currentDensity;
+					const float prevVolume = editVolume;
+					bool volChanged = ImGui::DragFloat("Volume", &editVolume, 0.01f, 0.0001f, 100.0f);
+					if (editVolume > 100.0f)
+						editVolume = prevVolume;
+					bool densChanged = ImGui::DragFloat("Density", &editDensity, 0.05f, 0.01f, 100000.0f);
+
+					if (volChanged || densChanged)
+					{
+						const float scale = std::cbrt(std::max(0.0001f, editVolume) / std::max(1e-6f, currentVolume));
+						box->halfsize = Vec3(hs.x * scale, hs.y * scale, hs.z * scale);
+						setBodyMassAndInertia(body, editDensity * editVolume);
+					}
+				}
+			}
+			else
+			{
+				float editSpeed[3] = {body.velocity.x, body.velocity.y, body.velocity.z};
+				if (ImGui::DragFloat3("Edit Speed", editSpeed, 0.1f))
+					body.velocity = Vec3(editSpeed[0], editSpeed[1], editSpeed[2]);
+
+				float editForce[3] = {body.force_accum.x, body.force_accum.y, body.force_accum.z};
+				if (ImGui::DragFloat3("Edit Force", editForce, 0.1f))
+					body.force_accum = Vec3(editForce[0], editForce[1], editForce[2]);
+			}
 			if (body.thermal_enabled)
 			{
 				float editTemp = body.temperature;
@@ -497,7 +763,8 @@ void RenderBodyMenu(PhysicsWorld &world)
 {
 	ImGui::Begin("Body Menu");
 	RenderAddBodyMenuContent(world);
-	RenderConstraintMenuContent(world);
+	if (!world.enable_buoyancy)
+		RenderConstraintMenuContent(world);
 	RenderWorldMenuContent(world);
 	RenderBodyInspectorContent(world, false);
 	ImGui::End();

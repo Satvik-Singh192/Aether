@@ -16,6 +16,7 @@
 #include "thermal_palette.hpp"
 #include <algorithm>
 #include <cmath>
+#include <memory>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -450,6 +451,110 @@ static void drawVelocityArrows(PhysicsWorld &world, GLuint prog, GLuint vao, GLu
 
 void RenderBodies(PhysicsWorld &world, const Camera &camera, float aspectRatio)
 {
+    if (world.enable_buoyancy)
+    {
+        const Fluid &fluid = world.water_fluid;
+        const float halfSize = fluid.beaker_half_size;
+        constexpr float wallThickness = 0.2f;
+        constexpr float wallHalf = wallThickness / 2.0f;
+
+        float beakerCenterY = fluid.beaker_center.y;
+        if (std::abs(beakerCenterY) < 1e-4f)
+            beakerCenterY = halfSize;
+
+        auto isWallLike = [&](const Rigidbody &body) -> bool
+        {
+            if (body.inverse_mass != 0.0f)
+                return false;
+            if (!body.collider || body.collider->type != ShapeType::Box)
+                return false;
+            const BoxCollider *box = static_cast<const BoxCollider *>(body.collider);
+            const Vec3 hs = box->halfsize;
+            const float tol = 0.02f;
+
+            const bool matchesXWall = (std::abs(hs.x - wallHalf) < tol) && (std::abs(hs.y - halfSize) < tol) && (std::abs(hs.z - halfSize) < tol);
+            const bool matchesZWall = (std::abs(hs.z - wallHalf) < tol) && (std::abs(hs.y - halfSize) < tol) && (std::abs(hs.x - halfSize) < tol);
+
+            const float bottomHalfX = std::max(0.01f, halfSize - wallThickness);
+            const float bottomHalfY = wallHalf;
+            const float bottomHalfZ = std::max(0.01f, halfSize - wallThickness);
+            const bool matchesBottom = (std::abs(hs.x - bottomHalfX) < tol) &&
+                                         (std::abs(hs.y - bottomHalfY) < tol) &&
+                                         (std::abs(hs.z - bottomHalfZ) < tol);
+
+            return matchesXWall || matchesZWall || matchesBottom;
+        };
+
+        bool alreadyHas = false;
+        for (const auto &b : world.getBodies())
+        {
+            if (isWallLike(b))
+            {
+                alreadyHas = true;
+                break;
+            }
+        }
+
+        static std::vector<std::unique_ptr<Collider>> s_owned;
+        if (!alreadyHas)
+        {
+            s_owned.clear();
+            const float cx = fluid.beaker_center.x;
+            const float cz = fluid.beaker_center.z;
+            const float yCenter = beakerCenterY;
+            const float yHalf = halfSize;
+
+            auto addBox = [&](const Vec3 &pos, const Vec3 &hs)
+            {
+                auto c = std::make_unique<BoxCollider>(hs);
+                Collider *ptr = c.get();
+                s_owned.push_back(std::move(c));
+                world.addBody(Rigidbody(pos, Vec3(), ptr, 0.0f));
+            };
+
+            addBox(Vec3(cx - halfSize + wallHalf, yCenter, cz), Vec3(wallHalf, yHalf, halfSize));
+            addBox(Vec3(cx + halfSize - wallHalf, yCenter, cz), Vec3(wallHalf, yHalf, halfSize));
+            addBox(Vec3(cx, yCenter, cz - halfSize + wallHalf), Vec3(halfSize, yHalf, wallHalf));
+            addBox(Vec3(cx, yCenter, cz + halfSize - wallHalf), Vec3(halfSize, yHalf, wallHalf));
+
+            const float bottomHalfX = std::max(0.01f, halfSize - wallThickness);
+            const float bottomHalfY = wallHalf;
+            const float bottomHalfZ = std::max(0.01f, halfSize - wallThickness);
+            const float bottomCenterY = yCenter - halfSize + wallHalf;
+            addBox(Vec3(cx, bottomCenterY, cz), Vec3(bottomHalfX, bottomHalfY, bottomHalfZ));
+        }
+    }
+
+    auto isBuoyancyHelperWallBody = [&](const Rigidbody &body) -> bool
+    {
+        if (!world.enable_buoyancy)
+            return false;
+        if (body.inverse_mass != 0.0f)
+            return false;
+        if (!body.collider || body.collider->type != ShapeType::Box)
+            return false;
+
+        const Fluid &fluid = world.water_fluid;
+        const float halfSize = fluid.beaker_half_size;
+        constexpr float wallThickness = 0.2f;
+        constexpr float wallHalf = wallThickness / 2.0f;
+        const float tol = 0.02f;
+        const BoxCollider *box = static_cast<const BoxCollider *>(body.collider);
+        const Vec3 hs = box->halfsize;
+
+        const bool matchesXWall = (std::abs(hs.x - wallHalf) < tol) && (std::abs(hs.y - halfSize) < tol) && (std::abs(hs.z - halfSize) < tol);
+        const bool matchesZWall = (std::abs(hs.z - wallHalf) < tol) && (std::abs(hs.y - halfSize) < tol) && (std::abs(hs.x - halfSize) < tol);
+
+        const float bottomHalfX = std::max(0.01f, halfSize - wallThickness);
+        const float bottomHalfY = wallHalf;
+        const float bottomHalfZ = std::max(0.01f, halfSize - wallThickness);
+        const bool matchesBottom = (std::abs(hs.x - bottomHalfX) < tol) &&
+                                     (std::abs(hs.y - bottomHalfY) < tol) &&
+                                     (std::abs(hs.z - bottomHalfZ) < tol);
+
+        return matchesXWall || matchesZWall || matchesBottom;
+    };
+
     // Separate vertex lists so we can color axes and body outlines differently
     std::vector<float> axisVertices;
     axisVertices.reserve(18); // 3 axes * 2 endpoints * 3 components
@@ -633,9 +738,129 @@ void RenderBodies(PhysicsWorld &world, const Camera &camera, float aspectRatio)
             glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(solidVerts.size() / 6));
         };
 
+        auto pushBoxSolidOpenTop = [&](std::vector<float> &v, const glm::vec3 &c, const glm::vec3 &h, const Mat3 &R)
+        {
+            const glm::vec3 p000 = c + rotateOffset(R, glm::vec3(-h.x, -h.y, -h.z));
+            const glm::vec3 p001 = c + rotateOffset(R, glm::vec3(-h.x, -h.y, +h.z));
+            const glm::vec3 p010 = c + rotateOffset(R, glm::vec3(-h.x, +h.y, -h.z));
+            const glm::vec3 p011 = c + rotateOffset(R, glm::vec3(-h.x, +h.y, +h.z));
+            const glm::vec3 p100 = c + rotateOffset(R, glm::vec3(+h.x, -h.y, -h.z));
+            const glm::vec3 p101 = c + rotateOffset(R, glm::vec3(+h.x, -h.y, +h.z));
+            const glm::vec3 p110 = c + rotateOffset(R, glm::vec3(+h.x, +h.y, -h.z));
+            const glm::vec3 p111 = c + rotateOffset(R, glm::vec3(+h.x, +h.y, +h.z));
+            const glm::vec3 nxp = rotateOffset(R, glm::vec3(-1.0f, 0.0f, 0.0f));
+            const glm::vec3 nx = rotateOffset(R, glm::vec3(1.0f, 0.0f, 0.0f));
+            const glm::vec3 nyn = rotateOffset(R, glm::vec3(0.0f, -1.0f, 0.0f));
+            const glm::vec3 nzn = rotateOffset(R, glm::vec3(0.0f, 0.0f, -1.0f));
+            const glm::vec3 nz = rotateOffset(R, glm::vec3(0.0f, 0.0f, 1.0f));
+            pushFace4(v, p000, nxp, p010, nxp, p011, nxp, p001, nxp);
+            pushFace4(v, p100, nx, p110, nx, p111, nx, p101, nx);
+            pushFace4(v, p000, nyn, p100, nyn, p101, nyn, p001, nyn);
+            pushFace4(v, p000, nzn, p100, nzn, p110, nzn, p010, nzn);
+            pushFace4(v, p001, nz, p011, nz, p111, nz, p101, nz);
+        };
+
+        auto drawTransparentBoxOpenTop = [&](const glm::vec3 &center, const glm::vec3 &half,
+                                             const Mat3 &R,
+                                             float r, float g, float b, float a)
+        {
+            std::vector<float> solidVerts;
+            solidVerts.reserve(4096);
+            pushBoxSolidOpenTop(solidVerts, center, half, R);
+            if (solidVerts.empty())
+                return;
+            glBufferData(GL_ARRAY_BUFFER, solidVerts.size() * sizeof(float), solidVerts.data(), GL_DYNAMIC_DRAW);
+            if (smFloor >= 0)
+                glUniform1f(smFloor, 0.0f);
+            if (smCol >= 0)
+                glUniform4f(smCol, r, g, b, a);
+            if (smMatAmbient >= 0)
+                glUniform3f(smMatAmbient, r, g, b);
+            if (smMatDiffuse >= 0)
+                glUniform3f(smMatDiffuse, r, g, b);
+            if (smMatSpecular >= 0)
+                glUniform3fv(smMatSpecular, 1, glm::value_ptr(specularColor));
+            if (smMatShininess >= 0)
+                glUniform1f(smMatShininess, shininess);
+            glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(solidVerts.size() / 6));
+        };
+
+        auto drawTransparentBox = [&](const glm::vec3 &center, const glm::vec3 &half,
+                                      const Mat3 &R,
+                                      float r, float g, float b, float a)
+        {
+            std::vector<float> solidVerts;
+            solidVerts.reserve(4096);
+            pushBoxSolid(solidVerts, center, half, R);
+            if (solidVerts.empty())
+                return;
+            glBufferData(GL_ARRAY_BUFFER, solidVerts.size() * sizeof(float), solidVerts.data(), GL_DYNAMIC_DRAW);
+            if (smFloor >= 0)
+                glUniform1f(smFloor, 0.0f);
+            if (smCol >= 0)
+                glUniform4f(smCol, r, g, b, a);
+            if (smMatAmbient >= 0)
+                glUniform3f(smMatAmbient, r, g, b);
+            if (smMatDiffuse >= 0)
+                glUniform3f(smMatDiffuse, r, g, b);
+            if (smMatSpecular >= 0)
+                glUniform3fv(smMatSpecular, 1, glm::value_ptr(specularColor));
+            if (smMatShininess >= 0)
+                glUniform1f(smMatShininess, shininess);
+            glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(solidVerts.size() / 6));
+        };
+
+        if (world.enable_buoyancy)
+        {
+            const Fluid &fluid = world.water_fluid;
+            const float halfSize = fluid.beaker_half_size;
+            constexpr float wallThickness = 0.2f;
+
+            float beakerCenterY = fluid.beaker_center.y;
+            if (std::abs(beakerCenterY) < 1e-4f)
+                beakerCenterY = halfSize;
+
+            const Vec3 beakerCenter(fluid.beaker_center.x, beakerCenterY, fluid.beaker_center.z);
+
+            const float innerHalfX = std::max(0.01f, halfSize - wallThickness);
+            const float innerHalfZ = std::max(0.01f, halfSize - wallThickness);
+            const float innerHalfY = std::max(0.01f, halfSize - wallThickness);
+            const float innerBottomY = beakerCenterY - innerHalfY;
+
+            const float waterTopY = fluid.height;
+            const float waterHeight = std::max(0.0f, std::min(waterTopY - innerBottomY, 2.0f * innerHalfY));
+
+            if (waterHeight > 1e-4f)
+            {
+                glEnable(GL_BLEND);
+                glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+                glDepthMask(GL_FALSE);
+
+                const float waterHalfY = waterHeight * 0.5f;
+                const float waterCenterY = innerBottomY + waterHalfY;
+                drawTransparentBox(glm::vec3(beakerCenter.x, waterCenterY, beakerCenter.z),
+                                   glm::vec3(innerHalfX, waterHalfY, innerHalfZ),
+                                   Mat3::identity(),
+                                   0.18f, 0.55f, 1.00f, 0.34f);
+
+                constexpr float surfaceThickness = 0.08f;
+                const float surfaceHalfY = std::min(surfaceThickness * 0.5f, waterHalfY);
+                const float surfaceCenterY = waterTopY - surfaceHalfY;
+                drawTransparentBox(glm::vec3(beakerCenter.x, surfaceCenterY, beakerCenter.z),
+                                   glm::vec3(innerHalfX, surfaceHalfY, innerHalfZ),
+                                   Mat3::identity(),
+                                   0.22f, 0.65f, 1.00f, 0.24f);
+
+                glDepthMask(GL_TRUE);
+                glDisable(GL_BLEND);
+            }
+        }
+
         for (auto &body : world.getBodies())
         {
             if (looksLikeFloor(body))
+                continue;
+            if (isBuoyancyHelperWallBody(body))
                 continue;
             BodyID key = body.id;
             float r = ((key * 73u) % 100) / 100.0f;
@@ -674,6 +899,26 @@ void RenderBodies(PhysicsWorld &world, const Camera &camera, float aspectRatio)
                 continue;
             drawSolidBody(body, 1.0f, 0.26f, 0.28f, 0.31f, 0.78f);
         }
+
+        if (world.enable_buoyancy)
+        {
+            const Fluid &fluid = world.water_fluid;
+            const float halfSize = fluid.beaker_half_size;
+            float beakerCenterY = fluid.beaker_center.y;
+            if (std::abs(beakerCenterY) < 1e-4f)
+                beakerCenterY = halfSize;
+            const Vec3 beakerCenter(fluid.beaker_center.x, beakerCenterY, fluid.beaker_center.z);
+
+            glEnable(GL_BLEND);
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            glDepthMask(GL_FALSE);
+            drawTransparentBoxOpenTop(glm::vec3(beakerCenter.x, beakerCenter.y, beakerCenter.z),
+                                      glm::vec3(halfSize, halfSize, halfSize),
+                                      Mat3::identity(),
+                                      0.75f, 0.92f, 1.00f, 0.08f);
+            glDepthMask(GL_TRUE);
+            glDisable(GL_BLEND);
+        }
         glDisable(GL_POLYGON_OFFSET_FILL);
         glDepthMask(GL_TRUE);
         glDisable(GL_BLEND);
@@ -699,6 +944,8 @@ void RenderBodies(PhysicsWorld &world, const Camera &camera, float aspectRatio)
         for (auto &body : world.getBodies())
         {
             if (!body.collider)
+                continue;
+            if (isBuoyancyHelperWallBody(body))
                 continue;
 
             const glm::vec3 c(body.position.x, body.position.y, body.position.z);
