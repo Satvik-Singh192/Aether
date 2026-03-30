@@ -111,12 +111,18 @@ namespace
     return Camera();
 }
 
+    Camera spawn_incline_demo(PhysicsWorld& world){
+        world.addBody(Rigidbody(Vec3(-2.0f, 0.3f, 0.0f), Vec3(0.0f, 0.0f, 0.0f), &g_steep_ramp, 0.0f));
+        world.addBody(Rigidbody(Vec3(3.4f,6.0f,0.0f),Vec3(0.0f,0.0f,0.0f),&g_small_sphere,2.0f));
+        return Camera();
+    }
+
     void add_floor(PhysicsWorld &world)
     {
         // Keep floor top at y=0 so scenario bodies spawn above, not inside.
         world.addBody(Rigidbody(Vec3(0.0f, -0.1f, 0.0f), Vec3(), &g_floor, 0.0f, PHYSICS_DEFAULT_FRICTION, 0.0f));
     }
-
+    
     void spawn_box_stack(PhysicsWorld &world)
     {
         // stack of boxes: spawn each box higher so they fall into place one-by-one
@@ -396,6 +402,46 @@ namespace
         world.addBody(Rigidbody(Vec3(0, 12, 0), Vec3(), &g_small_box, 2.0f));
     }
 
+    Camera spawn_constraint_playground(PhysicsWorld &world)
+    {
+        // Rope pair (two dynamic bodies linked together)
+        auto rope_top = Rigidbody(Vec3(-9.0f, 7.0f, 0.0f), Vec3(0.4f, -0.2f, 0.0f), &g_small_sphere, 1.0f);
+        rope_top.friction = 0.2f;
+        auto rope_bottom = Rigidbody(Vec3(-9.2f, 3.2f, 0.0f), Vec3(-0.2f, 0.0f, 0.0f), &g_small_sphere, 1.1f);
+        rope_bottom.friction = 0.2f;
+        auto rope_top_id = world.addBody(rope_top);
+        auto rope_bottom_id = world.addBody(rope_bottom);
+        world.addDistanceConstraints(rope_top_id, rope_bottom_id, 4.0f, DistanceConstraint::ROPE, 0.0f, 0.0f);
+
+        // Rod trio (short chain, no static anchor)
+        std::uint32_t rod_ids[3];
+        for (int i = 0; i < 3; ++i)
+        {
+            float x = -1.5f + i * 2.0f;
+            rod_ids[i] = world.addBody(Rigidbody(Vec3(x, 5.0f, 0.0f), Vec3(0.0f, i == 2 ? -0.6f : 0.0f, 0.0f), &g_small_box, 1.0f));
+        }
+        world.addDistanceConstraints(rod_ids[0], rod_ids[1], 2.0f, DistanceConstraint::ROD, 0.6f, 0.6f);
+        world.addDistanceConstraints(rod_ids[1], rod_ids[2], 2.0f, DistanceConstraint::ROD, 0.6f, 0.6f);
+
+        // Spring pair (two moving spheres)
+        auto spring_a = world.addBody(Rigidbody(Vec3(4.8f, 6.5f, 0.0f), Vec3(-0.3f, 0.4f, 0.0f), &g_small_sphere, 0.9f));
+        auto spring_b = world.addBody(Rigidbody(Vec3(7.0f, 3.5f, 0.0f), Vec3(0.5f, -0.3f, 0.0f), &g_small_sphere, 0.9f));
+        world.addDistanceConstraints(spring_a, spring_b, 3.5f, DistanceConstraint::SPRING, 2.2f, 0.7f);
+
+        // Tiny rope chain (3 bodies) to demonstrate sequential constraints without overload
+        std::vector<std::uint32_t> chain;
+        chain.reserve(3);
+        for (int i = 0; i < 3; ++i)
+        {
+            float y = 7.0f - i * 1.0f;
+            chain.push_back(world.addBody(Rigidbody(Vec3(9.0f + i * 0.2f, y, 0.0f), Vec3(0.2f * i, 0.0f, 0.0f), &g_small_sphere, 0.8f + 0.1f * i)));
+        }
+        world.addDistanceConstraints(chain[0], chain[1], 1.0f, DistanceConstraint::ROPE, 0.0f, 0.0f);
+        world.addDistanceConstraints(chain[1], chain[2], 1.0f, DistanceConstraint::ROPE, 0.0f, 0.0f);
+
+        return Camera().setPosition(glm::vec3(0.0f, 7.0f, 28.0f));
+    }
+
     
     void spawn_angular_torque(PhysicsWorld &world)
     {
@@ -551,6 +597,31 @@ Camera LoadSingleTestScenario(PhysicsWorld &world, TestCase test_case)
         return spawn_perfect_inelastic_collision(world);
     case TestCase::Collision:
         return spawn_collision_partial(world);
+    case TestCase::InclinedPlane:
+        return spawn_incline_demo(world);
+    case TestCase::MomentumTransfer:
+        // Conservation-of-momentum chain (Newton's cradle style)
+        spawn_chain_collide(world);
+        return Camera().setPosition(glm::vec3(-1.0f, 6.0f, 24.0f));
+    case TestCase::CenterOfMassTopple:
+        // Demonstrates torque-induced tipping of a stacked tower
+        spawn_stack_tipping(world);
+        return Camera().setPosition(glm::vec3(0.0f, 5.0f, 20.0f));
+    case TestCase::ConstraintPlayground:
+        return spawn_constraint_playground(world);
+    case TestCase::AngularImpulse:
+        // Off-center collisions that inject angular momentum
+        spawn_off_center_hit(world);
+        return Camera().setPosition(glm::vec3(0.0f, 6.0f, 22.0f));
+    case TestCase::AngularStack:
+        spawn_angular_stack(world);
+        return Camera().setPosition(glm::vec3(0.0f, 4.0f, 22.0f));
+    case TestCase::CornerCollision:
+        spawn_box_corner_collision(world);
+        return Camera().setPosition(glm::vec3(-1.0f, 6.5f, 24.0f));
+    case TestCase::RollingFriction:
+        spawn_sphere_rolling(world);
+        return Camera().setPosition(glm::vec3(-1.0f, 5.0f, 26.0f));
     case TestCase::BuoyancyTest:
         world.enable_buoyancy = true;
         world.water_fluid = Fluid(2.0f, 2.0f, 0.3f);
