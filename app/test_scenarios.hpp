@@ -15,8 +15,7 @@ enum class TestCase
     AngularImpulse,
     AngularStack,
     CornerCollision,
-    RollingFriction
-
+    RollingFriction,
     BuoyancyTest
 };
 

@@ -37,8 +37,7 @@ namespace
 		TestCase::AngularImpulse,
 		TestCase::AngularStack,
 		TestCase::CornerCollision,
-		TestCase::RollingFriction
-		};
+		TestCase::RollingFriction,
 		TestCase::BuoyancyTest
 	};
 
@@ -54,8 +53,7 @@ namespace
 		"Angular Impulse Lab",
 		"Angular Stack Push",
 		"Corner Collision Torque",
-		"Rolling vs Sliding"
-		};
+		"Rolling vs Sliding",
 		"Buoyancy Test"
 	};
 
@@ -71,8 +69,9 @@ namespace
 		"Off-center hits demonstrate how tangential impulses spin bodies up.",
 		"Sequential pushes on a block tower highlight angular momentum build-up.",
 		"Corner-to-corner impacts show how contact point offsets create torque.",
-		"Contrast high-friction rolling with sliding motion on ramps and flats."
-		};
+		"Contrast high-friction rolling with sliding motion on ramps and flats.",
+		"Observe how buoyant forces affect floating objects in simulated fluids."
+	};
 		
 
 	constexpr const char *kGravityPresetNames[] = {
