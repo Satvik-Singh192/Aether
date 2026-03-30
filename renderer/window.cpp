@@ -83,26 +83,15 @@ namespace
 		"Corner-to-corner impacts show how contact point offsets create torque.",
 		"Contrast high-friction rolling with sliding motion on ramps and flats.",
 		"Observe how buoyant forces affect floating objects in simulated fluids.",
-		"Watch boxes and spheres equalize heat via conduction and radiation with temperature-driven colors."
+		"Watch boxes and spheres equalize heat via conduction and radiation with temperature-driven colors.",
+		"",
+		"",
+		"",
+		"",
+		""
 	};
 		
 
-	constexpr const char *kTestCaseDescriptions[] = {
-		"Compare low and high launch angles to visualize projectile motion trajectories.",
-		"Observe conservation of momentum and energy with two identical spheres.",
-		"See how kinetic energy is lost when colliding bodies stick together.",
-		"Study partially elastic impacts with friction to mimic everyday collisions.",
-		"Watch gravity components down a ramp to discuss inclined-plane forces.",
-		"A Newton's-cradle style lineup highlights momentum transfer through a chain.",
-		"Side impacts on a tall stack reveal how torque about the COM drives tipping.",
-		"Rope, rod, and spring constraints run side-by-side for Hooke's law comparisons.",
-		"Off-center hits demonstrate how tangential impulses spin bodies up.",
-		"Sequential pushes on a block tower highlight angular momentum build-up.",
-		"Corner-to-corner impacts show how contact point offsets create torque.",
-		"Contrast high-friction rolling with sliding motion on ramps and flats.",
-		"Observe how buoyant forces affect floating objects in simulated fluids.",
-		"Watch boxes and spheres equalize heat via conduction and radiation with temperature-driven colors."
-	};
 		
 
 	constexpr const char *kGravityPresetNames[] = {
