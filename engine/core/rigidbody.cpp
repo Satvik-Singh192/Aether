@@ -98,3 +98,27 @@ void Rigidbody::clearAccum()
     force_accum = Vec3();
     acctork = Vec3();
 }
+
+float Rigidbody::getMass() const
+{
+    if (inverse_mass <= 0.0f)
+    {
+        return 0.0f;
+    }
+    return 1.0f / inverse_mass;
+}
+
+float Rigidbody::getThermalMass() const
+{
+    if (!thermal_enabled)
+    {
+        return 0.0f;
+    }
+    float mass = getMass();
+    if (mass <= 0.0f)
+    {
+        return 0.0f;
+    }
+    float cappedHeatCapacity = std::max(heat_capacity, PHYSICS_EPSILON);
+    return mass * cappedHeatCapacity;
+}

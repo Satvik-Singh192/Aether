@@ -13,6 +13,7 @@
 #include "bodyselection.hpp"
 #include "bodyshaders.hpp"
 #include "drawconstraints.hpp"
+#include "thermal_palette.hpp"
 #include <algorithm>
 #include <cmath>
 #include <unordered_map>
@@ -245,6 +246,21 @@ static bool looksLikeFloor(const Rigidbody &body) // check for floor
     const float hy = box->halfsize.y;
     const float hz = box->halfsize.z;
     return hy <= 0.15f && hx >= 40.0f && hz >= 40.0f;
+}
+
+static bool useThermalGradient(const PhysicsWorld &world, const Rigidbody &body)
+{
+    return world.thermal_settings.enabled && body.thermal_enabled && !looksLikeFloor(body);
+}
+
+static glm::vec3 temperatureColor(const PhysicsWorld &world, const Rigidbody &body)
+{
+    const auto &settings = world.thermal_settings;
+    float minT = settings.min_visual_temperature;
+    float maxT = settings.max_visual_temperature;
+    float span = std::max(1.0f, maxT - minT);
+    float norm = (body.temperature - minT) / span;
+    return SampleThermalGradient(norm);
 }
 
 static bool getArrowOrigin(const Rigidbody &body, const glm::vec3 &dir, glm::vec3 &origin, float &sizeScale)
@@ -628,6 +644,13 @@ void RenderBodies(PhysicsWorld &world, const Camera &camera, float aspectRatio)
             r = 0.5f + 0.5f * r;
             g = 0.5f + 0.5f * g;
             b = 0.5f + 0.5f * b;
+            if (useThermalGradient(world, body))
+            {
+                glm::vec3 thermal = temperatureColor(world, body);
+                r = thermal.r;
+                g = thermal.g;
+                b = thermal.b;
+            }
             applyBodyTint(r, g, b);
             drawSolidBody(body, 0.0f, r, g, b, 1.0f);
         }
@@ -792,6 +815,13 @@ void RenderBodies(PhysicsWorld &world, const Camera &camera, float aspectRatio)
                         float tr = r;
                         float tg = g;
                         float tb = b;
+                        if (useThermalGradient(world, body))
+                        {
+                            glm::vec3 thermal = temperatureColor(world, body);
+                            tr = thermal.r;
+                            tg = thermal.g;
+                            tb = thermal.b;
+                        }
                         applyBodyTint(tr, tg, tb);
                         glUniform4f(colorLoc, tr, tg, tb, 1.0f);
                     }

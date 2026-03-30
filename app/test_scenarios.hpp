@@ -16,7 +16,8 @@ enum class TestCase
     AngularStack,
     CornerCollision,
     RollingFriction,
-    BuoyancyTest
+    BuoyancyTest,
+    HeatTransferDemo
 };
 
 Camera LoadSingleTestScenario(PhysicsWorld &world, TestCase test_case);

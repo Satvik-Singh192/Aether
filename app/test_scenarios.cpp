@@ -578,11 +578,53 @@ namespace
     world.addBody(box);
 }
 
+    Camera spawn_heat_transfer_demo(PhysicsWorld &world)
+    {
+        world.thermal_settings.enabled = true;
+        world.thermal_settings.conduction_rate = 15.0f;
+        world.thermal_settings.radiation_rate = 0.02f;
+        world.thermal_settings.ambient_temperature = 295.0f;
+        world.thermal_settings.ambient_coupling = 0.03f;
+        world.thermal_settings.radiation_distance = 4.0f;
+        world.thermal_settings.min_visual_temperature = 240.0f;
+        world.thermal_settings.max_visual_temperature = 660.0f;
+        world.thermal_spawn_controls.enabled = true;
+        world.thermal_spawn_controls.lock_to_basic_shapes = true;
+        world.thermal_spawn_controls.spawn_temperature = 295.0f;
+        world.thermal_spawn_controls.spawn_heat_capacity = 930.0f;
+        world.thermal_spawn_controls.spawn_conductivity = 0.7f;
+        world.thermal_spawn_controls.spawn_emissivity = 0.9f;
+
+        const int boxCount = 9;
+        const float spacing = 1.0f;
+        const float startX = -0.5f * spacing * (boxCount - 1);
+        const float coldTemp = 255.0f;
+        const float hotTemp = 650.0f;
+
+        for (int i = 0; i < boxCount; ++i)
+        {
+            float lerp = (boxCount == 1) ? 0.0f : static_cast<float>(i) / static_cast<float>(boxCount - 1);
+            float temp = coldTemp + lerp * (hotTemp - coldTemp);
+            Vec3 pos(startX + i * spacing, 0.55f, 0.0f);
+            Rigidbody body(pos, Vec3(), &g_small_box, 1.8f);
+            body.thermal_enabled = true;
+            body.temperature = temp;
+            body.heat_capacity = 930.0f;
+            body.thermal_conductivity = 0.75f;
+            body.thermal_emissivity = 0.88f;
+            world.addBody(body);
+        }
+
+        return Camera().setPosition(glm::vec3(0.0f, 4.8f, 22.0f));
+    }
+
 }
 
 Camera LoadSingleTestScenario(PhysicsWorld &world, TestCase test_case)
 {
     world.enable_buoyancy = false; // only when boyancy testcase
+    world.thermal_settings = PhysicsWorld::ThermalSettings();
+    world.thermal_spawn_controls = PhysicsWorld::ThermalSpawnControls();
 
     add_floor(world);
 
@@ -628,6 +670,8 @@ Camera LoadSingleTestScenario(PhysicsWorld &world, TestCase test_case)
         world.addBody(Rigidbody(Vec3(0.0f, 5.0f, 0.0f), Vec3(), &g_small_sphere, 0.5f));
         world.addBody(Rigidbody(Vec3(3.0f, 5.0f, 0.0f), Vec3(), &g_small_box, 0.6f));
         return Camera();
+    case TestCase::HeatTransferDemo:
+        return spawn_heat_transfer_demo(world);
     default:
         return spawn_projectile_demo(world);
         break;
