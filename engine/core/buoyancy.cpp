@@ -6,9 +6,33 @@
 #include "../engine_configs.hpp"
 #include <algorithm>
 #include <glm/glm.hpp>
+
+bool IsBodyInBeaker(const Rigidbody& body, const Fluid& fluid) {
+    
+    Vec3 diff = body.position - fluid.beaker_center;
+    if (body.collider && body.collider->type == ShapeType::Sphere) {
+        SphereCollider* sphere = static_cast<SphereCollider*>(body.collider);
+        if (glm::abs(diff.x) <= fluid.beaker_half_size && 
+            glm::abs(diff.y) <= fluid.beaker_half_size && 
+            glm::abs(diff.z) <= fluid.beaker_half_size) {
+            return true;
+        }
+    }
+    else {
+        if (glm::abs(diff.x) <= fluid.beaker_half_size && 
+            glm::abs(diff.y) <= fluid.beaker_half_size && 
+            glm::abs(diff.z) <= fluid.beaker_half_size) {
+            return true;
+        }
+    }
+    
+    return false;
+}
+
 void ApplyBuoyancyToSphere(Rigidbody& body, const Fluid&fluid, float gravity) {
     if(body.inverse_mass==0.0f) return;
     if(body.collider->type != ShapeType::Sphere) return;
+    if (!IsBodyInBeaker(body, fluid)) return;
     
     SphereCollider* sphere = static_cast<SphereCollider*>(body.collider);
     float radius =sphere->radius;
@@ -43,6 +67,7 @@ void ApplyBuoyancyToSphere(Rigidbody& body, const Fluid&fluid, float gravity) {
             return;
         }
         if(body.collider->type != ShapeType::Box) return;
+        if (!IsBodyInBeaker(body, fluid)) return;
         
         BoxCollider* box = static_cast<BoxCollider*>(body.collider);
 

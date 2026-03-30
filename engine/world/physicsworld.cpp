@@ -5,6 +5,7 @@
 #include <vector>
 #include <cfloat>
 #include <algorithm>
+#include <cmath>
 #include "core/buoyancy.hpp"
 PhysicsWorld::PhysicsWorld() : gravity(0.0f, PHYSICS_GRAVITY, 0.0f), next_body_id(1) {}
 
@@ -307,6 +308,11 @@ void PhysicsWorld::step(float dt)
 		{
 			body.velocity = Vec3();
 		}
+	}
+
+	if (thermal_settings.enabled)
+	{
+		solve_thermal(dt);
 	}
 }
 
@@ -842,5 +848,108 @@ void PhysicsWorld::warm_start_constraints()
 		c.b->velocity += impulse * c.b->inverse_mass;
 		c.a->angvel -= c.a->inverse_inertia_world * rA.cross(impulse);
 		c.b->angvel += c.b->inverse_inertia_world * rB.cross(impulse);
+	}
+}
+
+void PhysicsWorld::solve_thermal(float dt)
+{
+	applyThermalConduction(dt);
+	applyThermalRadiation(dt);
+	applyAmbientCooling(dt);
+}
+
+void PhysicsWorld::applyHeat(Rigidbody &body, float energy)
+{
+	if (!thermal_settings.enabled || !body.thermal_enabled)
+	{
+		return;
+	}
+	float thermalMass = body.getThermalMass();
+	if (thermalMass <= PHYSICS_EPSILON)
+	{
+		return;
+	}
+	body.temperature += energy / thermalMass;
+}
+
+void PhysicsWorld::applyThermalConduction(float dt)
+{
+	if (!thermal_settings.enabled || thermal_settings.conduction_rate <= 0.0f)
+	{
+		return;
+	}
+	for (auto &m : manifolds)
+	{
+		if (!m.a || !m.b)
+			continue;
+		Rigidbody &a = *m.a;
+		Rigidbody &b = *m.b;
+		if (!a.thermal_enabled || !b.thermal_enabled)
+			continue;
+		float deltaT = b.temperature - a.temperature;
+		if (std::abs(deltaT) <= PHYSICS_EPSILON)
+			continue;
+		int contactCount = std::max(1, m.contact_count);
+		float conductivity = (a.thermal_conductivity + b.thermal_conductivity) * 0.5f;
+		float energy = deltaT * conductivity * thermal_settings.conduction_rate * dt * contactCount;
+		applyHeat(a, energy);
+		applyHeat(b, -energy);
+	}
+}
+
+void PhysicsWorld::applyThermalRadiation(float dt)
+{
+	if (!thermal_settings.enabled || thermal_settings.radiation_rate <= 0.0f || thermal_settings.radiation_distance <= PHYSICS_EPSILON)
+	{
+		return;
+	}
+	const float maxDist = thermal_settings.radiation_distance;
+	const float maxDistSq = maxDist * maxDist;
+	for (std::size_t i = 0; i < bodies.size(); ++i)
+	{
+		Rigidbody &a = bodies[i];
+		if (!a.thermal_enabled)
+			continue;
+		for (std::size_t j = i + 1; j < bodies.size(); ++j)
+		{
+			Rigidbody &b = bodies[j];
+			if (!b.thermal_enabled)
+				continue;
+			Vec3 delta = b.position - a.position;
+			float distSq = delta.dot(delta);
+			if (distSq <= PHYSICS_EPSILON || distSq > maxDistSq)
+				continue;
+			float dist = std::sqrt(distSq);
+			float falloff = 1.0f - (dist / maxDist);
+			if (falloff <= 0.0f)
+				continue;
+			float deltaT = b.temperature - a.temperature;
+			if (std::abs(deltaT) <= PHYSICS_EPSILON)
+				continue;
+			float emissivity = (a.thermal_emissivity + b.thermal_emissivity) * 0.5f;
+			float energy = deltaT * emissivity * thermal_settings.radiation_rate * falloff * dt;
+			applyHeat(a, energy);
+			applyHeat(b, -energy);
+		}
+	}
+}
+
+void PhysicsWorld::applyAmbientCooling(float dt)
+{
+	if (!thermal_settings.enabled || thermal_settings.ambient_coupling <= 0.0f)
+	{
+		return;
+	}
+	for (auto &body : bodies)
+	{
+		if (!body.thermal_enabled)
+			continue;
+		float deltaT = thermal_settings.ambient_temperature - body.temperature;
+		if (std::abs(deltaT) <= PHYSICS_EPSILON)
+			continue;
+		float inertia = std::max(1.0f, body.getThermalMass());
+		float massFactor = 1.0f / (1.0f + 0.01f * inertia);
+		float energy = deltaT * thermal_settings.ambient_coupling * dt * inertia * massFactor;
+		applyHeat(body, energy);
 	}
 }
