@@ -371,10 +371,13 @@ void CreateWindow(PhysicsWorld &world)
 					ImGui::EndMenu();
 				}
 
-				if (ImGui::BeginMenu("Constraints"))
+				if (!world.enable_buoyancy)
 				{
-					RenderConstraintMenuContent(world);
-					ImGui::EndMenu();
+					if (ImGui::BeginMenu("Constraints"))
+					{
+						RenderConstraintMenuContent(world);
+						ImGui::EndMenu();
+					}
 				}
 
 				if (ImGui::BeginMenu("World"))
