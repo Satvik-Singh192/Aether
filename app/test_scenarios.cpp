@@ -11,7 +11,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-std::vector<std::string> chapters = {"Kinematics", "Laws of Motion", "Collision", "Rotation", "Fluids", "Thermal Properties"};
+std::vector<std::string> chapters = {"Kinematics", "Laws of Motion", "Collision", "Rotation", "Fluids", "Thermal Properties", "Stress Tests"};
 std::unordered_map<std::string, std::vector<TestCase>> testmap;
 std::vector<std::string> funtests = {"Kinematics", "Laws of Motion", "Collision", "Rotation", "Fluids", "Thermal Properties"};
 

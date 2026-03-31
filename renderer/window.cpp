@@ -213,7 +213,8 @@ void CreateWindow(PhysicsWorld &world)
 	Camera camera;
 	AppScreen appScreen = AppScreen::StartScreen;
 	bool showControlsHelp = false;
-	int selectedScenarioIndex = 0;
+	int selectedChapterIndex = 0;
+	int selectedScenarioInChapterIndex = 0;
 	AppScreen guideReturnScreen = AppScreen::StartScreen;
 	bool isGuideForStartFlow = false;
 	bool hasShownGuideThisSession = false;
@@ -226,7 +227,8 @@ void CreateWindow(PhysicsWorld &world)
 	GetBodyTint(startTint[0], startTint[1], startTint[2]);
 
 	// State preservation
-	int lastSimulationScenario = selectedScenarioIndex;
+	int lastSimulationChapterIndex = selectedChapterIndex;
+	int lastSimulationScenarioInChapterIndex = selectedScenarioInChapterIndex;
 	float lastSimulationGravity = startGravityY;
 	int lastSimulationGravityPreset = selectedGravityPreset;
 	bool lastSimulationWireframe = startWireframe;
@@ -245,7 +247,12 @@ void CreateWindow(PhysicsWorld &world)
 	auto reloadSelectedScenario = [&]()
 	{
 		world = PhysicsWorld();
-		camera=LoadSingleTestScenario(world, kTestCases[selectedScenarioIndex]);
+		
+		std::string chapterName = chapters[selectedChapterIndex];
+		std::vector<TestCase> scenariosInChapter = testmap[chapterName];
+		TestCase selectedTest = scenariosInChapter[selectedScenarioInChapterIndex];
+		
+		camera=LoadSingleTestScenario(world, selectedTest);
 		Vec3 gravity = world.getGravity();
 		world.setGravity(Vec3(gravity.x, startGravityY, gravity.z));
 		SetBodyDrawWireframeMode(startWireframe);
@@ -391,7 +398,8 @@ glfwGetCursorPos(window, &mouseX, &mouseY);
 				if (ImGui::MenuItem("Menu"))
 				{
 					// Save current simulation state
-					lastSimulationScenario = selectedScenarioIndex;
+					lastSimulationChapterIndex = selectedChapterIndex;
+					lastSimulationScenarioInChapterIndex = selectedScenarioInChapterIndex;
 					lastSimulationGravity = startGravityY;
 					lastSimulationGravityPreset = selectedGravityPreset;
 					lastSimulationWireframe = startWireframe;
@@ -457,9 +465,47 @@ glfwGetCursorPos(window, &mouseX, &mouseY);
 				if (ImGui::BeginMenu("Settings"))
 				{
 					ImGui::SeparatorText("Scenario");
-					ImGui::Combo("Test Scenario", &selectedScenarioIndex, kTestCaseNames, static_cast<int>(sizeof(kTestCaseNames) / sizeof(kTestCaseNames[0])));
-					ShowTooltip("Choose a test case and use reload to apply it now.");
-					ImGui::TextWrapped("Concept: %s", kTestCaseDescriptions[selectedScenarioIndex]);
+					
+					std::vector<const char*> chapterNames;
+					for (const auto& ch : chapters) {
+						chapterNames.push_back(ch.c_str());
+					}
+					
+					if (selectedChapterIndex >= static_cast<int>(chapterNames.size())) {
+						selectedChapterIndex = 0;
+					}
+					
+					ImGui::Combo("Chapter", &selectedChapterIndex, chapterNames.data(), chapterNames.size());
+					
+					std::string currentChapter = chapters[selectedChapterIndex];
+					std::vector<TestCase> &scenariosInChapter = testmap[currentChapter];
+					std::vector<const char*> scenarioLabels;
+					
+					for (const auto& test : scenariosInChapter) {
+						for (int i = 0; i < 25; i++) {
+							if (kTestCases[i] == test) {
+								scenarioLabels.push_back(kTestCaseNames[i]);
+								break;
+							}
+						}
+					}
+					
+					if (selectedScenarioInChapterIndex >= static_cast<int>(scenarioLabels.size())) {
+						selectedScenarioInChapterIndex = 0;
+					}
+					
+					ImGui::Combo("Scenario", &selectedScenarioInChapterIndex, scenarioLabels.data(), scenarioLabels.size());
+					
+					if (selectedScenarioInChapterIndex < static_cast<int>(scenarioLabels.size())) {
+						TestCase selectedTest = scenariosInChapter[selectedScenarioInChapterIndex];
+						for (int i = 0; i < 25; i++) {
+							if (kTestCases[i] == selectedTest) {
+								ImGui::TextWrapped("Concept: %s", kTestCaseDescriptions[i]);
+								break;
+							}
+						}
+					}
+					
 					ImGui::Dummy(ImVec2(0.0f, 2.0f));
 
 					if (ImGui::Button("Reload Selected Test Case", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f)))
@@ -519,7 +565,7 @@ glfwGetCursorPos(window, &mouseX, &mouseY);
 			{
 					ghost->render_alpha = 0.0f;
 				ghost->position = ghostTarget;
-				std::cout<<ghost->position.x<<" "<<ghost->position.y<<'\n';
+				//std::cout<<ghost->position.x<<" "<<ghost->position.y<<'\n';
 			}
 			RenderBodies(main_menu_world,camera,aspectRatio);
 				float aspectRatio = framebufferHeight > 0
@@ -573,7 +619,8 @@ glfwGetCursorPos(window, &mouseX, &mouseY);
 					else
 					{
 						// Restore saved state
-						selectedScenarioIndex = lastSimulationScenario;
+						selectedChapterIndex = lastSimulationChapterIndex;
+						selectedScenarioInChapterIndex = lastSimulationScenarioInChapterIndex;
 						startGravityY = lastSimulationGravity;
 						selectedGravityPreset = lastSimulationGravityPreset;
 						startWireframe = lastSimulationWireframe;
@@ -615,7 +662,6 @@ glfwGetCursorPos(window, &mouseX, &mouseY);
 				ImGui::SeparatorText("Camera Controls");
 				ImGui::BulletText("W / A / S / D : move the camera");
 				ImGui::BulletText("Right mouse drag : rotate view");
-				ImGui::BulletText("Mouse wheel : zoom in and out");
 
 				ImGui::SeparatorText("Simulation Controls");
 				ImGui::BulletText("Simulation menu lets you pause and resume physics");
@@ -631,6 +677,7 @@ glfwGetCursorPos(window, &mouseX, &mouseY);
 				ImGui::BulletText("Toggle wireframe mode for collision-focused views");
 				ImGui::BulletText("Adjust body tint color for readability");
 				ImGui::BulletText("World and rendering options are available from top menus");
+				ImGui::BulletText("Toggle between vector display mode to see the direction of motion");
 
 				ImGui::SeparatorText("Scenarios");
 				ImGui::BulletText("Pick a test scenario from Settings");
