@@ -2,6 +2,7 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <chrono>
+#include <array>
 
 #include "../engine/world/physicsworld.hpp"
 #include "camera.hpp"
@@ -238,6 +239,56 @@ void CreateWindow(PhysicsWorld &world)
 		simulation_time = 0.0f;
 		frame = 0;
 	};
+PhysicsWorld main_menu_world = PhysicsWorld(-6.0);
+BoxCollider horizontal_bound(Vec3(10.0f, 0.5f, 5.0f));
+const uint32_t menu_floor_id = main_menu_world.addBody(Rigidbody(Vec3(0.0f, -1.5f, 0.0f), Vec3(), &horizontal_bound, 0.0f, 0.0f, 1.0f)); // floor
+const uint32_t menu_ceiling_id = main_menu_world.addBody(Rigidbody(Vec3(0.0f, 13.5f, 0.0f), Vec3(), &horizontal_bound, 0.0f, 0.0f, 1.0f)); // ceiling
+BoxCollider vertical_bound(Vec3(0.5f, 8.0f, 5.0f));
+const uint32_t menu_right_wall_id = main_menu_world.addBody(Rigidbody(Vec3(10.5f, 5.0f, 0.0f), Vec3(), &vertical_bound, 0.0f, 0.0f, 1.0f));  // right
+const uint32_t menu_left_wall_id = main_menu_world.addBody(Rigidbody(Vec3(-10.5f, 5.0f, 0.0f), Vec3(), &vertical_bound, 0.0f, 0.0f, 1.0f)); // left
+const std::array<uint32_t, 4> menu_wall_ids = {menu_floor_id, menu_ceiling_id, menu_right_wall_id, menu_left_wall_id};
+BoxCollider face_bound(Vec3(10.0f, 8.0f, 0.5f));
+// main_menu_world.addBody(Rigidbody(Vec3(0.0f, 5.0f, 5.0f), Vec3(), &face_bound, 0.0f));  // front
+// main_menu_world.addBody(Rigidbody(Vec3(0.0f, 5.0f, -5.0f), Vec3(), &face_bound, 0.0f)); // back
+double mouseX, mouseY;
+SphereCollider cursor_ghost_collider(1.5f);
+glfwGetCursorPos(window, &mouseX, &mouseY);
+
+SphereCollider nig(1.011f);
+//main_menu_world.addBody(Rigidbody(Vec3(1.0f, 5.0f, 0.0f),Vec3(),&nig, 0.5f));
+//main_menu_world.addBody(Rigidbody(Vec3(5.0f, 5.0f, 0.0f),Vec3(),&nig, 0.5f));
+
+for(int i=0; i<10; i++){
+Rigidbody(Vec3((i-9)*1.0f, 1.0f, 0.0f),Vec3(),&nig, 0.5f);
+	main_menu_world.addBody(Rigidbody(Vec3((i-9)*1.0f, 5.0f, 0.0f),Vec3(),&nig, 0.5f, 0.0f, 1.1f));
+}
+for(int i=0; i<10; i++){
+Rigidbody(Vec3((i-9)*1.0f, 4.0f, 0.0f),Vec3(),&nig, 0.5f);
+	main_menu_world.addBody(Rigidbody(Vec3((i-9)*1.0f, 5.0f, 0.0f),Vec3(),&nig, 0.5f, 0.0f, 1.1f));
+}
+for(int i=0; i<10; i++){
+Rigidbody(Vec3((i-9)*1.0f, 7.0f, 0.0f),Vec3(),&nig, 0.5f);
+	main_menu_world.addBody(Rigidbody(Vec3((i-9)*1.0f, 5.0f, 0.0f),Vec3(),&nig, 0.5f, 0.0f, 1.1f));
+}
+const uint32_t ghost_id=main_menu_world.addBody(Rigidbody(Vec3(0.0f,0.0f ,0.0f),Vec3(),&cursor_ghost_collider,0.0f,0.0f,1.0f));
+// PhysicsWorld can reallocate its body buffer during step(), so always re-fetch the ghost pointer by ID.
+auto reacquireGhost = [&]() -> Rigidbody *
+{
+	return main_menu_world.getBodyByID(ghost_id);
+};
+auto enforceMenuInvisibility = [&]()
+{
+	for (uint32_t wall_id : menu_wall_ids)
+	{
+		if (Rigidbody *wall = main_menu_world.getBodyByID(wall_id))
+		{
+			wall->render_alpha = 0.0f;
+		}
+	}
+};
+enforceMenuInvisibility();
+glfwGetCursorPos(window, &mouseX, &mouseY);
+
 
 	// Loop to render frames
 	while (!glfwWindowShouldClose(window))
@@ -433,10 +484,34 @@ void CreateWindow(PhysicsWorld &world)
 			const ImVec2 displaySize = ImGui::GetIO().DisplaySize;
 			ImGui::SetNextWindowPos(ImVec2(displaySize.x * 0.5f, displaySize.y * 0.5f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
 			ImGui::SetNextWindowSize(ImVec2(640.0f, 460.0f), ImGuiCond_Always);
-
+			enforceMenuInvisibility();
+			glfwGetCursorPos(window, &mouseX, &mouseY);
+			mouseY = framebufferHeight - mouseY;
+			float x = (10.0 * mouseX / framebufferHeight) - 9.0f;
+			float y = (10.0 * mouseY / framebufferHeight) -0.0f;
+				Vec3 ghostTarget(x, y, 0.0f);
+				if (Rigidbody *ghost = reacquireGhost())
+				{
+					ghost->render_alpha = 0.0f;
+					ghost->position = ghostTarget;
+				}
+			
+			main_menu_world.step(dt);
+			
+			if (Rigidbody *ghost = reacquireGhost())
+			{
+					ghost->render_alpha = 0.0f;
+				ghost->position = ghostTarget;
+				std::cout<<ghost->position.x<<" "<<ghost->position.y<<'\n';
+			}
+			RenderBodies(main_menu_world,camera,aspectRatio);
+				float aspectRatio = framebufferHeight > 0
+								? static_cast<float>(framebufferWidth) / static_cast<float>(framebufferHeight)
+								: 1.0f;
 			const char *startWindowTitle = hasActiveSim ? "Aether Studio - Menu" : "Aether Studio - Start";
 			if (ImGui::Begin(startWindowTitle, nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize))
-			{
+			{	
+				
 				auto centerText = [](const char *text, bool disabled)
 				{
 					const float textWidth = ImGui::CalcTextSize(text).x;
@@ -505,7 +580,7 @@ void CreateWindow(PhysicsWorld &world)
 				ImGui::Dummy(ImVec2(0.0f, 20.0f));
 				ImGui::Separator();
 				ImGui::Dummy(ImVec2(0.0f, 4.0f));
-				centerText("v1.0.0 | Built with OpenGL + ImGui", true);
+				centerText("v1.0.0 | Built with OpenGL + ImGui", true);				
 			}
 			ImGui::End();
 		}

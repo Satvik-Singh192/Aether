@@ -27,6 +27,7 @@ public:
 	float heat_capacity = 900.0f;
 	float thermal_conductivity = 0.5f;
 	float thermal_emissivity = 0.85f;
+	float render_alpha = 1.0f;
 
 	/*
 	- Collider is a pointer cuz if we just write "Collider collider;" then the collider will always be a generic one
