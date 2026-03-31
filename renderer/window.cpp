@@ -3,6 +3,7 @@
 #include <GLFW/glfw3.h>
 #include <chrono>
 #include <array>
+#include <cstdlib>
 
 #include "../engine/world/physicsworld.hpp"
 #include "camera.hpp"
@@ -268,8 +269,8 @@ BoxCollider horizontal_bound(Vec3(10.0f, 0.5f, 5.0f));
 const uint32_t menu_floor_id = main_menu_world.addBody(Rigidbody(Vec3(0.0f, -1.5f, 0.0f), Vec3(), &horizontal_bound, 0.0f, 0.0f, 1.0f)); // floor
 const uint32_t menu_ceiling_id = main_menu_world.addBody(Rigidbody(Vec3(0.0f, 13.5f, 0.0f), Vec3(), &horizontal_bound, 0.0f, 0.0f, 1.0f)); // ceiling
 BoxCollider vertical_bound(Vec3(0.5f, 8.0f, 5.0f));
-const uint32_t menu_right_wall_id = main_menu_world.addBody(Rigidbody(Vec3(10.5f, 5.0f, 0.0f), Vec3(), &vertical_bound, 0.0f, 0.0f, 1.0f));  // right
-const uint32_t menu_left_wall_id = main_menu_world.addBody(Rigidbody(Vec3(-10.5f, 5.0f, 0.0f), Vec3(), &vertical_bound, 0.0f, 0.0f, 1.0f)); // left
+const uint32_t menu_right_wall_id = main_menu_world.addBody(Rigidbody(Vec3(11.5f, 5.0f, 0.0f), Vec3(), &vertical_bound, 0.0f, 0.0f, 1.0f));  // right
+const uint32_t menu_left_wall_id = main_menu_world.addBody(Rigidbody(Vec3(-11.5f, 5.0f, 0.0f), Vec3(), &vertical_bound, 0.0f, 0.0f, 1.0f)); // left
 const std::array<uint32_t, 4> menu_wall_ids = {menu_floor_id, menu_ceiling_id, menu_right_wall_id, menu_left_wall_id};
 BoxCollider face_bound(Vec3(10.0f, 8.0f, 0.5f));
 // main_menu_world.addBody(Rigidbody(Vec3(0.0f, 5.0f, 5.0f), Vec3(), &face_bound, 0.0f));  // front
@@ -279,20 +280,11 @@ SphereCollider cursor_ghost_collider(1.5f);
 glfwGetCursorPos(window, &mouseX, &mouseY);
 
 SphereCollider nig(1.011f);
-//main_menu_world.addBody(Rigidbody(Vec3(1.0f, 5.0f, 0.0f),Vec3(),&nig, 0.5f));
-//main_menu_world.addBody(Rigidbody(Vec3(5.0f, 5.0f, 0.0f),Vec3(),&nig, 0.5f));
 
-for(int i=0; i<10; i++){
-Rigidbody(Vec3((i-9)*1.0f, 1.0f, 0.0f),Vec3(),&nig, 0.5f);
-	main_menu_world.addBody(Rigidbody(Vec3((i-9)*1.0f, 5.0f, 0.0f),Vec3(),&nig, 0.5f, 0.0f, 1.1f));
-}
-for(int i=0; i<10; i++){
-Rigidbody(Vec3((i-9)*1.0f, 4.0f, 0.0f),Vec3(),&nig, 0.5f);
-	main_menu_world.addBody(Rigidbody(Vec3((i-9)*1.0f, 5.0f, 0.0f),Vec3(),&nig, 0.5f, 0.0f, 1.1f));
-}
-for(int i=0; i<10; i++){
-Rigidbody(Vec3((i-9)*1.0f, 7.0f, 0.0f),Vec3(),&nig, 0.5f);
-	main_menu_world.addBody(Rigidbody(Vec3((i-9)*1.0f, 5.0f, 0.0f),Vec3(),&nig, 0.5f, 0.0f, 1.1f));
+for(int i=0; i<50; i++){
+	float px = -10.0f + (i % 10) * 3.3f + (rand() % 100 - 50) * 0.02f;
+	float py = 1.5f + (i / 10) * 2.0f + (rand() % 100 - 50) * 0.02f;
+	main_menu_world.addBody(Rigidbody(Vec3(px, py, 0.0f),Vec3(),&nig, 0.5f, 0.0f, 0.9f));
 }
 const uint32_t ghost_id=main_menu_world.addBody(Rigidbody(Vec3(0.0f,0.0f ,0.0f),Vec3(),&cursor_ghost_collider,0.0f,0.0f,1.0f));
 // PhysicsWorld can reallocate its body buffer during step(), so always re-fetch the ghost pointer by ID.
