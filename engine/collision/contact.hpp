@@ -1,26 +1,34 @@
 #pragma once
-#include"core/rigidbody.hpp"
+#include "core/rigidbody.hpp"
 #include "core/bodyid.hpp"
 
-struct Contact{
-    Rigidbody* a=nullptr;
-    Rigidbody*b=nullptr;
+struct Contact
+{
+    Rigidbody *a = nullptr;
+    Rigidbody *b = nullptr;
 
-    BodyID a_id;
-    BodyID b_id;
+    BodyID a_id = BodyID();
+    BodyID b_id = BodyID();
 
     Vec3 normal; // lets take A to B convention rn
     Vec3 contact_point;
 
-    float penetration=0.0f;
-    
-    float restitution=0.0f;
-    float friction_coeff=0.0f;
+    /*
+    ye do vectors ye bta rhe ki pointofsolving aur manifold me actual point
+    of contact ke bich ka vector.
+    */
+    Vec3 rA;
+    Vec3 rB;
 
-    float accumulated_normal_impulse=0.0f;
-    float accumulated_tangent_impulse=0.0f;
+    float penetration = 0.0f;
 
-    float pre_solve_normal_velocity=0.0f;
+    float restitution = 0.0f;
+    float friction_coeff = 0.0f;
 
-    Vec3 tangent=Vec3();
+    float accumulated_normal_impulse = 0.0f;
+    float accumulated_tangent_impulse = 0.0f;
+
+    float pre_solve_normal_velocity = 0.0f;
+
+    Vec3 tangent = Vec3();
 };

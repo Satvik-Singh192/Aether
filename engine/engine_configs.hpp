@@ -1,5 +1,7 @@
 #pragma once
 
+#define DEBUG_MODE
+
 constexpr float PHYSICS_FIXED_DTv=1.0f/60.0f;
 constexpr int PHYSICS_MAX_SUBSTEP=8; //how many max frame backlogs are allowed (if we dont limit this , we will spiral into infinte laggggg)
 
@@ -13,6 +15,7 @@ constexpr float PHYSICS_DEFAULT_FRICTION=0.3f;
 constexpr float PHSYICS_CONTACT_SLOP=0.02f; //if contacts difference less than this then new contact will be treated the same as old contact, called in file physics world::match_contacts()
 constexpr float PHYSICS_PENETRATION_SLOP=0.01f; //small tolerance for overlap so engine doesnt jitter the object resting on a surface to solve mircroscopic overlapp
 constexpr float PHYSICS_CORRECTION_PERCENT=0.12f; //percent of overlap resolved in 1 frame, if we resolved fully in 1 frame ....it looks like crazy teleport
+constexpr float PHYSICS_RESTITUTION_VELOCITY_THRESHOLD=0.5f; // minimum velocity to apply restitution - prevents micro-bouncing on resting contacts
 
 constexpr int PHYSICS_VEL_SOLVER_ITERATION=8; // how many times a contact is solved for velocity
 constexpr int PHYSICS_POS_SOLVER_ITERATION=3; // how many times a contact is solved for pos
@@ -31,5 +34,8 @@ constexpr float PHYSICS_RESTING_NORMAL_SLEEP_THRESHOLD=0.04f;
 // Global full-speed sleep threshold. If total speed magnitude is below this,
 // velocity is fully zeroed regardless of contact state.
 constexpr float PHYSICS_SLEEP_VELOCITY_THRESHOLD=0.005f;
-//ROTATION
+//ROTATION//
 constexpr float ANGULAR_DAMPING = 0.995f;
+
+//Buoyancy//
+constexpr float PI = 3.14159265359f;

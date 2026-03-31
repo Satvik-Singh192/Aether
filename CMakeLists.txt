@@ -48,6 +48,7 @@ add_executable(Aether_Test
     engine/math/mat.cpp
     engine/math/quat.cpp
     engine/core/rigidbody.cpp
+    engine/core/buoyancy.cpp
     engine/world/physicsworld.cpp
     engine/collision/sphere_sphere.cpp
     engine/collision/box_box.cpp
@@ -61,11 +62,14 @@ add_executable(Aether_Test
     engine/collision/manifolds/buildRampBoxManifold.cpp
     engine/collision/manifolds/buildRampSphereManifold.cpp
     engine/collision/manifolds/buildRampRampManifold.cpp
+    engine/collision/obb.hpp
     renderer/window.cpp 
     renderer/camera.cpp
     renderer/drawbodies.cpp
+    renderer/drawconstraints.cpp
     renderer/bodyshaders.cpp
     renderer/bodymenu.cpp
+    renderer/aether_theme.cpp
 )
 
 add_library(imgui STATIC

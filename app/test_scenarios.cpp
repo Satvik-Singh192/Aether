@@ -1,5 +1,4 @@
 #include "test_scenarios.hpp"
-
 #include "core/box_collider.hpp"
 #include "core/rigidbody.hpp"
 #include "core/ramp_collider.hpp"
@@ -7,6 +6,26 @@
 #include "math/vec3.hpp"
 #include "world/physicsworld.hpp"
 #include <vector>
+#include<cmath>
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
+std::vector<std::string> chapters = {"Kinematics", "Laws of Motion", "Collision", "Rotation", "Fluids", "Thermal Properties", "Fun Tests"};
+std::unordered_map<std::string, std::vector<TestCase>> testmap;
+
+
+void InitializeTestMap()
+{
+    testmap["Kinematics"] = {TestCase::ProjectMotion, TestCase::RelativeVelocity, TestCase::InclinedPlane};
+    testmap["Laws of Motion"] = {TestCase::NewtonThirdLaw, TestCase::MomentumTransfer};
+    testmap["Collision"] = {TestCase::PerfectElasticCollision, TestCase::PerfectInelasticCollision, TestCase::Collision};
+    testmap["Rotation"] = {TestCase::CenterOfMassTopple, TestCase::ConstraintPlayground, TestCase::AngularImpulse, TestCase::AngularStack, TestCase::CornerCollision, TestCase::RollingFriction, TestCase::BoxToppleOnRamp, TestCase::SphereToppleOnRamp, TestCase::CollisionCauseTopple, TestCase::CircularMotionRope, TestCase::CircularMotionSpring};
+    testmap["Fluids"] = {TestCase::BuoyancyTest};
+    testmap["Thermal Properties"] = {TestCase::HeatTransferDemo};
+    testmap["Fun Tests"] = {TestCase::PyramidStack, TestCase::ManyBoxes, TestCase::ManySpheres, TestCase::RandomScatter};
+}
+
 
 namespace
 {
@@ -18,30 +37,196 @@ namespace
     RampCollider g_gentle_ramp(0.35f, 8.0f, 1.5f);
     RampCollider g_steep_ramp(0.70f, 6.0f, 1.2f);
 
+    Camera spawn_projectile_demo(PhysicsWorld &world)
+{
+    const float speed = 20.0f;
+    const float angle1 = 30.0f * M_PI / 180.0f;
+    const float angle2 = 60.0f * M_PI / 180.0f;
+
+    Vec3 start_pos(-10.0f, 0.5f, 0.0f);
+    Vec3 vel1(
+        speed * cos(angle1),
+        speed * sin(angle1),
+        0.0f
+    );
+    Vec3 vel2(
+        speed * cos(angle2),
+        speed * sin(angle2),
+        0.0f
+    );
+
+    world.addBody(Rigidbody(start_pos, vel1, &g_small_sphere, 1.0f));
+    world.addBody(Rigidbody(start_pos, vel2, &g_small_sphere, 1.0f));
+
+    return Camera().setPosition(glm::vec3(3.0,5.0,25.0));
+}
+
+    Camera spawn_perfect_elastic_collision(PhysicsWorld &world){
+        const float y = 0.5f;
+        Vec3 pos1(-8.0f, y, 0.0f);
+        Vec3 pos2(0.0f, y, 0.0f);
+        Vec3 vel1(10.0f, 0.0f, 0.0f);
+        Vec3 vel2(0.0f, 0.0f, 0.0f);
+        Rigidbody b1(pos1, vel1, &g_small_sphere, 1.0f);
+        Rigidbody b2(pos2, vel2, &g_small_sphere, 1.0f);
+        b1.restitution = 1.0f;
+        b2.restitution = 1.0f;
+        b1.friction = 0.0f;
+        b2.friction = 0.0f;
+
+        world.addBody(b1);
+        world.addBody(b2);
+        return Camera();
+    }
+    Camera spawn_perfect_inelastic_collision(PhysicsWorld &world)
+{
+    const float y = 0.5f;
+
+    Vec3 pos1(-8.0f, y, 0.0f);
+    Vec3 pos2(0.0f, y, 0.0f);
+
+    Vec3 vel1(10.0f, 0.0f, 0.0f);
+    Vec3 vel2(0.0f, 0.0f, 0.0f);
+
+    Rigidbody b1(pos1, vel1, &g_small_sphere, 1.0f);
+    Rigidbody b2(pos2, vel2, &g_small_sphere, 1.0f);
+
+    b1.restitution = 0.0f;
+    b2.restitution = 0.0f;
+
+    b1.friction = 0.0f;
+    b2.friction = 0.0f;
+
+    world.addBody(b1);
+    world.addBody(b2);
+    return Camera();
+}
+    Camera spawn_collision_partial(PhysicsWorld &world)
+{
+    const float y = 0.5f;
+
+    Vec3 pos1(-8.0f, y, 0.0f);
+    Vec3 pos2(0.0f, y, 0.0f);
+
+    Vec3 vel1(10.0f, 0.0f, 0.0f);
+    Vec3 vel2(0.0f, 0.0f, 0.0f);
+
+    Rigidbody b1(pos1, vel1, &g_small_sphere, 1.0f);
+    Rigidbody b2(pos2, vel2, &g_small_sphere, 1.0f);
+
+    b1.restitution = 0.5f;
+    b2.restitution = 0.5f;
+
+    b1.friction = 0.1f;
+    b2.friction = 0.1f;
+
+    world.addBody(b1);
+    world.addBody(b2);
+    return Camera();
+}
+
+    Camera spawn_incline_demo(PhysicsWorld& world){
+        world.addBody(Rigidbody(Vec3(-2.0f, 0.3f, 0.0f), Vec3(0.0f, 0.0f, 0.0f), &g_steep_ramp, 0.0f));
+        world.addBody(Rigidbody(Vec3(3.4f,6.0f,0.0f),Vec3(0.0f,0.0f,0.0f),&g_small_sphere,2.0f));
+        return Camera();
+    }
+
+    Camera spawn_relative_velocity(PhysicsWorld &world)
+{
+
+    
+    const float y = 0.5f;
+    
+    Vec3 pos1(-8.0f, y, 0.0f);
+    Vec3 pos2(8.0f, y, 0.0f);
+    
+    Vec3 vel1(15.0f, 0.0f, 0.0f);  
+    Vec3 vel2(5.0f, 0.0f, 0.0f);  
+    
+    Rigidbody b1(pos1, vel1, &g_small_sphere, 1.0f);
+    Rigidbody b2(pos2, vel2, &g_small_sphere, 1.0f);
+    
+    b1.restitution = 0.0f;
+    b2.restitution = 0.0f;
+    b1.friction = 0.0f;
+    b2.friction = 0.0f;
+    
+    world.addBody(b1);
+    world.addBody(b2);
+    
+    return Camera().setPosition(glm::vec3(0.0f, 3.0f, 20.0f));
+}
+
+    Camera spawn_newton_third_law(PhysicsWorld &world)
+{
+    
+    
+    const float y = 0.5f;
+    Vec3 pos1(-10.0f, y, 0.0f);
+    Vec3 vel1(12.0f, 0.0f, 0.0f);
+    Rigidbody light_body(pos1, vel1, &g_small_sphere, 0.5f);
+    
+    Vec3 pos2(10.0f, y, 0.0f);
+    Vec3 vel2(-6.0f, 0.0f, 0.0f);
+    Rigidbody heavy_body(pos2, vel2, &g_big_sphere, 2.0f);
+    light_body.restitution = 1.0f;
+    heavy_body.restitution = 1.0f;
+    light_body.friction = 0.0f;
+    heavy_body.friction = 0.0f;
+    
+    world.addBody(light_body);
+    world.addBody(heavy_body);
+    return Camera().setPosition(glm::vec3(0.0f, 3.0f, 25.0f));
+}
+
+    Camera spawn_box_topple_on_ramp(PhysicsWorld &world)
+{
+    
+    world.addBody(Rigidbody(Vec3(0.0f, 0.0f, 0.0f), Vec3(), &g_steep_ramp, 0.0f));
+    Rigidbody toppling_box(Vec3(4.5f, 8.0f, 0.0f), Vec3(), &g_small_box, 1.5f);
+    toppling_box.friction = 0.3f;
+    toppling_box.restitution = 0.4f;
+    world.addBody(toppling_box);
+    
+    return Camera().setPosition(glm::vec3(8.0f, 6.0f, 20.0f));
+}
+
+    Camera spawn_sphere_topple_on_ramp(PhysicsWorld &world)
+{
+    world.addBody(Rigidbody(Vec3(0.0f, 0.0f, 0.0f), Vec3(), &g_steep_ramp, 0.0f));
+    Rigidbody rolling_sphere(Vec3(4.5f, 8.0f, 0.0f), Vec3(), &g_big_sphere, 1.2f);
+    rolling_sphere.friction = 0.2f;
+    rolling_sphere.restitution = 0.6f;
+    world.addBody(rolling_sphere);
+    
+    return Camera().setPosition(glm::vec3(8.0f, 6.0f, 20.0f));
+}
+
+    Camera spawn_collision_cause_topple(PhysicsWorld &world)
+{ world.addBody(Rigidbody(Vec3(0.0f, 0.0f, 0.0f), Vec3(), &g_gentle_ramp, 0.0f));
+ 
+    Rigidbody moving_box(Vec3(-8.0f, 6.0f, 0.0f), Vec3(8.0f, 0.0f, 0.0f), &g_small_box, 2.0f);
+    moving_box.friction = 0.1f;
+    moving_box.restitution = 0.5f;
+    world.addBody(moving_box);
+    Rigidbody target_sphere(Vec3(4.0f, 6.0f, 0.0f), Vec3(), &g_small_sphere, 1.0f);
+    target_sphere.friction = 0.2f;
+    target_sphere.restitution = 0.7f;
+    world.addBody(target_sphere);
+    
+    return Camera().setPosition(glm::vec3(0.0f, 4.0f, 20.0f));
+}
+
     void add_floor(PhysicsWorld &world)
     {
         // Keep floor top at y=0 so scenario bodies spawn above, not inside.
         world.addBody(Rigidbody(Vec3(0.0f, -0.1f, 0.0f), Vec3(), &g_floor, 0.0f, PHYSICS_DEFAULT_FRICTION, 0.0f));
     }
-
-    void spawn_box_stack(PhysicsWorld &world)
-    {
-        // stack of boxes: spawn each box higher so they fall into place one-by-one
-        const int count = 8;
-        const float base_spawn_y = 2.0f;   // start a little above the ground so base layer falls first
-        const float layer_spacing = 2.05f; // spacing between spawned boxes so they fall sequentially
-
-        for (int i = 0; i < count; ++i)
-        {
-            float y = base_spawn_y + i * layer_spacing;
-            world.addBody(Rigidbody(Vec3(0.0f, y, 0.0f), Vec3(), &g_small_box, 1.0f));
-        }
-    }
-
+    
     void spawn_pyramid_stack(PhysicsWorld &world)
     {
         // pyramid of boxes: spawn layers at increasing heights so each layer falls onto the previous one
-        const int base = 50;
+        const int base = 10;
         const float base_spawn_y = 2.0f;  // bottom layer spawn height (above ground)
         const float layer_spacing = 2.2f; // vertical spacing between layers to allow visible falling
         const float horizontal_spacing = 1.05f;
@@ -64,8 +249,14 @@ namespace
             float x = (i % 10) - 4.5f;
             float y = 3.0f + (i / 10) * 0.9f;
             float z = ((i / 5) % 2) * 0.6f;
-            world.addBody(Rigidbody(Vec3(x, y, z), Vec3(), &g_small_sphere, 0.5f));
+            if(i>=50)
+            world.addBody(Rigidbody(Vec3(x, y, z-0.8f), Vec3(), &g_small_sphere, 0.5f));
+            else  {
+                 world.addBody(Rigidbody(Vec3(x, y, z ), Vec3(), &g_small_sphere, 0.5f));
+            }
         }
+     //   world.addBody(Rigidbody(Vec3(0, , z), Vec3(), &g_small_sphere, 0.5f));
+        
     }
 
     void spawn_many_boxes(PhysicsWorld &world)
@@ -76,40 +267,6 @@ namespace
             float y = 0.6f + (i / 8) * 0.95f;
             float z = ((i / 4) % 2) * 0.6f;
             world.addBody(Rigidbody(Vec3(x, y, z), Vec3(), &g_small_box, 1.0f));
-        }
-    }
-
-    void spawn_mixed_pile(PhysicsWorld &world)
-    {
-        for (int i = 0; i < 40; ++i)
-        {
-            float x = (rand() % 200 - 100) * 0.05f;
-            float y = 2.0f + (rand() % 50) * 0.06f;
-            float z = (rand() % 200 - 100) * 0.03f;
-            if (i % 2 == 0)
-                world.addBody(Rigidbody(Vec3(x, y, z), Vec3(), &g_small_sphere, 0.6f));
-            else
-                world.addBody(Rigidbody(Vec3(x, y, z), Vec3(), &g_small_box, 1.0f));
-        }
-    }
-
-    void spawn_bouncy_balls(PhysicsWorld &world)
-    {
-        for (int i = 0; i < 24; ++i)
-        {
-            float x = (i % 6) - 2.5f;
-            float y = 4.0f + (i / 6) * 0.8f;
-            world.addBody(Rigidbody(Vec3(x, y, 0.0f), Vec3(), &g_small_sphere, 0.5f, 0.2f, 0.9f));
-        }
-    }
-
-    void spawn_sliding_ramp_row(PhysicsWorld &world)
-    {
-        for (int i = 0; i < 6; ++i)
-        {
-            float x = -6.0f + i * 2.5f;
-            world.addBody(Rigidbody(Vec3(x, 0.0f, 0.0f), Vec3(), &g_gentle_ramp, 0.0f));
-            world.addBody(Rigidbody(Vec3(x + 0.6f, 4.0f, 0.0f), Vec3(), &g_small_sphere, 0.6f));
         }
     }
 
@@ -140,267 +297,324 @@ namespace
         }
     }
 
-    void spawn_stress_test_large(PhysicsWorld &world)
+    Camera spawn_constraint_playground(PhysicsWorld &world)
     {
-        // large number of mixed objects to stress performance & solver
-        for (int i = 0; i < 300; ++i)
+        // Rope pair (two dynamic bodies linked together)
+        auto rope_top = Rigidbody(Vec3(-9.0f, 7.0f, 0.0f), Vec3(0.4f, -0.2f, 0.0f), &g_small_sphere, 1.0f);
+        rope_top.friction = 0.2f;
+        auto rope_bottom = Rigidbody(Vec3(-9.2f, 3.2f, 0.0f), Vec3(-0.2f, 0.0f, 0.0f), &g_small_sphere, 1.1f);
+        rope_bottom.friction = 0.2f;
+        auto rope_top_id = world.addBody(rope_top);
+        auto rope_bottom_id = world.addBody(rope_bottom);
+        world.addDistanceConstraints(rope_top_id, rope_bottom_id, 4.0f, DistanceConstraint::ROPE, 0.0f, 0.0f);
+
+        // Rod trio (short chain, no static anchor)
+        std::uint32_t rod_ids[3];
+        for (int i = 0; i < 3; ++i)
         {
-            float x = (i % 20) - 9.5f;
-            float y = 1.0f + (i / 20) * 0.6f;
-            float z = ((i / 10) % 3) - 1.0f;
-            if (i % 3 == 0)
-                world.addBody(Rigidbody(Vec3(x, y, z), Vec3(), &g_small_sphere, 0.5f));
-            else if (i % 3 == 1)
-                world.addBody(Rigidbody(Vec3(x + 0.3f, y, z), Vec3(), &g_small_box, 1.0f));
-            else
-                world.addBody(Rigidbody(Vec3(x - 0.3f, y, z), Vec3(), &g_wide_box, 1.5f));
+            float x = -1.5f + i * 2.0f;
+            rod_ids[i] = world.addBody(Rigidbody(Vec3(x, 5.0f, 0.0f), Vec3(0.0f, i == 2 ? -0.6f : 0.0f, 0.0f), &g_small_box, 1.0f));
         }
-    }
+        world.addDistanceConstraints(rod_ids[0], rod_ids[1], 2.0f, DistanceConstraint::ROD, 0.6f, 0.6f);
+        world.addDistanceConstraints(rod_ids[1], rod_ids[2], 2.0f, DistanceConstraint::ROD, 0.6f, 0.6f);
 
-    void spawn_sphere_sphere_case(PhysicsWorld &world)
-    {
-        world.addBody(Rigidbody(Vec3(-8.0f, 3.0f, 0.0f), Vec3(7.5f, 0.0f, 0.0f), &g_small_sphere, 1.0f));
-        world.addBody(Rigidbody(Vec3(-2.0f, 3.0f, 0.0f), Vec3(-4.0f, 0.0f, 0.0f), &g_big_sphere, 2.0f));
-    }
+        // Spring pair (two moving spheres)
+        auto spring_a = world.addBody(Rigidbody(Vec3(4.8f, 6.5f, 0.0f), Vec3(-0.3f, 0.4f, 0.0f), &g_small_sphere, 0.9f));
+        auto spring_b = world.addBody(Rigidbody(Vec3(7.0f, 3.5f, 0.0f), Vec3(0.5f, -0.3f, 0.0f), &g_small_sphere, 0.9f));
+        world.addDistanceConstraints(spring_a, spring_b, 3.5f, DistanceConstraint::SPRING, 2.2f, 0.7f);
 
-    void spawn_box_box_case(PhysicsWorld &world)
-    {
-        world.addBody(Rigidbody(Vec3(-8.5f, 1.0f, 0.0f), Vec3(9.0f, 0.0f, 0.0f), &g_small_box, 1.0f));
-        world.addBody(Rigidbody(Vec3(-3.5f, 1.0f, 0.0f), Vec3(0.0f, 0.0f, 0.0f), &g_wide_box, 2.0f));
-    }
-
-    void spawn_sphere_box_case(PhysicsWorld &world)
-    {
-        world.addBody(Rigidbody(Vec3(0.0f, 8.5f, 0.0f), Vec3(0.0f, 0.0f, 0.0f), &g_small_sphere, 1.0f));
-        world.addBody(Rigidbody(Vec3(0.0f, 0.75f, 0.0f), Vec3(0.0f, 0.0f, 0.0f), &g_wide_box, 0.0f));
-    }
-
-    void spawn_box_ramp_case(PhysicsWorld &world)
-    {
-        world.addBody(Rigidbody(Vec3(-2.0f, 0.0f, 0.0f), Vec3(0.0f, 0.0f, 0.0f), &g_gentle_ramp, 0.0f));
-        world.addBody(Rigidbody(Vec3(0.5f, 4.0f, 0.0f), Vec3(0.0f, 0.0f, 0.0f), &g_small_box, 1.0f));
-    }
-
-    void spawn_sphere_ramp_case(PhysicsWorld &world)
-    {
-        world.addBody(Rigidbody(Vec3(-2.0f, 2.0f, 0.0f), Vec3(0.0f, 0.0f, 0.0f), &g_steep_ramp, 1.0f));
-        world.addBody(Rigidbody(Vec3(-2.0f, 5.0f, 0.0f), Vec3(0.0f, 0.0f, 0.0f), &g_steep_ramp, 1.2f));
-
-        world.addBody(Rigidbody(Vec3(-0.2f, 7.4f, 0.0f), Vec3(0.0f, 0.0f, 0.0f), &g_big_sphere, 1.2f));
-    }
-
-    void spawn_box_sphere_ramp_case(PhysicsWorld &world)
-    {
-        world.addBody(Rigidbody(Vec3(-2.0f, 0.0f, 0.0f), Vec3(0.0f, 0.0f, 0.0f), &g_gentle_ramp, 0.0f));
-        // Changed Z from -0.6f to 0.0f
-        world.addBody(Rigidbody(Vec3(0.2f, 4.2f, 0.0f), Vec3(0.0f, 0.0f, 0.0f), &g_small_box, 1.0f));
-        // Changed Z from 0.7f to 0.0f
-        world.addBody(Rigidbody(Vec3(1.0f, 4.6f, 0.0f), Vec3(0.0f, 0.0f, 0.0f), &g_small_sphere, 1.0f));
-    }
-    void spawn_box_stack_case(PhysicsWorld &world, int num_boxes = 8)
-    {
-        // Spawn a vertical stack so each box falls into place sequentially
-        const float base_spawn_y = 2.0f;
-        const float box_spacing = 2.05f;
-
-        for (int i = 0; i < num_boxes; ++i)
+        // Tiny rope chain (3 bodies) to demonstrate sequential constraints without overload
+        std::vector<std::uint32_t> chain;
+        chain.reserve(3);
+        for (int i = 0; i < 3; ++i)
         {
-            Vec3 position(0.0f, base_spawn_y + i * box_spacing, 0.0f);
-            world.addBody(Rigidbody(position, Vec3(0.0f, 0.0f, 0.0f), &g_small_box, 1.0f));
+            float y = 7.0f - i * 1.0f;
+            chain.push_back(world.addBody(Rigidbody(Vec3(9.0f + i * 0.2f, y, 0.0f), Vec3(0.2f * i, 0.0f, 0.0f), &g_small_sphere, 0.8f + 0.1f * i)));
         }
-    }
-    void spawn_rope_basic(PhysicsWorld &world)
-    {
-        auto id1 = world.addBody(Rigidbody(Vec3(0, 5, 0), Vec3(), &g_small_sphere, 1.0f));
-        auto id2 = world.addBody(Rigidbody(Vec3(0, 8, 0), Vec3(), &g_small_sphere, 1.0f));
+        world.addDistanceConstraints(chain[0], chain[1], 1.0f, DistanceConstraint::ROPE, 0.0f, 0.0f);
+        world.addDistanceConstraints(chain[1], chain[2], 1.0f, DistanceConstraint::ROPE, 0.0f, 0.0f);
 
-        world.addDistanceConstraints(id1, id2, 2.0f, DistanceConstraint::ROPE, 0.0f, 0.0f);
+        return Camera().setPosition(glm::vec3(0.0f, 7.0f, 28.0f));
     }
-    void spawn_rod_basic(PhysicsWorld &world)
-    {
-        auto id1 = world.addBody(Rigidbody(Vec3(-2, 5, 0), Vec3(), &g_small_box, 1.0f));
-        auto id2 = world.addBody(Rigidbody(Vec3(2, 5, 0), Vec3(), &g_small_box, 1.0f));
 
-        world.addDistanceConstraints(id1, id2, 4.0f, DistanceConstraint::ROD, 0.5f, 0.5f);
+    
+    void spawn_angular_stack(PhysicsWorld &world)
+    {
+        world.addBody(Rigidbody(Vec3(0.0f, 0.5f, 0.0f), Vec3(), &g_small_box, 1.0f));
+        world.addBody(Rigidbody(Vec3(0.0f, 1.55f, 0.0f), Vec3(), &g_small_box, 1.0f));
+        world.addBody(Rigidbody(Vec3(0.0f, 2.6f, 0.0f), Vec3(), &g_small_box, 1.0f));
+        
+        world.addBody(Rigidbody(Vec3(-2.5f, 1.55f, 0.0f), Vec3(9.0f, 0.0f, 0.0f), &g_small_sphere, 0.5f));
     }
-    void spawn_spring_basic(PhysicsWorld &world)
-    {
-        auto id1 = world.addBody(Rigidbody(Vec3(0, 5, 0), Vec3(), &g_small_sphere, 1.0f));
-        auto id2 = world.addBody(Rigidbody(Vec3(0, 10, 0), Vec3(), &g_small_sphere, 1.0f));
 
-        world.addDistanceConstraints(id1, id2, 3.0f, DistanceConstraint::SPRING, 1.0f, 1.0f);
+    void spawn_box_corner_collision(PhysicsWorld &world)
+    {
+        // Test: Box-to-box collision at corners
+        // Verify: Both boxes rotate from corner-to-corner impact
+        // Key: Collision at edges = both bodies get rotational energy
+        
+        // Box A - moving
+        world.addBody(Rigidbody(Vec3(-5.0f, 2.0f, 0.0f), Vec3(6.0f, 0.0f, 0.0f), &g_small_box, 1.0f));
+        
+        // Box B - stationary, offset so collision is corner-to-corner
+        // A's right corner will hit B's left corner
+        world.addBody(Rigidbody(Vec3(3.0f, 2.0f, 0.0f), Vec3(), &g_small_box, 1.0f));
+        
+        // Third test: perpendicular approach
+        world.addBody(Rigidbody(Vec3(0.0f, 5.0f, 0.0f), Vec3(0.0f, -5.0f, 0.0f), &g_wide_box, 1.5f));
+        world.addBody(Rigidbody(Vec3(0.0f, 8.0f, 0.0f), Vec3(), &g_small_box, 1.0f));
     }
-    void spawn_rope_chain(PhysicsWorld &world)
-    {
-        const int N = 10;
-        std::vector<std::uint32_t> ids;
 
-        for (int i = 0; i < N; i++)
+    void spawn_off_center_hit(PhysicsWorld &world)
+    {
+        // Test: Sphere hitting box corner point
+        // Verify: Box spins from off-center impact
+        // Key: Contact point far from box center = high torque
+        
+        // Target box (should spin markedly)
+        world.addBody(Rigidbody(Vec3(0.0f, 2.0f, 0.0f), Vec3(), &g_small_box, 2.0f));
+        
+        // Sphere aimed at TOP-RIGHT corner (offset in X and Y)
+        // Box half-extent is (0.5, 0.5, 0.5), so corner is at (0.5, 0.5, 0)
+        // Contact point approximately: (0.5, 2.5, 0)
+        // This is (0.5, 0.5, 0) from center = maximum lever arm
+        world.addBody(Rigidbody(Vec3(-4.0f, 2.5f, 0.0f), Vec3(8.0f, 0.0f, 0.0f), &g_big_sphere, 1.0f));
+        
+        // Second test: different corner
+        world.addBody(Rigidbody(Vec3(0.0f, 5.0f, 0.0f), Vec3(), &g_small_box, 1.5f));
+        world.addBody(Rigidbody(Vec3(4.0f, 5.5f, 0.0f), Vec3(-7.0f, 0.0f, 0.0f), &g_big_sphere, 0.8f));
+    }
+
+    void spawn_stack_tipping(PhysicsWorld &world)
+    {
+        // Test: Stack toppling from side impact
+        // Verify: Stack doesn't just slide - it TIPS/ROTATES
+        // Key: Impact at height + side hit = rotation torque
+        
+        // Build tall stack (3 boxes)
+        world.addBody(Rigidbody(Vec3(0.0f, 0.5f, 0.0f), Vec3(), &g_small_box, 1.0f));  // base
+        world.addBody(Rigidbody(Vec3(0.0f, 1.55f, 0.0f), Vec3(), &g_small_box, 1.0f)); // middle
+        world.addBody(Rigidbody(Vec3(0.0f, 2.6f, 0.0f), Vec3(), &g_small_box, 1.0f));  // top
+        
+        // Side impact at MIDDLE box height (not center-mass)
+        // This creates lever arm: impact point height difference from COM
+        // Impact at y=1.55, if COM of stack is at y~1.2, lever arm is ~0.35
+        world.addBody(Rigidbody(Vec3(-4.0f, 1.55f, 0.0f), Vec3(7.0f, 0.0f, 0.0f), &g_big_sphere, 1.2f));
+    }
+
+    void spawn_sphere_rolling(PhysicsWorld &world)
+    {
+        // Test: Sphere rolling with friction torque
+        // Verify: Sphere rotates due to friction at contact point
+        // Key: Sliding sphere → friction impulse creates torque → rolling motion
+        
+        // Create gentle ramp or flat surface with high friction
+        // Spawn sphere with sliding velocity (not rolling)
+        world.addBody(Rigidbody(Vec3(-8.0f, 3.0f, 0.0f), Vec3(8.0f, 0.0f, 0.0f), &g_big_sphere, 1.2f, 0.8f, 0.3f));
+        
+        // Reference: non-sliding sphere for comparison
+        world.addBody(Rigidbody(Vec3(-8.0f, 5.0f, 0.0f), Vec3(6.0f, 0.0f, 0.0f), &g_small_sphere, 0.8f, 0.1f, 0.2f));
+        
+        // Test on ramp: if it exists, rolling down will show rotation
+        world.addBody(Rigidbody(Vec3(2.0f, 0.0f, 0.0f), Vec3(), &g_gentle_ramp, 0.0f));
+        world.addBody(Rigidbody(Vec3(4.0f, 3.5f, 0.0f), Vec3(), &g_small_sphere, 1.0f, 0.8f, 0.1f));
+    }
+
+    Camera spawn_heat_transfer_demo(PhysicsWorld &world)
+    {
+        world.thermal_settings.enabled = true;
+        world.thermal_settings.conduction_rate = 15.0f;
+        world.thermal_settings.radiation_rate = 0.02f;
+        world.thermal_settings.ambient_temperature = 295.0f;
+        world.thermal_settings.ambient_coupling = 0.03f;
+        world.thermal_settings.radiation_distance = 4.0f;
+        world.thermal_settings.min_visual_temperature = 240.0f;
+        world.thermal_settings.max_visual_temperature = 660.0f;
+        world.thermal_spawn_controls.enabled = true;
+        world.thermal_spawn_controls.lock_to_basic_shapes = true;
+        world.thermal_spawn_controls.spawn_temperature = 295.0f;
+        world.thermal_spawn_controls.spawn_heat_capacity = 930.0f;
+        world.thermal_spawn_controls.spawn_conductivity = 0.7f;
+        world.thermal_spawn_controls.spawn_emissivity = 0.9f;
+
+        const int boxCount = 9;
+        const float spacing = 1.0f;
+        const float startX = -0.5f * spacing * (boxCount - 1);
+        const float coldTemp = 255.0f;
+        const float hotTemp = 650.0f;
+
+        for (int i = 0; i < boxCount; ++i)
         {
-            ids.push_back(
-                world.addBody(Rigidbody(Vec3(0, 8 - i * 0.8f, 0), Vec3(), &g_small_sphere, 1.0f)));
+            float lerp = (boxCount == 1) ? 0.0f : static_cast<float>(i) / static_cast<float>(boxCount - 1);
+            float temp = coldTemp + lerp * (hotTemp - coldTemp);
+            Vec3 pos(startX + i * spacing, 0.55f, 0.0f);
+            Rigidbody body(pos, Vec3(), &g_small_box, 1.8f);
+            body.thermal_enabled = true;
+            body.temperature = temp;
+            body.heat_capacity = 930.0f;
+            body.thermal_conductivity = 0.75f;
+            body.thermal_emissivity = 0.88f;
+            world.addBody(body);
         }
+        Rigidbody striker(Vec3(0.0f, 2.0f, 0.0f), Vec3(), &g_small_sphere, 1.0f);
+        striker.thermal_enabled = true;
+        striker.temperature = 3000.0f;
+        striker.heat_capacity = 930.0f;
+        striker.thermal_conductivity = 0.75f;
+        striker.thermal_emissivity = 0.88f;
+        world.addBody(striker);
 
-        for (int i = 0; i < N - 1; i++)
-        {
-            world.addDistanceConstraints(ids[i], ids[i + 1], 0.8f, DistanceConstraint::ROPE, 0.5f, 0.5f);
-        }
-    }
-    void spawn_rod_chain(PhysicsWorld &world)
-    {
-        const int N = 8;
-        std::vector<std::uint32_t> ids;
-
-        for (int i = 0; i < N; i++)
-        {
-            ids.push_back(
-                world.addBody(Rigidbody(Vec3(-5 + i * 1.2f, 6, 0), Vec3(), &g_small_box, 1.0f)));
-        }
-
-        for (int i = 0; i < N - 1; i++)
-        {
-            world.addDistanceConstraints(ids[i], ids[i + 1], 1.2f, DistanceConstraint::ROD, 0.5f, 0.5f);
-        }
-    }
-    void spawn_soft_body_grid(PhysicsWorld &world)
-    {
-        const int W = 5;
-        const int H = 5;
-
-        std::uint32_t ids[W][H];
-
-        for (int i = 0; i < W; i++)
-        {
-            for (int j = 0; j < H; j++)
-            {
-                ids[i][j] = world.addBody(
-                    Rigidbody(Vec3(i * 1.0f, 8 + j * 1.0f, 0), Vec3(), &g_small_sphere, 0.8f));
-            }
-        }
-
-        for (int i = 0; i < W; i++)
-        {
-            for (int j = 0; j < H; j++)
-            {
-                if (i + 1 < W)
-                    world.addDistanceConstraints(ids[i][j], ids[i + 1][j], 1.0f, DistanceConstraint::SPRING, 50.0f, 6.0f);
-
-                if (j + 1 < H)
-                    world.addDistanceConstraints(ids[i][j], ids[i][j + 1], 1.0f, DistanceConstraint::SPRING, 50.0f, 6.0f);
-            }
-        }
-    }
-    void spawn_rope_with_collision(PhysicsWorld &world)
-    {
-        add_floor(world);
-
-        auto id1 = world.addBody(Rigidbody(Vec3(0, 8, 0), Vec3(), &g_small_sphere, 1.0f));
-        auto id2 = world.addBody(Rigidbody(Vec3(0, 6, 0), Vec3(), &g_small_sphere, 1.0f));
-
-        world.addDistanceConstraints(id1, id2, 2.0f, DistanceConstraint::ROPE, 0.0f, 0.0f);
-
-        // drop box onto rope
-        world.addBody(Rigidbody(Vec3(0, 12, 0), Vec3(), &g_small_box, 2.0f));
+        return Camera().setPosition(glm::vec3(0.0f, 4.8f, 22.0f));
     }
 
-    void spawn_ramp_drop_on_sphere_case(PhysicsWorld &world)
+    Camera spawn_circular_motion_rope(PhysicsWorld &world)
     {
-        world.addBody(Rigidbody(Vec3(-1.0f, 0.5f, 0.0f), Vec3(), &g_big_sphere, 1.0f));
-        world.addBody(Rigidbody(Vec3(-0.8f, 5.0f, 0.0f), Vec3(0.0f, 0.0f, 0.0f), &g_steep_ramp, 2.0f));
-        world.addBody(Rigidbody(Vec3(0.6f, 4.0f, 0.0f), Vec3(0.0f, 0.0f, 0.0f), &g_gentle_ramp, 1.5f));
+        Rigidbody fixed_box(Vec3(0.0f, 0.0f, 0.0f), Vec3(), &g_small_box, 0.0f);
+        fixed_box.friction = 0.5f;
+        auto box_id = world.addBody(fixed_box);
+        const float rope_length = 3.0f;
+        const float orbital_speed = 50.0f;
+        Rigidbody orbiting_sphere(
+            Vec3(rope_length, 2.0f, 0.0f), 
+            Vec3(0.0f, 0.0f, orbital_speed),
+            &g_small_sphere,
+            1.0f
+        );
+        orbiting_sphere.friction = 0.1f;
+        orbiting_sphere.restitution = 0.3f;
+        auto sphere_id = world.addBody(orbiting_sphere);
+        world.addDistanceConstraints(box_id, sphere_id, rope_length, DistanceConstraint::ROPE, 0.0f, 0.0f);
+        return Camera().setPosition(glm::vec3(0.0f, 15.0f, 0.0f))
+                       .setYaw(0.0f)
+                       .setPitch(-90.0f);
     }
 
-    void spawn_ramp_ramp_stress_case(PhysicsWorld &world)
+    Camera spawn_circular_motion_spring(PhysicsWorld &world)
     {
-        world.addBody(Rigidbody(Vec3(-3.0f, 3.0f, 0.0f), Vec3(2.0f, 0.0f, 0.0f), &g_steep_ramp, 1.5f));
-        world.addBody(Rigidbody(Vec3(3.0f, 3.0f, 0.0f), Vec3(-2.0f, 0.0f, 0.0f), &g_steep_ramp, 1.5f));
-        world.addBody(Rigidbody(Vec3(-1.5f, 6.0f, 0.0f), Vec3(0.5f, -0.5f, 0.0f), &g_gentle_ramp, 1.0f));
-        world.addBody(Rigidbody(Vec3(1.5f, 6.0f, 0.0f), Vec3(-0.5f, -0.5f, 0.0f), &g_steep_ramp, 1.0f));
+        Rigidbody fixed_box(Vec3(0.0f, 0.0f, 0.0f), Vec3(), &g_small_box, 0.0f);
+        fixed_box.friction = 0.5f;
+        auto box_id = world.addBody(fixed_box);
+        const float spring_length = 3.0f;
+        const float spring_constant = 2.0f;
+        const float damping = 0.5f;
+        const float orbital_speed = 50.0f;
+        Rigidbody orbiting_sphere(
+            Vec3(spring_length, 2.0f, 0.0f), 
+            Vec3(0.0f, 0.0f, orbital_speed),
+            &g_small_sphere,
+            1.0f
+        );
+        orbiting_sphere.friction = 0.1f;
+        orbiting_sphere.restitution = 0.3f;
+        auto sphere_id = world.addBody(orbiting_sphere);
+        world.addDistanceConstraints(box_id, sphere_id, spring_length, DistanceConstraint::SPRING, spring_constant, damping);
+        return Camera().setPosition(glm::vec3(0.0f, 15.0f, 0.0f))
+                       .setYaw(0.0f)
+                       .setPitch(-90.0f);
+    }
+
+    Camera spawn_pyramid_stack_scenario(PhysicsWorld &world)
+    {
+        spawn_pyramid_stack(world);
+        return Camera().setPosition(glm::vec3(0.0f, 5.0f, 25.0f));
+    }
+
+    Camera spawn_many_boxes_scenario(PhysicsWorld &world)
+    {
+        spawn_many_boxes(world);
+        return Camera().setPosition(glm::vec3(0.0f, 5.0f, 25.0f));
+    }
+
+    Camera spawn_many_spheres_scenario(PhysicsWorld &world)
+    {
+        spawn_many_spheres(world);
+        return Camera().setPosition(glm::vec3(0.0f, 5.0f, 25.0f));
+    }
+
+    Camera spawn_random_scatter_scenario(PhysicsWorld &world)
+    {
+        spawn_random_scatter(world);
+        return Camera().setPosition(glm::vec3(0.0f, 5.0f, 30.0f));
     }
 
 }
 
-void LoadSingleTestScenario(PhysicsWorld &world, TestCase test_case)
+Camera LoadSingleTestScenario(PhysicsWorld &world, TestCase test_case)
 {
+    world.enable_buoyancy = false; // only when boyancy testcase
+    world.thermal_settings = PhysicsWorld::ThermalSettings();
+    world.thermal_spawn_controls = PhysicsWorld::ThermalSpawnControls();
+
     add_floor(world);
 
     switch (test_case)
     {
-    case TestCase::SphereSphere:
-        spawn_sphere_sphere_case(world);
+    case TestCase::ProjectMotion:
+        return spawn_projectile_demo(world);
         break;
-    case TestCase::BoxBox:
-        spawn_box_box_case(world);
-        break;
-    case TestCase::SphereBox:
-        spawn_sphere_box_case(world);
-        break;
-    case TestCase::BoxRamp:
-        spawn_box_ramp_case(world);
-        break;
-    case TestCase::SphereRamp:
-        spawn_sphere_ramp_case(world);
-        break;
-    case TestCase::BoxStack:
-        spawn_box_stack(world);
-        break;
-    case TestCase::PyramidStack:
-        spawn_pyramid_stack(world);
-        break;
-    case TestCase::ManySpheres:
-        spawn_many_spheres(world);
-        break;
-    case TestCase::ManyBoxes:
-        spawn_many_boxes(world);
-        break;
-    case TestCase::MixedPile:
-        spawn_mixed_pile(world);
-        break;
-    case TestCase::BouncyBalls:
-        spawn_bouncy_balls(world);
-        break;
-    case TestCase::SlidingRampRow:
-        spawn_sliding_ramp_row(world);
-        break;
-    case TestCase::ChainCollide:
+    case TestCase::PerfectElasticCollision:
+        return spawn_perfect_elastic_collision(world);
+    case TestCase::PerfectInelasticCollision:
+        return spawn_perfect_inelastic_collision(world);
+    case TestCase::Collision:
+        return spawn_collision_partial(world);
+    case TestCase::InclinedPlane:
+        return spawn_incline_demo(world);
+    case TestCase::MomentumTransfer:
+        // Conservation-of-momentum chain (Newton's cradle style)
         spawn_chain_collide(world);
-        break;
+        return Camera().setPosition(glm::vec3(-1.0f, 6.0f, 24.0f));
+    case TestCase::CenterOfMassTopple:
+        // Demonstrates torque-induced tipping of a stacked tower
+        spawn_stack_tipping(world);
+        return Camera().setPosition(glm::vec3(0.0f, 5.0f, 20.0f));
+    case TestCase::ConstraintPlayground:
+        return spawn_constraint_playground(world);
+    case TestCase::AngularImpulse:
+        // Off-center collisions that inject angular momentum
+        spawn_off_center_hit(world);
+        return Camera().setPosition(glm::vec3(0.0f, 6.0f, 22.0f));
+    case TestCase::AngularStack:
+        spawn_angular_stack(world);
+        return Camera().setPosition(glm::vec3(0.0f, 4.0f, 22.0f));
+    case TestCase::CornerCollision:
+        spawn_box_corner_collision(world);
+        return Camera().setPosition(glm::vec3(-1.0f, 6.5f, 24.0f));
+    case TestCase::RollingFriction:
+        spawn_sphere_rolling(world);
+        return Camera().setPosition(glm::vec3(-1.0f, 5.0f, 26.0f));
+    case TestCase::RelativeVelocity:
+        return spawn_relative_velocity(world);
+    case TestCase::NewtonThirdLaw:
+        return spawn_newton_third_law(world);
+    case TestCase::BoxToppleOnRamp:
+        return spawn_box_topple_on_ramp(world);
+    case TestCase::SphereToppleOnRamp:
+        return spawn_sphere_topple_on_ramp(world);
+    case TestCase::CollisionCauseTopple:
+        return spawn_collision_cause_topple(world);
+    case TestCase::BuoyancyTest:
+        world.enable_buoyancy = true;
+        world.water_fluid = Fluid(2.0f, 2.0f, 0.3f);
+        world.addBody(Rigidbody(Vec3(0.0f, 5.0f, 0.0f), Vec3(), &g_small_sphere, 0.5f));
+        world.addBody(Rigidbody(Vec3(3.0f, 5.0f, 0.0f), Vec3(), &g_small_box, 0.6f));
+        return Camera();
+    case TestCase::HeatTransferDemo:
+        return spawn_heat_transfer_demo(world);
+    case TestCase::CircularMotionRope:
+        return spawn_circular_motion_rope(world);
+    case TestCase::CircularMotionSpring:
+        return spawn_circular_motion_spring(world);
+    case TestCase::PyramidStack:
+        return spawn_pyramid_stack_scenario(world);
+    case TestCase::ManyBoxes:
+        return spawn_many_boxes_scenario(world);
+    case TestCase::ManySpheres:
+        return spawn_many_spheres_scenario(world);
     case TestCase::RandomScatter:
-        spawn_random_scatter(world);
-        break;
-    case TestCase::StressTestLarge:
-        spawn_stress_test_large(world);
-        break;
-    case TestCase::RopeBasic:
-        spawn_rope_basic(world);
-        break;
-    case TestCase::RodBasic:
-        spawn_rod_basic(world);
-        break;
-    case TestCase::SpringBasic:
-        spawn_spring_basic(world);
-        break;
-    case TestCase::RopeChain:
-        spawn_rope_chain(world);
-        break;
-    case TestCase::RodChain:
-        spawn_rod_chain(world);
-        break;
-    case TestCase::SoftBody:
-        spawn_soft_body_grid(world);
-        break;
-    case TestCase::RopeCollision:
-        spawn_rope_with_collision(world);
-        break;
-    case TestCase::RampDropOnSphere:
-        spawn_ramp_drop_on_sphere_case(world);
-        break;
-    case TestCase::RampRampStress:
-        spawn_ramp_ramp_stress_case(world);
-        break;
-    case TestCase::BoxSphereRamp:
+        return spawn_random_scatter_scenario(world);
     default:
-        spawn_box_sphere_ramp_case(world);
+        return spawn_projectile_demo(world);
         break;
     }
 }

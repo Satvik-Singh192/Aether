@@ -2,11 +2,15 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <chrono>
+#include <array>
+#include <cstdlib>
 
 #include "../engine/world/physicsworld.hpp"
 #include "camera.hpp"
 #include "drawbodies.hpp"
 #include "bodymenu.hpp"
+#include "aether_theme.hpp"
+#include "../app/test_scenarios.hpp"
 
 #include "imgui.h"
 #include "backends/imgui_impl_glfw.h"
@@ -14,11 +18,146 @@
 
 #include <iostream>
 
+namespace
+{
+	enum class AppScreen
+	{
+		StartScreen,
+		Guide,
+		Running
+	};
+
+	constexpr TestCase kTestCases[] = {
+		TestCase::ProjectMotion,
+		TestCase::PerfectElasticCollision,
+		TestCase::PerfectInelasticCollision,
+		TestCase::Collision,
+		TestCase::InclinedPlane,
+		TestCase::MomentumTransfer,
+		TestCase::CenterOfMassTopple,
+		TestCase::ConstraintPlayground,
+		TestCase::AngularImpulse,
+		TestCase::AngularStack,
+		TestCase::CornerCollision,
+		TestCase::RollingFriction,
+		TestCase::BuoyancyTest,
+		TestCase::HeatTransferDemo,
+		TestCase::RelativeVelocity,
+		TestCase::NewtonThirdLaw,
+		TestCase::BoxToppleOnRamp,
+		TestCase::SphereToppleOnRamp,
+		TestCase::CollisionCauseTopple,
+		TestCase::CircularMotionRope,
+		TestCase::CircularMotionSpring,
+		TestCase::PyramidStack,
+		TestCase::ManyBoxes,
+		TestCase::ManySpheres,
+		TestCase::RandomScatter
+	};
+
+	constexpr const char *kTestCaseNames[] = {
+		"Projectile Motion Lab",
+		"Perfectly Elastic Collision",
+		"Perfectly Inelastic Collision",
+		"Realistic Collision",
+		"Inclined Plane Roll",
+		"Momentum Transfer Line",
+		"Center of Mass Topple",
+		"Constraint Playground",
+		"Angular Impulse Lab",
+		"Angular Stack Push",
+		"Corner Collision Torque",
+		"Rolling vs Sliding",
+		"Buoyancy Test",
+		"Heat Transfer Lab",
+		"Relative Velocity",
+		"Newton's Third Law",
+		"Box Topple on Ramp",
+		"Sphere Topple on Ramp",
+		"Collision Cause Topple",
+		"Circular Motion with Rope",
+		"Circular Motion with Spring",
+		"Pyramid Stack",
+		"Many Boxes",
+		"Many Spheres",
+		"Random Scatter"
+	};
+
+	constexpr const char *kTestCaseDescriptions[] = {
+		"Compare low and high launch angles to visualize projectile motion trajectories.",
+		"Observe conservation of momentum and energy with two identical spheres.",
+		"See how kinetic energy is lost when colliding bodies stick together.",
+		"Study partially elastic impacts with friction to mimic everyday collisions.",
+		"Watch gravity components down a ramp to discuss inclined-plane forces.",
+		"A Newton's-cradle style lineup highlights momentum transfer through a chain.",
+		"Side impacts on a tall stack reveal how torque about the COM drives tipping.",
+		"Rope, rod, and spring constraints run side-by-side for Hooke's law comparisons.",
+		"Off-center hits demonstrate how tangential impulses spin bodies up.",
+		"Sequential pushes on a block tower highlight angular momentum build-up.",
+		"Corner-to-corner impacts show how contact point offsets create torque.",
+		"Contrast high-friction rolling with sliding motion on ramps and flats.",
+		"Observe how buoyant forces affect floating objects in simulated fluids.",
+		"Watch boxes and spheres equalize heat via conduction and radiation with temperature-driven colors.",
+		"",
+		"",
+		"",
+		"","",
+		"A fixed box at the origin is connected to a sphere via a rope constraint, demonstrating circular orbital motion with the box as the center axis.",
+		"A fixed box at the origin is connected to a sphere via a spring constraint, allowing elastic oscillations during circular motion.",
+		"A large pyramid of boxes falling in layers to demonstrate stacking and gravity effects.",
+		"Eighty boxes spawned in a scattered pattern for stress testing physics solver performance.",
+		"Sixty spheres spawned in a scattered pattern to test sphere-sphere collisions and performance.",
+		"One hundred randomly scattered mixed objects (boxes and spheres) for comprehensive stress testing."
+	};
+		
+
+		
+
+	constexpr const char *kGravityPresetNames[] = {
+		"Mercury (3.70 m/s^2)",
+		"Venus (8.87 m/s^2)",
+		"Earth (9.81 m/s^2)",
+		"Moon (1.62 m/s^2)",
+		"Mars (3.71 m/s^2)",
+		"Jupiter (24.79 m/s^2)",
+		"Saturn (10.44 m/s^2)",
+		"Uranus (8.69 m/s^2)",
+		"Neptune (11.15 m/s^2)",
+		"Pluto (0.62 m/s^2)"};
+
+	constexpr float kGravityPresetValues[] = {
+		3.70f,
+		8.87f,
+		9.81f,
+		1.62f,
+		3.71f,
+		24.79f,
+		10.44f,
+		8.69f,
+		11.15f,
+		0.62f};
+
+	static_assert((sizeof(kTestCases) / sizeof(kTestCases[0])) == (sizeof(kTestCaseNames) / sizeof(kTestCaseNames[0])), "Test case name array must stay aligned");
+	static_assert((sizeof(kTestCases) / sizeof(kTestCases[0])) == (sizeof(kTestCaseDescriptions) / sizeof(kTestCaseDescriptions[0])), "Test case description array must stay aligned");
+	static_assert((sizeof(kGravityPresetNames) / sizeof(kGravityPresetNames[0])) == (sizeof(kGravityPresetValues) / sizeof(kGravityPresetValues[0])), "Gravity preset arrays must stay aligned");
+}
+
 void framebuffer_size_callback(GLFWwindow *window, int width, int height);
-void processInput(GLFWwindow *window, float deltaTime, Camera &camera);
+void processInput(GLFWwindow *window, float deltaTime, Camera &camera, bool cameraEnabled);
+
+static void ShowTooltip(const char *text)
+{
+	if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
+	{
+		ImGui::SetTooltip("%s", text);
+	}
+}
 
 void CreateWindow(PhysicsWorld &world)
 {
+	// Initialize test scenario mapping
+	InitializeTestMap();
+
 	// Initialize and configure GLFW
 	glfwInit();
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -31,7 +170,7 @@ void CreateWindow(PhysicsWorld &world)
 #endif
 
 	// Window creation
-	GLFWwindow *window = glfwCreateWindow(800, 600, "Window", NULL, NULL);
+	GLFWwindow *window = glfwCreateWindow(1920, 1080, "Window", NULL, NULL);
 	if (window == NULL)
 	{
 		std::cout << "Failed to create window" << std::endl;
@@ -48,7 +187,13 @@ void CreateWindow(PhysicsWorld &world)
 		return;
 	}
 
-	glViewport(0, 0, 800, 600);
+	// Use the actual framebuffer size (important on Windows with DPI scaling).
+	{
+		int fbw = 0;
+		int fbh = 0;
+		glfwGetFramebufferSize(window, &fbw, &fbh);
+		glViewport(0, 0, fbw, fbh);
+	}
 	// Allow renderer to control point size
 	glEnable(GL_PROGRAM_POINT_SIZE);
 	glEnable(GL_DEPTH_TEST);
@@ -65,15 +210,102 @@ void CreateWindow(PhysicsWorld &world)
 
 	auto last_time = std::chrono::high_resolution_clock::now();
 	float accumulator = 0.0f;
+  float menuAccumulator = 0.0f;
 	int frame = 0;
 	Camera camera;
+	AppScreen appScreen = AppScreen::StartScreen;
+	bool showControlsHelp = false;
+	int selectedChapterIndex = 0;
+	int selectedScenarioInChapterIndex = 0;
+	AppScreen guideReturnScreen = AppScreen::StartScreen;
+	bool isGuideForStartFlow = false;
+	bool hasShownGuideThisSession = false;
+	bool skipGuideNextTime = false;
+	float startGravityY = world.getGravity().y;
+	int selectedGravityPreset = 2; // Earth
+	bool startWireframe = GetBodyDrawWireframeMode();
+	bool startShowVelocityArrows = GetBodyVelocityArrowVisible();
+	float startTint[3] = {1.0f, 1.0f, 1.0f};
+	GetBodyTint(startTint[0], startTint[1], startTint[2]);
+
+	// State preservation
+	int lastSimulationChapterIndex = selectedChapterIndex;
+	int lastSimulationScenarioInChapterIndex = selectedScenarioInChapterIndex;
+	float lastSimulationGravity = startGravityY;
+	int lastSimulationGravityPreset = selectedGravityPreset;
+	bool lastSimulationWireframe = startWireframe;
+	bool lastSimulationShowVelocityArrows = startShowVelocityArrows;
+	float lastSimulationTint[3] = {startTint[0], startTint[1], startTint[2]};
+	bool hasActiveSim = false;
 
 	// initialize ImGui once after OpenGL context creation.
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
-	ImGui::StyleColorsDark();
+	LoadAetherFont();
+	ApplyAetherTheme();
 	ImGui_ImplGlfw_InitForOpenGL(window, true);
 	ImGui_ImplOpenGL3_Init("#version 330 core");
+
+	auto reloadSelectedScenario = [&]()
+	{
+		world = PhysicsWorld();
+		
+		std::string chapterName = chapters[selectedChapterIndex];
+		std::vector<TestCase> scenariosInChapter = testmap[chapterName];
+		TestCase selectedTest = scenariosInChapter[selectedScenarioInChapterIndex];
+		
+		camera=LoadSingleTestScenario(world, selectedTest);
+		Vec3 gravity = world.getGravity();
+		world.setGravity(Vec3(gravity.x, startGravityY, gravity.z));
+		SetBodyDrawWireframeMode(startWireframe);
+		SetBodyVelocityArrowVisible(startShowVelocityArrows);
+		SetBodyTint(startTint[0], startTint[1], startTint[2]);
+		isSimulationPaused = false;
+		accumulator = 0.0f;
+		simulation_time = 0.0f;
+		frame = 0;
+	};
+PhysicsWorld main_menu_world = PhysicsWorld(-6.0);
+BoxCollider horizontal_bound(Vec3(10.0f, 0.5f, 5.0f));
+const uint32_t menu_floor_id = main_menu_world.addBody(Rigidbody(Vec3(0.0f, -1.5f, 0.0f), Vec3(), &horizontal_bound, 0.0f, 0.0f, 1.0f)); // floor
+const uint32_t menu_ceiling_id = main_menu_world.addBody(Rigidbody(Vec3(0.0f, 13.5f, 0.0f), Vec3(), &horizontal_bound, 0.0f, 0.0f, 1.0f)); // ceiling
+BoxCollider vertical_bound(Vec3(0.5f, 8.0f, 5.0f));
+const uint32_t menu_right_wall_id = main_menu_world.addBody(Rigidbody(Vec3(11.5f, 5.0f, 0.0f), Vec3(), &vertical_bound, 0.0f, 0.0f, 1.0f));  // right
+const uint32_t menu_left_wall_id = main_menu_world.addBody(Rigidbody(Vec3(-11.5f, 5.0f, 0.0f), Vec3(), &vertical_bound, 0.0f, 0.0f, 1.0f)); // left
+const std::array<uint32_t, 4> menu_wall_ids = {menu_floor_id, menu_ceiling_id, menu_right_wall_id, menu_left_wall_id};
+BoxCollider face_bound(Vec3(10.0f, 8.0f, 0.5f));
+// main_menu_world.addBody(Rigidbody(Vec3(0.0f, 5.0f, 5.0f), Vec3(), &face_bound, 0.0f));  // front
+// main_menu_world.addBody(Rigidbody(Vec3(0.0f, 5.0f, -5.0f), Vec3(), &face_bound, 0.0f)); // back
+double mouseX, mouseY;
+SphereCollider cursor_ghost_collider(1.5f);
+glfwGetCursorPos(window, &mouseX, &mouseY);
+
+SphereCollider nig(1.011f);
+
+for(int i=0; i<50; i++){
+	float px = -10.0f + (i % 10) * 3.3f + (rand() % 100 - 50) * 0.02f;
+	float py = 1.5f + (i / 10) * 2.0f + (rand() % 100 - 50) * 0.02f;
+	main_menu_world.addBody(Rigidbody(Vec3(px, py, 0.0f),Vec3(),&nig, 0.5f, 0.0f, 0.9f));
+}
+const uint32_t ghost_id=main_menu_world.addBody(Rigidbody(Vec3(0.0f,0.0f ,0.0f),Vec3(),&cursor_ghost_collider,0.0f,0.0f,1.0f));
+// PhysicsWorld can reallocate its body buffer during step(), so always re-fetch the ghost pointer by ID.
+auto reacquireGhost = [&]() -> Rigidbody *
+{
+	return main_menu_world.getBodyByID(ghost_id);
+};
+auto enforceMenuInvisibility = [&]()
+{
+	for (uint32_t wall_id : menu_wall_ids)
+	{
+		if (Rigidbody *wall = main_menu_world.getBodyByID(wall_id))
+		{
+			wall->render_alpha = 0.0f;
+		}
+	}
+};
+enforceMenuInvisibility();
+glfwGetCursorPos(window, &mouseX, &mouseY);
+
 
 	// Loop to render frames
 	while (!glfwWindowShouldClose(window))
@@ -85,9 +317,8 @@ void CreateWindow(PhysicsWorld &world)
 		last_time = current_time;
 
 		// Process incoming inputs with frame-rate independent movement.
-		processInput(window, frametime, camera);
-
-		if (!isSimulationPaused)
+		processInput(window, frametime, camera, appScreen == AppScreen::Running);
+		if (appScreen == AppScreen::Running && !isSimulationPaused)
 		{
 			accumulator += frametime;
 			int substeps = 0;
@@ -108,12 +339,13 @@ void CreateWindow(PhysicsWorld &world)
 			}
 		}
 
-		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+		glClearColor(0.01f, 0.01f, 0.015f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		int framebufferWidth = 0;
 		int framebufferHeight = 0;
 		glfwGetFramebufferSize(window, &framebufferWidth, &framebufferHeight);
+		glViewport(0, 0, framebufferWidth, framebufferHeight);
 		float aspectRatio = framebufferHeight > 0
 								? static_cast<float>(framebufferWidth) / static_cast<float>(framebufferHeight)
 								: 1.0f;
@@ -124,39 +356,389 @@ void CreateWindow(PhysicsWorld &world)
 		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
 
-		ImGui::Begin("Simulation Controls");
-		{
-			bool wf = GetBodyDrawWireframeMode();
-			if (ImGui::Checkbox("Wireframe mode", &wf))
-				SetBodyDrawWireframeMode(wf);
-			ImGui::TextDisabled("(off = shaded solid bodies)");
-			float br = 1.0f;
-			float bg = 1.0f;
-			float bb = 1.0f;
-			GetBodyTint(br, bg, bb);
-			float tint[3] = {br, bg, bb};
-			if (ImGui::ColorEdit3("Body color tint", tint))
-				SetBodyTint(tint[0], tint[1], tint[2]);
-			ImGui::TextDisabled("Multiplies per-body colors; floor uses fixed grey.");
-		}
-		if (ImGui::Button(isSimulationPaused ? "Resume Physics" : "Pause Physics"))
+		auto toggleSimulationPause = [&]()
 		{
 			isSimulationPaused = !isSimulationPaused;
 			if (isSimulationPaused)
 			{
 				accumulator = 0.0f;
 			}
+		};
+
+		auto beginRunningScreen = [&]()
+		{
+			appScreen = AppScreen::Running;
+			isSimulationPaused = false;
+			accumulator = 0.0f;
+			simulation_time = 0.0f;
+			frame = 0;
+		};
+
+		auto openGuideScreen = [&](AppScreen returnScreen, bool forStartFlow)
+		{
+			guideReturnScreen = returnScreen;
+			isGuideForStartFlow = forStartFlow;
+			hasShownGuideThisSession = true;
+			appScreen = AppScreen::Guide;
+			isSimulationPaused = true;
+			accumulator = 0.0f;
+		};
+
+		if (ImGui::BeginMainMenuBar())
+		{
+			if (ImGui::BeginMenu("App"))
+			{
+				if (ImGui::MenuItem("Menu"))
+				{
+					// Save current simulation state
+					lastSimulationChapterIndex = selectedChapterIndex;
+					lastSimulationScenarioInChapterIndex = selectedScenarioInChapterIndex;
+					lastSimulationGravity = startGravityY;
+					lastSimulationGravityPreset = selectedGravityPreset;
+					lastSimulationWireframe = startWireframe;
+					lastSimulationShowVelocityArrows = startShowVelocityArrows;
+					lastSimulationTint[0] = startTint[0];
+					lastSimulationTint[1] = startTint[1];
+					lastSimulationTint[2] = startTint[2];
+					hasActiveSim = true;
+
+					appScreen = AppScreen::StartScreen;
+					isSimulationPaused = true;
+					accumulator = 0.0f;
+				}
+				if (ImGui::MenuItem("Guide"))
+				{
+					openGuideScreen(appScreen, false);
+				}
+				if (ImGui::MenuItem("Quit", "Esc"))
+				{
+					glfwSetWindowShouldClose(window, true);
+				}
+				ImGui::EndMenu();
+			}
+
+			if (appScreen == AppScreen::Running)
+			{
+				if (ImGui::BeginMenu("Simulation"))
+				{
+					if (ImGui::MenuItem(isSimulationPaused ? "Resume Physics" : "Pause Physics"))
+					{
+						toggleSimulationPause();
+					}
+					ImGui::SeparatorText("Stats");
+					const ImGuiIO &io = ImGui::GetIO();
+					ImGui::Text("Bodies: %zu", world.getBodies().size());
+					ImGui::Text("Contacts: %zu", world.getContactCount());
+					ImGui::Text("Frame: %d", frame);
+					ImGui::Text("FPS: %.1f", io.Framerate);
+					ImGui::EndMenu();
+				}
+
+				if (ImGui::BeginMenu("Add Body"))
+				{
+					RenderAddBodyMenuContent(world);
+					ImGui::EndMenu();
+				}
+
+				if (!world.enable_buoyancy)
+				{
+					if (ImGui::BeginMenu("Constraints"))
+					{
+						RenderConstraintMenuContent(world);
+						ImGui::EndMenu();
+					}
+				}
+
+				if (ImGui::BeginMenu("World"))
+				{
+					RenderWorldMenuContent(world);
+					ImGui::EndMenu();
+				}
+
+				if (ImGui::BeginMenu("Settings"))
+				{
+					ImGui::SeparatorText("Scenario");
+					
+					std::vector<const char*> chapterNames;
+					for (const auto& ch : chapters) {
+						chapterNames.push_back(ch.c_str());
+					}
+					
+					if (selectedChapterIndex >= static_cast<int>(chapterNames.size())) {
+						selectedChapterIndex = 0;
+					}
+					
+					ImGui::Combo("Chapter", &selectedChapterIndex, chapterNames.data(), chapterNames.size());
+					
+					std::string currentChapter = chapters[selectedChapterIndex];
+					std::vector<TestCase> &scenariosInChapter = testmap[currentChapter];
+					std::vector<const char*> scenarioLabels;
+					
+					for (const auto& test : scenariosInChapter) {
+						for (int i = 0; i < 25; i++) {
+							if (kTestCases[i] == test) {
+								scenarioLabels.push_back(kTestCaseNames[i]);
+								break;
+							}
+						}
+					}
+					
+					if (selectedScenarioInChapterIndex >= static_cast<int>(scenarioLabels.size())) {
+						selectedScenarioInChapterIndex = 0;
+					}
+					
+					ImGui::Combo("Scenario", &selectedScenarioInChapterIndex, scenarioLabels.data(), scenarioLabels.size());
+					
+					if (selectedScenarioInChapterIndex < static_cast<int>(scenarioLabels.size())) {
+						TestCase selectedTest = scenariosInChapter[selectedScenarioInChapterIndex];
+						for (int i = 0; i < 25; i++) {
+							if (kTestCases[i] == selectedTest) {
+								ImGui::TextWrapped("Concept: %s", kTestCaseDescriptions[i]);
+								break;
+							}
+						}
+					}
+					
+					ImGui::Dummy(ImVec2(0.0f, 2.0f));
+
+					if (ImGui::Button("Reload Selected Test Case", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f)))
+					{
+						reloadSelectedScenario();
+					}
+
+					ImGui::SeparatorText("Physics");
+					if (ImGui::Combo("Gravity Location", &selectedGravityPreset, kGravityPresetNames, static_cast<int>(sizeof(kGravityPresetNames) / sizeof(kGravityPresetNames[0]))))
+					{
+						startGravityY = -kGravityPresetValues[selectedGravityPreset];
+						Vec3 current = world.getGravity();
+						world.setGravity(Vec3(current.x, startGravityY, current.z));
+					}
+					ShowTooltip("Choose a place in the solar system. Gravity updates immediately.");
+
+					ImGui::SeparatorText("Rendering");
+					if (ImGui::Checkbox("Wireframe mode", &startWireframe))
+					{
+						SetBodyDrawWireframeMode(startWireframe);
+					}
+					if (ImGui::Checkbox("Show velocity arrows", &startShowVelocityArrows))
+					{
+						SetBodyVelocityArrowVisible(startShowVelocityArrows);
+					}
+					if (ImGui::ColorEdit3("Body color tint", startTint))
+					{
+						SetBodyTint(startTint[0], startTint[1], startTint[2]);
+					}
+					ImGui::EndMenu();
+				}
+			}
+
+			ImGui::EndMainMenuBar();
 		}
-		const ImGuiIO &io = ImGui::GetIO();
-		ImGui::Text("Bodies: %zu", world.getBodies().size());
-		ImGui::Text("Contacts: %zu", world.getContactCount());
-		ImGui::Text("Frame: %d", frame);
-		ImGui::Text("FPS: %.1f", io.Framerate);
-		ImGui::Text("Frame time: %.3f ms", io.Framerate > 0.0f ? (1000.0f / io.Framerate) : 0.0f);
-		ImGui::End();
 
-		RenderBodyMenu(world);
+		if (appScreen == AppScreen::StartScreen)
+		{
+			const ImVec2 displaySize = ImGui::GetIO().DisplaySize;
+			ImGui::SetNextWindowPos(ImVec2(displaySize.x * 0.5f, displaySize.y * 0.5f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+			ImGui::SetNextWindowSize(ImVec2(640.0f, 460.0f), ImGuiCond_Always);
+			enforceMenuInvisibility();
+			glfwGetCursorPos(window, &mouseX, &mouseY);
+			mouseY = framebufferHeight - mouseY;
+			float x = (10.0 * mouseX / framebufferHeight) - 9.0f;
+			float y = (10.0 * mouseY / framebufferHeight) -0.0f;
+				Vec3 ghostTarget(x, y, 0.0f);
+				if (Rigidbody *ghost = reacquireGhost())
+				{
+					ghost->render_alpha = 0.0f;
+					ghost->position = ghostTarget;
+				}
+			
+           menuAccumulator += frametime;
+			int menuSubsteps = 0;
+			while (menuAccumulator >= dt && menuSubsteps < MAX_SUBSTEPS)
+			{
+				main_menu_world.step(dt);
+				menuAccumulator -= dt;
+				++menuSubsteps;
+			}
 
+			if (menuSubsteps == MAX_SUBSTEPS)
+			{
+				menuAccumulator = 0.0f;
+			}
+			
+			if (Rigidbody *ghost = reacquireGhost())
+			{
+					ghost->render_alpha = 0.0f;
+				ghost->position = ghostTarget;
+				//std::cout<<ghost->position.x<<" "<<ghost->position.y<<'\n';
+			}
+			RenderBodies(main_menu_world,camera,aspectRatio);
+			const char *startWindowTitle = hasActiveSim ? "Aether Studio - Menu" : "Aether Studio - Start";
+			if (ImGui::Begin(startWindowTitle, nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize))
+			{	
+				
+				auto centerText = [](const char *text, bool disabled)
+				{
+					const float textWidth = ImGui::CalcTextSize(text).x;
+					const float centeredX = (ImGui::GetContentRegionAvail().x - textWidth) * 0.5f;
+					if (centeredX > 0.0f)
+					{
+						ImGui::SetCursorPosX(ImGui::GetCursorPosX() + centeredX);
+					}
+					if (disabled)
+						ImGui::TextDisabled("%s", text);
+					else
+						ImGui::TextUnformatted(text);
+				};
+
+				auto centerButton = [](const char *label, const ImVec2 &size)
+				{
+					const float centeredX = (ImGui::GetContentRegionAvail().x - size.x) * 0.5f;
+					if (centeredX > 0.0f)
+					{
+						ImGui::SetCursorPosX(ImGui::GetCursorPosX() + centeredX);
+					}
+					return ImGui::Button(label, size);
+				};
+
+				ImGui::Dummy(ImVec2(0.0f, 16.0f));
+				ImGui::SetWindowFontScale(1.18f);
+				centerText("AETHER STUDIO", false);
+				ImGui::SetWindowFontScale(1.0f);
+				ImGui::Dummy(ImVec2(0.0f, 2.0f));
+				centerText("Physics Simulation Engine", true);
+				ImGui::Dummy(ImVec2(0.0f, 16.0f));
+				ImGui::Separator();
+				ImGui::Dummy(ImVec2(0.0f, 20.0f));
+
+				if (centerButton(hasActiveSim ? "Resume Simulation" : "Start Simulation", ImVec2(300.0f, 44.0f)))
+				{
+					bool shouldOpenGuide = !hasActiveSim && !skipGuideNextTime && !hasShownGuideThisSession;
+					if (shouldOpenGuide)
+					{
+						openGuideScreen(AppScreen::StartScreen, true);
+					}
+					else
+					{
+						// Restore saved state
+						selectedChapterIndex = lastSimulationChapterIndex;
+						selectedScenarioInChapterIndex = lastSimulationScenarioInChapterIndex;
+						startGravityY = lastSimulationGravity;
+						selectedGravityPreset = lastSimulationGravityPreset;
+						startWireframe = lastSimulationWireframe;
+						startShowVelocityArrows = lastSimulationShowVelocityArrows;
+						startTint[0] = lastSimulationTint[0];
+						startTint[1] = lastSimulationTint[1];
+						startTint[2] = lastSimulationTint[2];
+						SetBodyDrawWireframeMode(startWireframe);
+						SetBodyVelocityArrowVisible(startShowVelocityArrows);
+						SetBodyTint(startTint[0], startTint[1], startTint[2]);
+						beginRunningScreen();
+					}
+				}
+
+				ImGui::Dummy(ImVec2(0.0f, 12.0f));
+				if (centerButton("Quit", ImVec2(300.0f, 44.0f)))
+				{
+					glfwSetWindowShouldClose(window, true);
+				}
+
+				ImGui::Dummy(ImVec2(0.0f, 20.0f));
+				ImGui::Separator();
+				ImGui::Dummy(ImVec2(0.0f, 4.0f));
+				centerText("v1.0.0 | Built with OpenGL + ImGui", true);				
+			}
+			ImGui::End();
+		}
+		else if (appScreen == AppScreen::Guide)
+		{
+			const ImVec2 displaySize = ImGui::GetIO().DisplaySize;
+			ImGui::SetNextWindowPos(ImVec2(displaySize.x * 0.5f, displaySize.y * 0.5f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+			ImGui::SetNextWindowSize(ImVec2(760.0f, 560.0f), ImGuiCond_Always);
+
+			if (ImGui::Begin("Aether Studio - Guide", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize))
+			{
+				ImGui::TextWrapped("Welcome to Aether Studio. This quick guide highlights the main features before you start simulating.");
+				ImGui::Spacing();
+
+				ImGui::SeparatorText("Camera Controls");
+				ImGui::BulletText("W / A / S / D : move the camera");
+				ImGui::BulletText("Right mouse drag : rotate view");
+
+				ImGui::SeparatorText("Simulation Controls");
+				ImGui::BulletText("Simulation menu lets you pause and resume physics");
+				ImGui::BulletText("Settings allows scenario reload and gravity changes");
+				ImGui::BulletText("Frame stats are shown live in the Simulation menu");
+
+				ImGui::SeparatorText("Bodies and Constraints");
+				ImGui::BulletText("Add Body menu spawns spheres, boxes, and ramps");
+				ImGui::BulletText("Constraints menu creates links like distance joints");
+				ImGui::BulletText("Body Inspector shows detailed state for selected bodies");
+
+				ImGui::SeparatorText("Visual Settings");
+				ImGui::BulletText("Toggle wireframe mode for collision-focused views");
+				ImGui::BulletText("Adjust body tint color for readability");
+				ImGui::BulletText("World and rendering options are available from top menus");
+				ImGui::BulletText("Toggle between vector display mode to see the direction of motion");
+
+				ImGui::SeparatorText("Scenarios");
+				ImGui::BulletText("Pick a test scenario from Settings");
+				ImGui::BulletText("Reload Selected Test Case applies your selection immediately");
+				ImGui::BulletText("Use Menu to return to start screen without closing the app");
+
+				ImGui::Spacing();
+				ImGui::Checkbox("Skip this guide next time", &skipGuideNextTime);
+				ImGui::Spacing();
+
+				if (ImGui::Button("Start Simulation", ImVec2(220.0f, 40.0f)))
+				{
+					if (isGuideForStartFlow)
+					{
+						reloadSelectedScenario();
+					}
+					isGuideForStartFlow = false;
+					beginRunningScreen();
+				}
+
+				ImGui::SameLine();
+				const char *backLabel = isGuideForStartFlow ? "Back to Start Menu" : "Back";
+				if (ImGui::Button(backLabel, ImVec2(220.0f, 40.0f)))
+				{
+					AppScreen targetScreen = isGuideForStartFlow ? AppScreen::StartScreen : guideReturnScreen;
+					isGuideForStartFlow = false;
+					appScreen = targetScreen;
+					if (targetScreen == AppScreen::Running)
+					{
+						isSimulationPaused = false;
+					}
+					accumulator = 0.0f;
+				}
+			}
+			ImGui::End();
+		}
+		else if (appScreen == AppScreen::Running)
+		{
+			const ImVec2 displaySize = ImGui::GetIO().DisplaySize;
+			const float menuBarHeight = ImGui::GetFrameHeight();
+			float inspectorWidth = displaySize.x * 0.18f;
+			if (inspectorWidth < 280.0f)
+				inspectorWidth = 280.0f;
+			if (inspectorWidth > 340.0f)
+				inspectorWidth = 340.0f;
+			const ImVec2 inspectorPos(8.0f, menuBarHeight + 8.0f);
+			const float inspectorHeight = (displaySize.y - menuBarHeight - 16.0f) * 0.5f;
+			const ImVec2 inspectorSize(inspectorWidth, inspectorHeight);
+			ImGui::SetNextWindowPos(inspectorPos, ImGuiCond_Always);
+			ImGui::SetNextWindowSize(inspectorSize, ImGuiCond_Always);
+			ImGuiWindowFlags inspectorFlags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+			if (ImGui::Begin("Body Inspector", nullptr, inspectorFlags))
+			{
+				RenderBodyInspectorContent(world, false);
+			}
+			ImGui::End();
+		}
+
+		RenderEnginePopups();
 		ImGui::Render();
 		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
@@ -177,7 +759,7 @@ void framebuffer_size_callback(GLFWwindow *window, int width, int height)
 	glViewport(0, 0, width, height);
 }
 
-void processInput(GLFWwindow *window, float deltaTime, Camera &camera)
+void processInput(GLFWwindow *window, float deltaTime, Camera &camera, bool cameraEnabled)
 {
 	static bool isDraggingCamera = false;
 	static double lastMouseX = 0.0;
@@ -186,6 +768,12 @@ void processInput(GLFWwindow *window, float deltaTime, Camera &camera)
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 	{
 		glfwSetWindowShouldClose(window, true);
+	}
+
+	if (!cameraEnabled)
+	{
+		isDraggingCamera = false;
+		return;
 	}
 
 	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)

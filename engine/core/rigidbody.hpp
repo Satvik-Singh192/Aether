@@ -5,6 +5,8 @@
 #include <iostream>
 #include "math/quat.hpp"
 #include "math/mat3.hpp"
+#include<memory>
+
 class Rigidbody {
 public: 
 	BodyID id;
@@ -20,13 +22,20 @@ public:
 	Vec3 acctork;
 	Mat3 inverse_inertia_body;   //for local
  	Mat3 inverse_inertia_world;  //for world
+	bool thermal_enabled = false;
+	float temperature = 293.15f;
+	float heat_capacity = 900.0f;
+	float thermal_conductivity = 0.5f;
+	float thermal_emissivity = 0.85f;
+	float render_alpha = 1.0f;
 
 	/*
 	- Collider is a pointer cuz if we just write "Collider collider;" then the collider will always be a generic one
 	  any custom collider will just get sliced when it assign it directly 
 	- one more thing, we can make ghost objects by assigning the nullptr, we cant do that the other way
 	*/
-	Collider* collider;
+	Collider* collider; 
+
 
 
 	Rigidbody(
@@ -43,4 +52,6 @@ public:
 	void clearForces();
 	void clearAccum();
 	void updateworldinvinertia();
+	float getMass() const;
+	float getThermalMass() const;
 };

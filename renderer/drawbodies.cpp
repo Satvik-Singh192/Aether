@@ -8,19 +8,54 @@
 #include "../engine/core/box_collider.hpp"
 #include "../engine/core/sphere_collider.hpp"
 #include "../engine/core/ramp_collider.hpp"
+#include "../engine/math/mat3.hpp"
+#include "../engine/math/vec3.hpp"
 #include "bodyselection.hpp"
 #include "bodyshaders.hpp"
+#include "drawconstraints.hpp"
+#include "thermal_palette.hpp"
 #include <algorithm>
 #include <cmath>
+#include <memory>
+#include <unordered_map>
+#include <unordered_set>
 
 static GLuint shaderProgram;
 static GLuint solidProgram;
 static GLuint VAO, VBO;
 static GLuint solidVAO, solidVBO;
 static bool g_wireframeMode = false;
+static bool showVelocityArrows = true;
 static float g_bodyTintR = 1.0f;
 static float g_bodyTintG = 1.0f;
 static float g_bodyTintB = 1.0f;
+struct ArrowRenderState
+{
+    glm::vec3 dir = glm::vec3(1.0f, 0.0f, 0.0f);
+    glm::vec3 velSmooth = glm::vec3(0.0f);
+    float speed = 0.0f;
+    glm::vec3 lastPos = glm::vec3(0.0f);
+    float posMoveSmooth = 0.0f;
+    int stillFrames = 0;
+    bool visible = false;
+    bool initialized = false;
+};
+static std::unordered_map<BodyID, ArrowRenderState> g_arrowRenderStates;
+
+namespace
+{
+    constexpr float ARROW_VEL_SMOOTH = 0.055f;
+    constexpr float ARROW_DIR_BLEND = 0.05f;
+    constexpr float ARROW_SPEED_SMOOTH = 0.065f;
+    constexpr float ARROW_POS_MOVE_SMOOTH = 0.28f;
+    constexpr float ARROW_SHOW_SPEED = 0.19f;
+    constexpr float ARROW_HIDE_SPEED = 0.048f;
+    constexpr float ARROW_MOVE_REST = 0.0011f;
+    constexpr int ARROW_STILL_FRAMES = 12;
+    constexpr float ARROW_DIR_UPDATE_MIN_SPEED = 0.06f;
+    constexpr float ARROW_SHOW_MOVE_FACTOR = 2.2f;
+    constexpr float ARROW_DRAW_MIN_SPEED = 0.042f;
+}
 
 static void applyBodyTint(float &r, float &g, float &b)
 {
@@ -71,7 +106,8 @@ static void pushLine(std::vector<float> &v, const glm::vec3 &a, const glm::vec3 
 
 static void pushCircleLines(std::vector<float> &v, const glm::vec3 &center, float radius, int segments, int planeAxis0, int planeAxis1)
 {
-    auto point = [&](float t) -> glm::vec3 {
+    auto point = [&](float t) -> glm::vec3
+    {
         glm::vec3 p = center;
         p[planeAxis0] += radius * std::cos(t);
         p[planeAxis1] += radius * std::sin(t);
@@ -118,22 +154,28 @@ static void pushFace4(std::vector<float> &v, const glm::vec3 &a, const glm::vec3
     pushTri(v, a, na, cc, nc, d, nd); // 2 tris for a rec
 }
 
-static void pushBoxSolid(std::vector<float> &v, const glm::vec3 &c, const glm::vec3 &h) // creating solid shapes
+static glm::vec3 rotateOffset(const Mat3 &R, const glm::vec3 &o)
 {
-    const glm::vec3 p000 = c + glm::vec3(-h.x, -h.y, -h.z);
-    const glm::vec3 p001 = c + glm::vec3(-h.x, -h.y, +h.z);
-    const glm::vec3 p010 = c + glm::vec3(-h.x, +h.y, -h.z);
-    const glm::vec3 p011 = c + glm::vec3(-h.x, +h.y, +h.z);
-    const glm::vec3 p100 = c + glm::vec3(+h.x, -h.y, -h.z);
-    const glm::vec3 p101 = c + glm::vec3(+h.x, -h.y, +h.z);
-    const glm::vec3 p110 = c + glm::vec3(+h.x, +h.y, -h.z);
-    const glm::vec3 p111 = c + glm::vec3(+h.x, +h.y, +h.z);
-    const glm::vec3 nxp(-1.0f, 0.0f, 0.0f);
-    const glm::vec3 nx(1.0f, 0.0f, 0.0f);
-    const glm::vec3 nyn(0.0f, -1.0f, 0.0f);
-    const glm::vec3 ny(0.0f, 1.0f, 0.0f);
-    const glm::vec3 nzn(0.0f, 0.0f, -1.0f);
-    const glm::vec3 nz(0.0f, 0.0f, 1.0f);
+    Vec3 ro = R * Vec3(o.x, o.y, o.z);
+    return glm::vec3(ro.x, ro.y, ro.z);
+}
+
+static void pushBoxSolid(std::vector<float> &v, const glm::vec3 &c, const glm::vec3 &h, const Mat3 &R) // creating solid shapes
+{
+    const glm::vec3 p000 = c + rotateOffset(R, glm::vec3(-h.x, -h.y, -h.z));
+    const glm::vec3 p001 = c + rotateOffset(R, glm::vec3(-h.x, -h.y, +h.z));
+    const glm::vec3 p010 = c + rotateOffset(R, glm::vec3(-h.x, +h.y, -h.z));
+    const glm::vec3 p011 = c + rotateOffset(R, glm::vec3(-h.x, +h.y, +h.z));
+    const glm::vec3 p100 = c + rotateOffset(R, glm::vec3(+h.x, -h.y, -h.z));
+    const glm::vec3 p101 = c + rotateOffset(R, glm::vec3(+h.x, -h.y, +h.z));
+    const glm::vec3 p110 = c + rotateOffset(R, glm::vec3(+h.x, +h.y, -h.z));
+    const glm::vec3 p111 = c + rotateOffset(R, glm::vec3(+h.x, +h.y, +h.z));
+    const glm::vec3 nxp = rotateOffset(R, glm::vec3(-1.0f, 0.0f, 0.0f));
+    const glm::vec3 nx = rotateOffset(R, glm::vec3(1.0f, 0.0f, 0.0f));
+    const glm::vec3 nyn = rotateOffset(R, glm::vec3(0.0f, -1.0f, 0.0f));
+    const glm::vec3 ny = rotateOffset(R, glm::vec3(0.0f, 1.0f, 0.0f));
+    const glm::vec3 nzn = rotateOffset(R, glm::vec3(0.0f, 0.0f, -1.0f));
+    const glm::vec3 nz = rotateOffset(R, glm::vec3(0.0f, 0.0f, 1.0f));
     pushFace4(v, p000, nxp, p010, nxp, p011, nxp, p001, nxp);
     pushFace4(v, p100, nx, p110, nx, p111, nx, p101, nx);
     pushFace4(v, p000, nyn, p100, nyn, p101, nyn, p001, nyn);
@@ -144,7 +186,7 @@ static void pushBoxSolid(std::vector<float> &v, const glm::vec3 &c, const glm::v
 
 static void pushSphereSolid(std::vector<float> &v, const glm::vec3 &c, float r, int stacks, int slices) // creating spheres
 {
-    const float pi = 3.14159265f; // for angular calci
+    const float pi = 3.14159265f;       // for angular calci
     for (int si = 0; si < stacks; ++si) // vertical parse 0 -> pi
     {
         float t0 = (float)si / (float)stacks * pi;
@@ -207,8 +249,312 @@ static bool looksLikeFloor(const Rigidbody &body) // check for floor
     return hy <= 0.15f && hx >= 40.0f && hz >= 40.0f;
 }
 
+static bool useThermalGradient(const PhysicsWorld &world, const Rigidbody &body)
+{
+    return world.thermal_settings.enabled && body.thermal_enabled && !looksLikeFloor(body);
+}
+
+static glm::vec3 temperatureColor(const PhysicsWorld &world, const Rigidbody &body)
+{
+    const auto &settings = world.thermal_settings;
+    float minT = settings.min_visual_temperature;
+    float maxT = settings.max_visual_temperature;
+    float span = std::max(1.0f, maxT - minT);
+    float norm = (body.temperature - minT) / span;
+    return SampleThermalGradient(norm);
+}
+
+static bool getArrowOrigin(const Rigidbody &body, const glm::vec3 &dir, glm::vec3 &origin, float &sizeScale)
+{
+    if (!body.collider)
+        return false;
+    const glm::vec3 c(body.position.x, body.position.y, body.position.z);
+    Mat3 R = body.orientation.toMat3();
+    if (body.collider->type == ShapeType::Sphere)
+    {
+        const auto *sphere = static_cast<const SphereCollider *>(body.collider);
+        float r = std::max(0.12f, sphere->radius);
+        origin = c + dir * (r + 0.06f);
+        sizeScale = r;
+        return true;
+    }
+    if (body.collider->type == ShapeType::Box)
+    {
+        const auto *box = static_cast<const BoxCollider *>(body.collider);
+        float ex = std::abs(dir.x * box->halfsize.x);
+        float ey = std::abs(dir.y * box->halfsize.y);
+        float ez = std::abs(dir.z * box->halfsize.z);
+        float support = ex + ey + ez;
+        support = std::max(0.12f, support);
+        float maxHalf = std::max(box->halfsize.x, std::max(box->halfsize.y, box->halfsize.z));
+        origin = c + dir * (support + 0.06f);
+        sizeScale = std::max(0.16f, maxHalf);
+        return true;
+    }
+    if (body.collider->type == ShapeType::Ramp)
+    {
+        const auto *ramp = static_cast<const RampCollider *>(body.collider);
+        const Vec3 comOffset = ramp->getLocalCenterOfMassOffset();
+        glm::vec3 localAnchor(ramp->length * 0.65f - comOffset.x, ramp->getHeight() * 0.72f - comOffset.y, 0.0f);
+        glm::vec3 worldAnchor = c + rotateOffset(R, localAnchor);
+        glm::vec3 up = rotateOffset(R, glm::vec3(0.0f, 1.0f, 0.0f));
+        float upLen = glm::length(up);
+        if (upLen > 1e-5f)
+            up = up * (1.0f / upLen);
+        else
+            up = glm::vec3(0.0f, 1.0f, 0.0f);
+        origin = worldAnchor + up * 0.08f + dir * 0.06f;
+        sizeScale = std::max(0.18f, std::min(0.52f, std::max(ramp->length * 0.12f, ramp->getHeight() * 0.2f)));
+        return true;
+    }
+    origin = c + dir * 0.12f;
+    sizeScale = 0.22f;
+    return true;
+}
+
+static void pushVelocityArrow(std::vector<float> &v, const Rigidbody &body, const glm::vec3 &vel)
+{
+    float sqlen = vel.x * vel.x + vel.y * vel.y + vel.z * vel.z;
+    if (sqlen < ARROW_DRAW_MIN_SPEED * ARROW_DRAW_MIN_SPEED)
+        return;
+    float inv = 1.0f / std::sqrt(sqlen);
+    glm::vec3 dir(vel.x * inv, vel.y * inv, vel.z * inv);
+    glm::vec3 start;
+    float sizeScale = 0.22f;
+    if (!getArrowOrigin(body, dir, start, sizeScale))
+        return;
+    float velocityMag = std::sqrt(sqlen);
+    constexpr float minArrowLen = 0.15f;
+    constexpr float maxArrowLen = 1.5f;
+    constexpr float velocityScale = 1.0f;
+    float totalLen = std::min(maxArrowLen, std::max(minArrowLen, velocityMag * velocityScale));
+    const float headLen = totalLen * 0.34f;
+    const float headW = std::max(0.03f, totalLen * 0.18f);
+    glm::vec3 tip = start + dir * totalLen;
+    glm::vec3 shaftEnd = start + dir * (totalLen - headLen);
+    glm::vec3 aux(0.0f, 1.0f, 0.0f);
+    if (std::abs(dir.x * aux.x + dir.y * aux.y + dir.z * aux.z) > 0.92f)
+        aux = glm::vec3(1.0f, 0.0f, 0.0f);
+    glm::vec3 side = glm::cross(dir, aux);
+    float slen = glm::length(side);
+    if (slen < 1e-5f)
+        return;
+    side = side * (1.0f / slen);
+    glm::vec3 up = glm::cross(side, dir);
+    float ulen = glm::length(up);
+    if (ulen < 1e-5f)
+        return;
+    up = up * (1.0f / ulen);
+    glm::vec3 w0 = shaftEnd + side * headW;
+    glm::vec3 w1 = shaftEnd - side * headW;
+    glm::vec3 w2 = shaftEnd + up * headW;
+    glm::vec3 w3 = shaftEnd - up * headW;
+    pushLine(v, start, tip);
+    pushLine(v, tip, w0);
+    pushLine(v, tip, w1);
+    pushLine(v, tip, w2);
+    pushLine(v, tip, w3);
+}
+
+static void drawVelocityArrows(PhysicsWorld &world, GLuint prog, GLuint vao, GLuint vbo, GLint modelLoc,
+                               GLint viewLoc, GLint projLoc, GLint colorLoc, const glm::mat4 &model,
+                               const glm::mat4 &view, const glm::mat4 &projection)
+{
+    if (!showVelocityArrows)
+        return;
+    std::vector<float> arrowVerts;
+    std::unordered_set<BodyID> alive;
+    alive.reserve(world.getBodies().size());
+    for (auto &body : world.getBodies())
+    {
+        if (looksLikeFloor(body))
+            continue;
+        if (!body.collider)
+            continue;
+        alive.insert(body.id);
+        auto &state = g_arrowRenderStates[body.id];
+        glm::vec3 vel(body.velocity.x, body.velocity.y, body.velocity.z);
+        glm::vec3 pos(body.position.x, body.position.y, body.position.z);
+        float rawSpeed = glm::length(vel);
+        glm::vec3 rawDir = state.dir;
+        if (rawSpeed > 1e-5f)
+            rawDir = vel * (1.0f / rawSpeed);
+        if (!state.initialized)
+        {
+            state.dir = rawDir;
+            state.velSmooth = vel;
+            state.speed = rawSpeed;
+            state.lastPos = pos;
+            state.posMoveSmooth = 0.0f;
+            state.stillFrames = 0;
+            state.initialized = true;
+        }
+        float frameMove = glm::length(pos - state.lastPos);
+        state.lastPos = pos;
+        state.posMoveSmooth =
+            state.posMoveSmooth + (frameMove - state.posMoveSmooth) * ARROW_POS_MOVE_SMOOTH;
+        state.velSmooth = glm::mix(state.velSmooth, vel, ARROW_VEL_SMOOTH);
+        float smoothSpeed = glm::length(state.velSmooth);
+        state.speed = state.speed + (smoothSpeed - state.speed) * ARROW_SPEED_SMOOTH;
+        if (smoothSpeed > ARROW_DIR_UPDATE_MIN_SPEED)
+        {
+            glm::vec3 sd = state.velSmooth * (1.0f / smoothSpeed);
+            state.dir = glm::normalize(glm::mix(state.dir, sd, ARROW_DIR_BLEND));
+        }
+        bool likelyRest = (rawSpeed < ARROW_HIDE_SPEED && state.speed < ARROW_HIDE_SPEED &&
+                           smoothSpeed < ARROW_HIDE_SPEED && state.posMoveSmooth < ARROW_MOVE_REST);
+        if (likelyRest)
+            state.stillFrames += 1;
+        else
+            state.stillFrames = 0;
+        if (state.visible)
+        {
+            if (state.stillFrames > ARROW_STILL_FRAMES)
+                state.visible = false;
+        }
+        else
+        {
+            if ((state.speed > ARROW_SHOW_SPEED || rawSpeed > ARROW_SHOW_SPEED) &&
+                state.posMoveSmooth > ARROW_MOVE_REST * ARROW_SHOW_MOVE_FACTOR)
+                state.visible = true;
+        }
+        if (!state.visible)
+            continue;
+        glm::vec3 stableVel = state.dir * state.speed;
+        pushVelocityArrow(arrowVerts, body, stableVel);
+    }
+    std::vector<BodyID> stale;
+    stale.reserve(g_arrowRenderStates.size());
+    for (const auto &it : g_arrowRenderStates)
+    {
+        if (alive.find(it.first) == alive.end())
+            stale.push_back(it.first);
+    }
+    for (BodyID id : stale)
+    {
+        g_arrowRenderStates.erase(id);
+    }
+    if (arrowVerts.empty())
+        return;
+    glUseProgram(prog);
+    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+    glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
+    glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
+    glBindVertexArray(vao);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, arrowVerts.size() * sizeof(float), arrowVerts.data(), GL_DYNAMIC_DRAW);
+    if (colorLoc >= 0)
+        glUniform4f(colorLoc, 0.82f, 0.98f, 1.0f, 1.0f);
+    glLineWidth(4.0f);
+    glDrawArrays(GL_LINES, 0, static_cast<GLsizei>(arrowVerts.size() / 3));
+}
+
 void RenderBodies(PhysicsWorld &world, const Camera &camera, float aspectRatio)
 {
+    if (world.enable_buoyancy)
+    {
+        const Fluid &fluid = world.water_fluid;
+        const float halfSize = fluid.beaker_half_size;
+        constexpr float wallThickness = 0.2f;
+        constexpr float wallHalf = wallThickness / 2.0f;
+
+        float beakerCenterY = fluid.beaker_center.y;
+        if (std::abs(beakerCenterY) < 1e-4f)
+            beakerCenterY = halfSize;
+
+        auto isWallLike = [&](const Rigidbody &body) -> bool
+        {
+            if (body.inverse_mass != 0.0f)
+                return false;
+            if (!body.collider || body.collider->type != ShapeType::Box)
+                return false;
+            const BoxCollider *box = static_cast<const BoxCollider *>(body.collider);
+            const Vec3 hs = box->halfsize;
+            const float tol = 0.02f;
+
+            const bool matchesXWall = (std::abs(hs.x - wallHalf) < tol) && (std::abs(hs.y - halfSize) < tol) && (std::abs(hs.z - halfSize) < tol);
+            const bool matchesZWall = (std::abs(hs.z - wallHalf) < tol) && (std::abs(hs.y - halfSize) < tol) && (std::abs(hs.x - halfSize) < tol);
+
+            const float bottomHalfX = std::max(0.01f, halfSize - wallThickness);
+            const float bottomHalfY = wallHalf;
+            const float bottomHalfZ = std::max(0.01f, halfSize - wallThickness);
+            const bool matchesBottom = (std::abs(hs.x - bottomHalfX) < tol) &&
+                                         (std::abs(hs.y - bottomHalfY) < tol) &&
+                                         (std::abs(hs.z - bottomHalfZ) < tol);
+
+            return matchesXWall || matchesZWall || matchesBottom;
+        };
+
+        bool alreadyHas = false;
+        for (const auto &b : world.getBodies())
+        {
+            if (isWallLike(b))
+            {
+                alreadyHas = true;
+                break;
+            }
+        }
+
+        static std::vector<std::unique_ptr<Collider>> s_owned;
+        if (!alreadyHas)
+        {
+            s_owned.clear();
+            const float cx = fluid.beaker_center.x;
+            const float cz = fluid.beaker_center.z;
+            const float yCenter = beakerCenterY;
+            const float yHalf = halfSize;
+
+            auto addBox = [&](const Vec3 &pos, const Vec3 &hs)
+            {
+                auto c = std::make_unique<BoxCollider>(hs);
+                Collider *ptr = c.get();
+                s_owned.push_back(std::move(c));
+                world.addBody(Rigidbody(pos, Vec3(), ptr, 0.0f));
+            };
+
+            addBox(Vec3(cx - halfSize + wallHalf, yCenter, cz), Vec3(wallHalf, yHalf, halfSize));
+            addBox(Vec3(cx + halfSize - wallHalf, yCenter, cz), Vec3(wallHalf, yHalf, halfSize));
+            addBox(Vec3(cx, yCenter, cz - halfSize + wallHalf), Vec3(halfSize, yHalf, wallHalf));
+            addBox(Vec3(cx, yCenter, cz + halfSize - wallHalf), Vec3(halfSize, yHalf, wallHalf));
+
+            const float bottomHalfX = std::max(0.01f, halfSize - wallThickness);
+            const float bottomHalfY = wallHalf;
+            const float bottomHalfZ = std::max(0.01f, halfSize - wallThickness);
+            const float bottomCenterY = yCenter - halfSize + wallHalf;
+            addBox(Vec3(cx, bottomCenterY, cz), Vec3(bottomHalfX, bottomHalfY, bottomHalfZ));
+        }
+    }
+
+    auto isBuoyancyHelperWallBody = [&](const Rigidbody &body) -> bool
+    {
+        if (!world.enable_buoyancy)
+            return false;
+        if (body.inverse_mass != 0.0f)
+            return false;
+        if (!body.collider || body.collider->type != ShapeType::Box)
+            return false;
+
+        const Fluid &fluid = world.water_fluid;
+        const float halfSize = fluid.beaker_half_size;
+        constexpr float wallThickness = 0.2f;
+        constexpr float wallHalf = wallThickness / 2.0f;
+        const float tol = 0.02f;
+        const BoxCollider *box = static_cast<const BoxCollider *>(body.collider);
+        const Vec3 hs = box->halfsize;
+
+        const bool matchesXWall = (std::abs(hs.x - wallHalf) < tol) && (std::abs(hs.y - halfSize) < tol) && (std::abs(hs.z - halfSize) < tol);
+        const bool matchesZWall = (std::abs(hs.z - wallHalf) < tol) && (std::abs(hs.y - halfSize) < tol) && (std::abs(hs.x - halfSize) < tol);
+
+        const float bottomHalfX = std::max(0.01f, halfSize - wallThickness);
+        const float bottomHalfY = wallHalf;
+        const float bottomHalfZ = std::max(0.01f, halfSize - wallThickness);
+        const bool matchesBottom = (std::abs(hs.x - bottomHalfX) < tol) &&
+                                     (std::abs(hs.y - bottomHalfY) < tol) &&
+                                     (std::abs(hs.z - bottomHalfZ) < tol);
+
+        return matchesXWall || matchesZWall || matchesBottom;
+    };
+
     // Separate vertex lists so we can color axes and body outlines differently
     std::vector<float> axisVertices;
     axisVertices.reserve(18); // 3 axes * 2 endpoints * 3 components
@@ -274,7 +620,19 @@ void RenderBodies(PhysicsWorld &world, const Camera &camera, float aspectRatio)
         GLint smLight = glGetUniformLocation(solidProgram, "uLightDir");
         GLint smSel = glGetUniformLocation(solidProgram, "uSelected");
         GLint smFloor = glGetUniformLocation(solidProgram, "uFloor");
-        glm::vec3 lightDir = glm::normalize(glm::vec3(0.4f, -0.75f, 0.35f));
+        // Environment lighting + fog.
+        GLint smSky = glGetUniformLocation(solidProgram, "uSkyColor");
+        GLint smGround = glGetUniformLocation(solidProgram, "uGroundColor");
+        GLint smFogColor = glGetUniformLocation(solidProgram, "uFogColor");
+        GLint smFogNear = glGetUniformLocation(solidProgram, "uFogNear");
+        GLint smFogFar = glGetUniformLocation(solidProgram, "uFogFar");
+
+        // Material parameters (per body, derived from tint).
+        GLint smMatAmbient = glGetUniformLocation(solidProgram, "material.ambient");
+        GLint smMatDiffuse = glGetUniformLocation(solidProgram, "material.diffuse");
+        GLint smMatSpecular = glGetUniformLocation(solidProgram, "material.specular");
+        GLint smMatShininess = glGetUniformLocation(solidProgram, "material.shininess");
+        glm::vec3 lightDir = glm::normalize(glm::vec3(5.0f, -1.1f, 1.0f));
         glm::vec3 camPos = camera.getPosition();
         glUniformMatrix4fv(smView, 1, GL_FALSE, glm::value_ptr(view));
         glUniformMatrix4fv(smProj, 1, GL_FALSE, glm::value_ptr(projection));
@@ -282,19 +640,41 @@ void RenderBodies(PhysicsWorld &world, const Camera &camera, float aspectRatio)
         glUniform3fv(smLight, 1, glm::value_ptr(lightDir));
         glUniform3fv(smCam, 1, glm::value_ptr(camPos));
 
+        const glm::vec3 skyColor(0.03f, 0.02f, 0.07f);
+        const glm::vec3 groundColor(0.01f, 0.01f, 0.015f);
+        const glm::vec3 fogColor(0.015f, 0.01f, 0.035f);
+        const float fogNear = 28.0f;
+        const float fogFar = 80.0f;
+
+        if (smSky >= 0)
+            glUniform3fv(smSky, 1, glm::value_ptr(skyColor));
+        if (smGround >= 0)
+            glUniform3fv(smGround, 1, glm::value_ptr(groundColor));
+        if (smFogColor >= 0)
+            glUniform3fv(smFogColor, 1, glm::value_ptr(fogColor));
+        if (smFogNear >= 0)
+            glUniform1f(smFogNear, fogNear);
+        if (smFogFar >= 0)
+            glUniform1f(smFogFar, fogFar);
+
+        const glm::vec3 specularColor(0.95f, 0.97f, 1.0f);
+        const float shininess = 64.0f;
+
         glBindVertexArray(solidVAO);
         glBindBuffer(GL_ARRAY_BUFFER, solidVBO);
 
-        auto drawSolidBody = [&](Rigidbody &body, float floorFlag, float ar, float ag, float ab, float aa) {
+        auto drawSolidBody = [&](Rigidbody &body, float floorFlag, float ar, float ag, float ab, float aa)
+        {
             if (!body.collider)
                 return;
             const glm::vec3 c(body.position.x, body.position.y, body.position.z);
+            Mat3 R = body.orientation.toMat3();
             std::vector<float> solidVerts;
             solidVerts.reserve(4096);
             if (body.collider->type == ShapeType::Box)
             {
                 const auto *box = static_cast<const BoxCollider *>(body.collider);
-                pushBoxSolid(solidVerts, c, glm::vec3(box->halfsize.x, box->halfsize.y, box->halfsize.z));
+                pushBoxSolid(solidVerts, c, glm::vec3(box->halfsize.x, box->halfsize.y, box->halfsize.z), R);
             }
             else if (body.collider->type == ShapeType::Sphere)
             {
@@ -304,29 +684,197 @@ void RenderBodies(PhysicsWorld &world, const Camera &camera, float aspectRatio)
             else if (body.collider->type == ShapeType::Ramp)
             {
                 const auto *ramp = static_cast<const RampCollider *>(body.collider);
-                pushRampSolid(solidVerts, c, ramp->length, ramp->getHeight(), ramp->half_width_z);
+                std::vector<float> tmp;
+                tmp.reserve(2048);
+                pushRampSolid(tmp, glm::vec3(0.0f), ramp->length, ramp->getHeight(), ramp->half_width_z);
+                const Vec3 comOffset = ramp->getLocalCenterOfMassOffset();
+                const glm::vec3 comLocal(comOffset.x, comOffset.y, comOffset.z);
+
+                solidVerts.reserve(tmp.size());
+                for (std::size_t i = 0; i + 5 < tmp.size(); i += 6)
+                {
+                    glm::vec3 p(tmp[i + 0], tmp[i + 1], tmp[i + 2]);
+                    glm::vec3 n(tmp[i + 3], tmp[i + 4], tmp[i + 5]);
+                    p = c + rotateOffset(R, p - comLocal);
+                    n = rotateOffset(R, n);
+                    solidVerts.push_back(p.x);
+                    solidVerts.push_back(p.y);
+                    solidVerts.push_back(p.z);
+                    solidVerts.push_back(n.x);
+                    solidVerts.push_back(n.y);
+                    solidVerts.push_back(n.z);
+                }
             }
+            if (solidVerts.empty())
+                return;
+
+            const bool isSelected = (body.id == GetSelectedBodyId());
+            float cr = ar;
+            float cg = ag;
+            float cb = ab;
+            float ca = aa;
+            if (ca < 0.0f)
+                ca = 0.0f;
+            if (ca > 1.0f)
+                ca = 1.0f;
+            if (isSelected && floorFlag < 0.5f)
+            {
+                cr = 1.0f;
+                cg = 0.92f;
+                cb = 0.35f;
+                ca = 1.0f;
+            }
+
+            glColor4f(cr, cg, cb, ca);
+            if (ca <= 0.0f)
+                return;
+
+            glBufferData(GL_ARRAY_BUFFER, solidVerts.size() * sizeof(float), solidVerts.data(), GL_DYNAMIC_DRAW);
+            if (smFloor >= 0)
+                glUniform1f(smFloor, floorFlag);
+
+            if (smCol >= 0)
+            {
+                glUniform4f(smCol, cr, cg, cb, ca);
+            }
+            if (smSel >= 0)
+                glUniform1f(smSel, (isSelected && floorFlag < 0.5f) ? 1.0f : 0.0f);
+
+            if (smMatAmbient >= 0)
+                glUniform3f(smMatAmbient, cr, cg, cb);
+            if (smMatDiffuse >= 0)
+                glUniform3f(smMatDiffuse, cr, cg, cb);
+            if (smMatSpecular >= 0)
+                glUniform3fv(smMatSpecular, 1, glm::value_ptr(specularColor));
+            if (smMatShininess >= 0)
+                glUniform1f(smMatShininess, shininess);
+
+            glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(solidVerts.size() / 6));
+        };
+
+        auto pushBoxSolidOpenTop = [&](std::vector<float> &v, const glm::vec3 &c, const glm::vec3 &h, const Mat3 &R)
+        {
+            const glm::vec3 p000 = c + rotateOffset(R, glm::vec3(-h.x, -h.y, -h.z));
+            const glm::vec3 p001 = c + rotateOffset(R, glm::vec3(-h.x, -h.y, +h.z));
+            const glm::vec3 p010 = c + rotateOffset(R, glm::vec3(-h.x, +h.y, -h.z));
+            const glm::vec3 p011 = c + rotateOffset(R, glm::vec3(-h.x, +h.y, +h.z));
+            const glm::vec3 p100 = c + rotateOffset(R, glm::vec3(+h.x, -h.y, -h.z));
+            const glm::vec3 p101 = c + rotateOffset(R, glm::vec3(+h.x, -h.y, +h.z));
+            const glm::vec3 p110 = c + rotateOffset(R, glm::vec3(+h.x, +h.y, -h.z));
+            const glm::vec3 p111 = c + rotateOffset(R, glm::vec3(+h.x, +h.y, +h.z));
+            const glm::vec3 nxp = rotateOffset(R, glm::vec3(-1.0f, 0.0f, 0.0f));
+            const glm::vec3 nx = rotateOffset(R, glm::vec3(1.0f, 0.0f, 0.0f));
+            const glm::vec3 nyn = rotateOffset(R, glm::vec3(0.0f, -1.0f, 0.0f));
+            const glm::vec3 nzn = rotateOffset(R, glm::vec3(0.0f, 0.0f, -1.0f));
+            const glm::vec3 nz = rotateOffset(R, glm::vec3(0.0f, 0.0f, 1.0f));
+            pushFace4(v, p000, nxp, p010, nxp, p011, nxp, p001, nxp);
+            pushFace4(v, p100, nx, p110, nx, p111, nx, p101, nx);
+            pushFace4(v, p000, nyn, p100, nyn, p101, nyn, p001, nyn);
+            pushFace4(v, p000, nzn, p100, nzn, p110, nzn, p010, nzn);
+            pushFace4(v, p001, nz, p011, nz, p111, nz, p101, nz);
+        };
+
+        auto drawTransparentBoxOpenTop = [&](const glm::vec3 &center, const glm::vec3 &half,
+                                             const Mat3 &R,
+                                             float r, float g, float b, float a)
+        {
+            std::vector<float> solidVerts;
+            solidVerts.reserve(4096);
+            pushBoxSolidOpenTop(solidVerts, center, half, R);
             if (solidVerts.empty())
                 return;
             glBufferData(GL_ARRAY_BUFFER, solidVerts.size() * sizeof(float), solidVerts.data(), GL_DYNAMIC_DRAW);
             if (smFloor >= 0)
-                glUniform1f(smFloor, floorFlag);
-            const bool isSelected = (body.id == GetSelectedBodyId());
+                glUniform1f(smFloor, 0.0f);
             if (smCol >= 0)
-            {
-                if (isSelected && floorFlag < 0.5f)
-                    glUniform4f(smCol, 1.0f, 0.92f, 0.35f, 1.0f);
-                else
-                    glUniform4f(smCol, ar, ag, ab, aa);
-            }
-            if (smSel >= 0)
-                glUniform1f(smSel, (isSelected && floorFlag < 0.5f) ? 1.0f : 0.0f);
+                glUniform4f(smCol, r, g, b, a);
+            if (smMatAmbient >= 0)
+                glUniform3f(smMatAmbient, r, g, b);
+            if (smMatDiffuse >= 0)
+                glUniform3f(smMatDiffuse, r, g, b);
+            if (smMatSpecular >= 0)
+                glUniform3fv(smMatSpecular, 1, glm::value_ptr(specularColor));
+            if (smMatShininess >= 0)
+                glUniform1f(smMatShininess, shininess);
             glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(solidVerts.size() / 6));
         };
+
+        auto drawTransparentBox = [&](const glm::vec3 &center, const glm::vec3 &half,
+                                      const Mat3 &R,
+                                      float r, float g, float b, float a)
+        {
+            std::vector<float> solidVerts;
+            solidVerts.reserve(4096);
+            pushBoxSolid(solidVerts, center, half, R);
+            if (solidVerts.empty())
+                return;
+            glBufferData(GL_ARRAY_BUFFER, solidVerts.size() * sizeof(float), solidVerts.data(), GL_DYNAMIC_DRAW);
+            if (smFloor >= 0)
+                glUniform1f(smFloor, 0.0f);
+            if (smCol >= 0)
+                glUniform4f(smCol, r, g, b, a);
+            if (smMatAmbient >= 0)
+                glUniform3f(smMatAmbient, r, g, b);
+            if (smMatDiffuse >= 0)
+                glUniform3f(smMatDiffuse, r, g, b);
+            if (smMatSpecular >= 0)
+                glUniform3fv(smMatSpecular, 1, glm::value_ptr(specularColor));
+            if (smMatShininess >= 0)
+                glUniform1f(smMatShininess, shininess);
+            glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(solidVerts.size() / 6));
+        };
+
+        if (world.enable_buoyancy)
+        {
+            const Fluid &fluid = world.water_fluid;
+            const float halfSize = fluid.beaker_half_size;
+            constexpr float wallThickness = 0.2f;
+
+            float beakerCenterY = fluid.beaker_center.y;
+            if (std::abs(beakerCenterY) < 1e-4f)
+                beakerCenterY = halfSize;
+
+            const Vec3 beakerCenter(fluid.beaker_center.x, beakerCenterY, fluid.beaker_center.z);
+
+            const float innerHalfX = std::max(0.01f, halfSize - wallThickness);
+            const float innerHalfZ = std::max(0.01f, halfSize - wallThickness);
+            const float innerHalfY = std::max(0.01f, halfSize - wallThickness);
+            const float innerBottomY = beakerCenterY - innerHalfY;
+
+            const float waterTopY = fluid.height;
+            const float waterHeight = std::max(0.0f, std::min(waterTopY - innerBottomY, 2.0f * innerHalfY));
+
+            if (waterHeight > 1e-4f)
+            {
+                glEnable(GL_BLEND);
+                glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+                glDepthMask(GL_FALSE);
+
+                const float waterHalfY = waterHeight * 0.5f;
+                const float waterCenterY = innerBottomY + waterHalfY;
+                drawTransparentBox(glm::vec3(beakerCenter.x, waterCenterY, beakerCenter.z),
+                                   glm::vec3(innerHalfX, waterHalfY, innerHalfZ),
+                                   Mat3::identity(),
+                                   0.18f, 0.55f, 1.00f, 0.34f);
+
+                constexpr float surfaceThickness = 0.08f;
+                const float surfaceHalfY = std::min(surfaceThickness * 0.5f, waterHalfY);
+                const float surfaceCenterY = waterTopY - surfaceHalfY;
+                drawTransparentBox(glm::vec3(beakerCenter.x, surfaceCenterY, beakerCenter.z),
+                                   glm::vec3(innerHalfX, surfaceHalfY, innerHalfZ),
+                                   Mat3::identity(),
+                                   0.22f, 0.65f, 1.00f, 0.24f);
+
+                glDepthMask(GL_TRUE);
+                glDisable(GL_BLEND);
+            }
+        }
 
         for (auto &body : world.getBodies())
         {
             if (looksLikeFloor(body))
+                continue;
+            if (isBuoyancyHelperWallBody(body))
                 continue;
             BodyID key = body.id;
             float r = ((key * 73u) % 100) / 100.0f;
@@ -335,9 +883,24 @@ void RenderBodies(PhysicsWorld &world, const Camera &camera, float aspectRatio)
             r = 0.5f + 0.5f * r;
             g = 0.5f + 0.5f * g;
             b = 0.5f + 0.5f * b;
+            if (useThermalGradient(world, body))
+            {
+                glm::vec3 thermal = temperatureColor(world, body);
+                r = thermal.r;
+                g = thermal.g;
+                b = thermal.b;
+            }
             applyBodyTint(r, g, b);
-            drawSolidBody(body, 0.0f, r, g, b, 1.0f);
+            drawSolidBody(body, 0.0f, r, g, b, body.render_alpha);
         }
+
+        float tintR, tintG, tintB;
+        GetBodyTint(tintR, tintG, tintB);
+        RenderDistanceConstraintsSolid(world, view, projection, solidProgram, solidVAO, solidVBO, lightDir, camPos,
+                                       tintR, tintG, tintB);
+
+        glBindVertexArray(solidVAO);
+        glBindBuffer(GL_ARRAY_BUFFER, solidVBO);
 
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -348,7 +911,27 @@ void RenderBodies(PhysicsWorld &world, const Camera &camera, float aspectRatio)
         {
             if (!looksLikeFloor(body))
                 continue;
-            drawSolidBody(body, 1.0f, 0.26f, 0.28f, 0.31f, 0.78f);
+            drawSolidBody(body, 1.0f, 0.26f, 0.28f, 0.31f, 0.78f * body.render_alpha);
+        }
+
+        if (world.enable_buoyancy)
+        {
+            const Fluid &fluid = world.water_fluid;
+            const float halfSize = fluid.beaker_half_size;
+            float beakerCenterY = fluid.beaker_center.y;
+            if (std::abs(beakerCenterY) < 1e-4f)
+                beakerCenterY = halfSize;
+            const Vec3 beakerCenter(fluid.beaker_center.x, beakerCenterY, fluid.beaker_center.z);
+
+            glEnable(GL_BLEND);
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            glDepthMask(GL_FALSE);
+            drawTransparentBoxOpenTop(glm::vec3(beakerCenter.x, beakerCenter.y, beakerCenter.z),
+                                      glm::vec3(halfSize, halfSize, halfSize),
+                                      Mat3::identity(),
+                                      0.75f, 0.92f, 1.00f, 0.08f);
+            glDepthMask(GL_TRUE);
+            glDisable(GL_BLEND);
         }
         glDisable(GL_POLYGON_OFFSET_FILL);
         glDepthMask(GL_TRUE);
@@ -361,156 +944,183 @@ void RenderBodies(PhysicsWorld &world, const Camera &camera, float aspectRatio)
         glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
         glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
         glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
+
+        float lineTintR, lineTintG, lineTintB;
+        GetBodyTint(lineTintR, lineTintG, lineTintB);
+        RenderDistanceConstraintsWire(world, model, view, projection, shaderProgram, VAO, VBO, lineTintR, lineTintG,
+                                      lineTintB);
+        drawVelocityArrows(world, shaderProgram, VAO, VBO, modelLoc, viewLoc, projLoc, colorLoc, model, view,
+                           projection);
     }
 
-    // Time to hit on them bodies
     if (g_wireframeMode)
     {
         for (auto &body : world.getBodies())
-    {
-        if (!body.collider)
-            continue;
-
-        const glm::vec3 c(body.position.x, body.position.y, body.position.z);
-
-        std::vector<float> bodyVertices;
-        bodyVertices.reserve(72);
-        
-        if (body.collider->type == ShapeType::Box)
         {
-            const auto *box = static_cast<const BoxCollider *>(body.collider);
-            const glm::vec3 h(box->halfsize.x, box->halfsize.y, box->halfsize.z);
-
-            const glm::vec3 p000 = c + glm::vec3(-h.x, -h.y, -h.z);
-            const glm::vec3 p001 = c + glm::vec3(-h.x, -h.y, +h.z);
-            const glm::vec3 p010 = c + glm::vec3(-h.x, +h.y, -h.z);
-            const glm::vec3 p011 = c + glm::vec3(-h.x, +h.y, +h.z);
-            const glm::vec3 p100 = c + glm::vec3(+h.x, -h.y, -h.z);
-            const glm::vec3 p101 = c + glm::vec3(+h.x, -h.y, +h.z);
-            const glm::vec3 p110 = c + glm::vec3(+h.x, +h.y, -h.z);
-            const glm::vec3 p111 = c + glm::vec3(+h.x, +h.y, +h.z);
-
-            // bottom
-            pushLine(bodyVertices, p000, p100);
-            pushLine(bodyVertices, p100, p101);
-            pushLine(bodyVertices, p101, p001);
-            pushLine(bodyVertices, p001, p000);
-            // top
-            pushLine(bodyVertices, p010, p110);
-            pushLine(bodyVertices, p110, p111);
-            pushLine(bodyVertices, p111, p011);
-            pushLine(bodyVertices, p011, p010);
-            // sides
-            pushLine(bodyVertices, p000, p010);
-            pushLine(bodyVertices, p100, p110);
-            pushLine(bodyVertices, p101, p111);
-            pushLine(bodyVertices, p001, p011);
-        }
-        else if (body.collider->type == ShapeType::Sphere)
-        {
-            const auto *sphere = static_cast<const SphereCollider *>(body.collider);
-            const float r = sphere->radius;
-            const int segments = 24;
-
-            // 3 circles for a simple wire-sphere
-            pushCircleLines(bodyVertices, c, r, segments, 0, 1); // XY
-            pushCircleLines(bodyVertices, c, r, segments, 0, 2); // XZ
-            pushCircleLines(bodyVertices, c, r, segments, 1, 2); // YZ
-        }
-        else if (body.collider->type == ShapeType::Ramp)
-        {
-            const auto *ramp = static_cast<const RampCollider *>(body.collider);
-            const float L = ramp->length;
-            const float H = ramp->getHeight();
-            const float w = ramp->half_width_z;
-            
-            const float x0 = c.x;
-            const float y0 = c.y;
-            const float x1 = c.x + L;
-            const float y1 = c.y + H;
-
-            const float z0 = c.z - w;
-            const float z1 = c.z + w;
-
-            // Simple triangular prism, right triangle in X-Y, extruded along Z
-            const glm::vec3 p0z0(x0, y0, z0);
-            const glm::vec3 p1z0(x1, y0, z0);
-            const glm::vec3 p2z0(x1, y1, z0);
-
-            const glm::vec3 p0z1(x0, y0, z1);
-            const glm::vec3 p1z1(x1, y0, z1);
-            const glm::vec3 p2z1(x1, y1, z1);
-
-            // bottom face edges
-            pushLine(bodyVertices, p0z0, p1z0);
-            pushLine(bodyVertices, p0z1, p1z1);
-
-            // side face edges
-            pushLine(bodyVertices, p1z0, p2z0);
-            pushLine(bodyVertices, p1z1, p2z1);
-
-            // hypotenuse edges
-            pushLine(bodyVertices, p0z0, p2z0);
-            pushLine(bodyVertices, p0z1, p2z1);
-
-            // connect slices along Z
-            pushLine(bodyVertices, p0z0, p0z1);
-            pushLine(bodyVertices, p1z0, p1z1);
-            pushLine(bodyVertices, p2z0, p2z1);
-        }
-
-        if (!bodyVertices.empty())
-        {
-            glBufferData(GL_ARRAY_BUFFER, bodyVertices.size() * sizeof(float), bodyVertices.data(), GL_DYNAMIC_DRAW);
-
-            // Adding colour to wireframe based on stable body id
-            BodyID key = body.id;
-            float r = ((key * 73u) % 100) / 100.0f;
-            float g = ((key * 37u) % 100) / 100.0f;
-            float b = ((key * 19u) % 100) / 100.0f;
-
-            r = 0.5f + 0.5f * r;
-            g = 0.5f + 0.5f * g;
-            b = 0.5f + 0.5f * b;
-
-            const bool isSelected = (body.id == GetSelectedBodyId());
-            if (colorLoc >= 0)
+            if (!body.collider)
+                continue;
+            if (isBuoyancyHelperWallBody(body))
+                continue;
+            if (body.render_alpha <= 0.0f)
             {
-                if (looksLikeFloor(body) && !isSelected)
+                glColor4f(0.0f, 0.0f, 0.0f, 0.0f);
+                continue;
+            }
+
+            const glm::vec3 c(body.position.x, body.position.y, body.position.z);
+            Mat3 R = body.orientation.toMat3();
+
+            std::vector<float> bodyVertices;
+            bodyVertices.reserve(72);
+
+            if (body.collider->type == ShapeType::Box)
+            {
+                const auto *box = static_cast<const BoxCollider *>(body.collider);
+                const glm::vec3 h(box->halfsize.x, box->halfsize.y, box->halfsize.z);
+
+                const glm::vec3 p000 = c + rotateOffset(R, glm::vec3(-h.x, -h.y, -h.z));
+                const glm::vec3 p001 = c + rotateOffset(R, glm::vec3(-h.x, -h.y, +h.z));
+                const glm::vec3 p010 = c + rotateOffset(R, glm::vec3(-h.x, +h.y, -h.z));
+                const glm::vec3 p011 = c + rotateOffset(R, glm::vec3(-h.x, +h.y, +h.z));
+                const glm::vec3 p100 = c + rotateOffset(R, glm::vec3(+h.x, -h.y, -h.z));
+                const glm::vec3 p101 = c + rotateOffset(R, glm::vec3(+h.x, -h.y, +h.z));
+                const glm::vec3 p110 = c + rotateOffset(R, glm::vec3(+h.x, +h.y, -h.z));
+                const glm::vec3 p111 = c + rotateOffset(R, glm::vec3(+h.x, +h.y, +h.z));
+
+                // bottom
+                pushLine(bodyVertices, p000, p100);
+                pushLine(bodyVertices, p100, p101);
+                pushLine(bodyVertices, p101, p001);
+                pushLine(bodyVertices, p001, p000);
+                // top
+                pushLine(bodyVertices, p010, p110);
+                pushLine(bodyVertices, p110, p111);
+                pushLine(bodyVertices, p111, p011);
+                pushLine(bodyVertices, p011, p010);
+                // sides
+                pushLine(bodyVertices, p000, p010);
+                pushLine(bodyVertices, p100, p110);
+                pushLine(bodyVertices, p101, p111);
+                pushLine(bodyVertices, p001, p011);
+            }
+            else if (body.collider->type == ShapeType::Sphere)
+            {
+                const auto *sphere = static_cast<const SphereCollider *>(body.collider);
+                const float r = sphere->radius;
+                const int segments = 24;
+
+                // 3 circles for a simple wire-sphere
+                pushCircleLines(bodyVertices, c, r, segments, 0, 1); // XY
+                pushCircleLines(bodyVertices, c, r, segments, 0, 2); // XZ
+                pushCircleLines(bodyVertices, c, r, segments, 1, 2); // YZ
+            }
+            else if (body.collider->type == ShapeType::Ramp)
+            {
+                const auto *ramp = static_cast<const RampCollider *>(body.collider);
+                const float L = ramp->length;
+                const float H = ramp->getHeight();
+                const float w = ramp->half_width_z;
+                const Vec3 comOffset = ramp->getLocalCenterOfMassOffset();
+                const glm::vec3 comLocal(comOffset.x, comOffset.y, comOffset.z);
+
+                const glm::vec3 p0z0 = c + rotateOffset(R, glm::vec3(0.0f, 0.0f, -w) - comLocal);
+                const glm::vec3 p1z0 = c + rotateOffset(R, glm::vec3(L, 0.0f, -w) - comLocal);
+                const glm::vec3 p2z0 = c + rotateOffset(R, glm::vec3(L, H, -w) - comLocal);
+
+                const glm::vec3 p0z1 = c + rotateOffset(R, glm::vec3(0.0f, 0.0f, +w) - comLocal);
+                const glm::vec3 p1z1 = c + rotateOffset(R, glm::vec3(L, 0.0f, +w) - comLocal);
+                const glm::vec3 p2z1 = c + rotateOffset(R, glm::vec3(L, H, +w) - comLocal);
+
+                // bottom face edges
+                pushLine(bodyVertices, p0z0, p1z0);
+                pushLine(bodyVertices, p0z1, p1z1);
+
+                // side face edges
+                pushLine(bodyVertices, p1z0, p2z0);
+                pushLine(bodyVertices, p1z1, p2z1);
+
+                // hypotenuse edges
+                pushLine(bodyVertices, p0z0, p2z0);
+                pushLine(bodyVertices, p0z1, p2z1);
+
+                // connect slices along Z
+                pushLine(bodyVertices, p0z0, p0z1);
+                pushLine(bodyVertices, p1z0, p1z1);
+                pushLine(bodyVertices, p2z0, p2z1);
+            }
+
+            if (!bodyVertices.empty())
+            {
+                glBufferData(GL_ARRAY_BUFFER, bodyVertices.size() * sizeof(float), bodyVertices.data(), GL_DYNAMIC_DRAW);
+
+                // Adding colour to wireframe based on stable body id
+                BodyID key = body.id;
+                float r = ((key * 73u) % 100) / 100.0f;
+                float g = ((key * 37u) % 100) / 100.0f;
+                float b = ((key * 19u) % 100) / 100.0f;
+
+                r = 0.5f + 0.5f * r;
+                g = 0.5f + 0.5f * g;
+                b = 0.5f + 0.5f * b;
+
+                const bool isSelected = (body.id == GetSelectedBodyId());
+                if (colorLoc >= 0)
                 {
-                    glEnable(GL_BLEND);
-                    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-                    glUniform4f(colorLoc, 0.34f, 0.36f, 0.40f, 0.72f);
+                    if (looksLikeFloor(body) && !isSelected)
+                    {
+                        glEnable(GL_BLEND);
+                        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+                        float alpha = 0.72f * body.render_alpha;
+                        glUniform4f(colorLoc, 0.34f, 0.36f, 0.40f, alpha);
+                        glColor4f(0.34f, 0.36f, 0.40f, alpha);
+                    }
+                    else if (isSelected)
+                    {
+                        float alpha = body.render_alpha;
+                        glUniform4f(colorLoc, 1.0f, 1.0f, 0.2f, alpha);
+                        glColor4f(1.0f, 1.0f, 0.2f, alpha);
+                    }
+                    else
+                    {
+                        float tr = r;
+                        float tg = g;
+                        float tb = b;
+                        if (useThermalGradient(world, body))
+                        {
+                            glm::vec3 thermal = temperatureColor(world, body);
+                            tr = thermal.r;
+                            tg = thermal.g;
+                            tb = thermal.b;
+                        }
+                        applyBodyTint(tr, tg, tb);
+                        float alpha = body.render_alpha;
+                        glUniform4f(colorLoc, tr, tg, tb, alpha);
+                        glColor4f(tr, tg, tb, alpha);
+                    }
                 }
-                else if (isSelected)
+                if (looksLikeFloor(body))
                 {
-                    glUniform4f(colorLoc, 1.0f, 1.0f, 0.2f, 1.0f);
+                    glEnable(GL_POLYGON_OFFSET_LINE);
+                    glPolygonOffset(2.5f, 25.0f);
                 }
+                if (body.id == GetSelectedBodyId())
+                    glLineWidth(4.0f);
                 else
-                {
-                    float tr = r;
-                    float tg = g;
-                    float tb = b;
-                    applyBodyTint(tr, tg, tb);
-                    glUniform4f(colorLoc, tr, tg, tb, 1.0f);
-                }
+                    glLineWidth(2.0f);
+                glDrawArrays(GL_LINES, 0, static_cast<GLsizei>(bodyVertices.size() / 3));
+                if (looksLikeFloor(body))
+                    glDisable(GL_POLYGON_OFFSET_LINE);
+                if (looksLikeFloor(body) && !isSelected)
+                    glDisable(GL_BLEND);
             }
-            if (looksLikeFloor(body))
-            {
-                glEnable(GL_POLYGON_OFFSET_LINE);
-                glPolygonOffset(2.5f, 25.0f);
-            }
-            if (body.id == GetSelectedBodyId())
-                glLineWidth(4.0f);
-            else
-                glLineWidth(2.0f);
-            glDrawArrays(GL_LINES, 0, static_cast<GLsizei>(bodyVertices.size() / 3));
-            if (looksLikeFloor(body))
-                glDisable(GL_POLYGON_OFFSET_LINE);
-            if (looksLikeFloor(body) && !isSelected)
-                glDisable(GL_BLEND);
         }
-    }
+
+        float wTintR, wTintG, wTintB;
+        GetBodyTint(wTintR, wTintG, wTintB);
+        RenderDistanceConstraintsWire(world, model, view, projection, shaderProgram, VAO, VBO, wTintR, wTintG,
+                                      wTintB);
+        drawVelocityArrows(world, shaderProgram, VAO, VBO, modelLoc, viewLoc, projLoc, colorLoc, model, view,
+                           projection);
     }
 }
 
@@ -536,4 +1146,14 @@ void GetBodyTint(float &r, float &g, float &b)
     r = g_bodyTintR;
     g = g_bodyTintG;
     b = g_bodyTintB;
+}
+
+void SetBodyVelocityArrowVisible(bool enabled)
+{
+    showVelocityArrows = enabled;
+}
+
+bool GetBodyVelocityArrowVisible()
+{
+    return showVelocityArrows;
 }

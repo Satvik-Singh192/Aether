@@ -14,7 +14,8 @@ class Quat {
         Quat operator*(const Quat& rhs) const;
         Quat operator+(const Quat& rhs) const;
         Quat operator*(float scalar) const;
-
+        static Quat fromAxisAngle(const Vec3& axis, float angle);
         Mat3 toMat3() const;
         static Quat fromAngularVelocity(const Vec3& omega);
+
 };

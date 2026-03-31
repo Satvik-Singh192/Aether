@@ -1,34 +1,41 @@
 #pragma once
-
+#include "../renderer/camera.hpp"
+#include <vector>
+#include <string>
+#include <unordered_map>
 class PhysicsWorld;
 
 enum class TestCase
 {
-    SphereSphere,
-    BoxBox,
-    SphereBox,
-    BoxRamp,
-    SphereRamp,
-    BoxSphereRamp,
-    BoxStack,
+    ProjectMotion,
+    PerfectElasticCollision,
+    PerfectInelasticCollision,
+    Collision,
+    InclinedPlane,
+    MomentumTransfer,
+    CenterOfMassTopple,
+    ConstraintPlayground,
+    AngularImpulse,
+    AngularStack,
+    CornerCollision,
+    RollingFriction,
+    BuoyancyTest,
+    HeatTransferDemo,
+    RelativeVelocity,
+    NewtonThirdLaw,
+    BoxToppleOnRamp,
+    SphereToppleOnRamp,
+    CollisionCauseTopple,
+    CircularMotionRope,
+    CircularMotionSpring,
     PyramidStack,
-    ManySpheres,
     ManyBoxes,
-    MixedPile,
-    BouncyBalls,
-    SlidingRampRow,
-    ChainCollide,
-    RandomScatter,
-    StressTestLarge,
-    RopeBasic,
-    RodBasic,
-    SpringBasic,
-    RopeChain,
-    RodChain,
-    SoftBody,
-    RopeCollision,
-    RampDropOnSphere,
-    RampRampStress,
+    ManySpheres,
+    RandomScatter
 };
 
-void LoadSingleTestScenario(PhysicsWorld &world, TestCase test_case);
+extern std::vector<std::string> chapters;
+extern std::unordered_map<std::string, std::vector<TestCase>> testmap;
+
+void InitializeTestMap();
+Camera LoadSingleTestScenario(PhysicsWorld &world, TestCase test_case);

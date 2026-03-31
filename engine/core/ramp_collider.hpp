@@ -34,4 +34,9 @@ public:
     {
         return slope * length;
     }
+
+    Vec3 getLocalCenterOfMassOffset() const
+    {
+        return Vec3((2.0f * length) / 3.0f, getHeight() / 3.0f, 0.0f);
+    }
 };
