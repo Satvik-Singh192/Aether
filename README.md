@@ -19,7 +19,7 @@ A real-time 3D physics simulator designed to help high school and secondary scho
 
 Aether is an educational physics simulator designed to help high school and secondary school students understand complex physics concepts through interactive visualization. Instead of memorizing equations, students can experiment with real-time simulations of rigid bodies, collisions, constraints, fluids, and heat transfer. The simulator bridges the gap between theory and practice by letting students observe how physics concepts manifest in a dynamic 3D world.
 
-Students can experiment with familiar scenarios—objects falling under gravity, collisions between different shapes, springs bouncing, objects floating in water, and even thermal energy transfer—building intuition about how the physical world works.
+Students can experiment with familiar scenarios, objects falling under gravity, collisions between different shapes, springs bouncing, objects floating in water, and even thermal energy transfer, building intuition about how the physical world works.
 
 **Target Audience**: High school and secondary school students studying physics who want to visualize and understand concepts through hands-on simulation.
 
@@ -46,19 +46,19 @@ Students can experiment with familiar scenarios—objects falling under gravity,
 
 Aether provides an extensive physics simulation environment focused on helping students understand fundamental physics principles:
 
-**Rigid Body Motion**: Watch objects move and rotate realistically under the influence of gravity and applied forces. The simulator handles 6 degrees of freedom—meaning objects can translate and rotate freely in 3D space.
+**Rigid Body Motion**: Watch objects move and rotate realistically under the influence of gravity and applied forces. The simulator handles 6 degrees of freedom, meaning objects can translate and rotate freely in 3D space.
 
 **Collision Realism**: When objects collide, they respond authentically. The simulator supports spheres, boxes, and ramps, calculating collision points and impulses that determine how objects bounce, slide, or come to rest. Students see Newton's laws in action through every collision.
 
 **Constraints**: Simulate ropes, springs, and rigid connections between objects. Watch how a rope constrains motion differently than a spring, and how springs oscillate when pulled. These constraints are essential for understanding structural mechanics and energy transfer.
 
-**Friction**: Objects don't slide infinitely—friction brings them to rest over time. Experiment with different friction levels to see how surface properties affect motion, understanding the balance between kinetic and static friction.
+**Friction**: Objects don't slide infinitely, friction brings them to rest over time. Experiment with different friction levels to see how surface properties affect motion, understanding the balance between kinetic and static friction.
 
 **Buoyancy & Fluids**: Observe Archimedes' principle firsthand. Objects submerged in fluid experience buoyant forces; see how displacement, density, and weight determine whether something floats, sinks, or hovers.
 
 **Thermal Physics**: Watch heat transfer in real-time. Objects change color from cool to hot as thermal energy distributes between bodies through conduction, radiation, and ambient cooling. Understand energy conservation and heat dissipation visually.
 
-**Interactive Experimentation**: Create any scenario you imagine. Use the interactive menu to add spheres, boxes, and ramps to the world, positioned exactly where you want them. Adjust gravity direction and magnitude, modify friction coefficients, change damping, and tune constraint parameters—all in real-time. Build physical models to test hypotheses, recreate examples from textbooks, or invent entirely new scenarios to explore physics principles.
+**Interactive Experimentation**: Create any scenario you imagine. Use the interactive menu to add spheres, boxes, and ramps to the world, positioned exactly where you want them. Adjust gravity direction and magnitude, modify friction coefficients, change damping, and tune constraint parameters, all in real-time. Build physical models to test hypotheses, recreate examples from textbooks, or invent entirely new scenarios to explore physics principles.
 
 **Custom Physics Worlds**: Unlike static simulations, Aether lets you be an experimenter. Drop objects from different heights to study projectile motion, stack boxes to explore stability and center of mass, create pendulum systems with springs and ropes, or design complex contraptions to understand how different forces interact. The simulator responds immediately to your changes, letting you see the effects of adjusting parameters.
 
@@ -113,7 +113,6 @@ Once built or using a pre-release binary, the simulator opens with a 3D viewport
 
 **Camera Navigation**:
 - Mouse: Rotate camera
-- Scroll wheel: Zoom in/out
 - Arrow keys or WASD: Pan camera view
 
 **Menu Interactions**:
