@@ -25,7 +25,13 @@ enum class TestCase
     NewtonThirdLaw,
     BoxToppleOnRamp,
     SphereToppleOnRamp,
-    CollisionCauseTopple
+    CollisionCauseTopple,
+    CircularMotionRope,
+    CircularMotionSpring,
+    PyramidStack,
+    ManyBoxes,
+    ManySpheres,
+    RandomScatter
 };
 
 extern std::vector<std::string> chapters;

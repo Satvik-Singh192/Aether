@@ -54,6 +54,7 @@ public:
 	ThermalSettings thermal_settings;
 	ThermalSpawnControls thermal_spawn_controls;
 	
+	PhysicsWorld(float gravi);
 	PhysicsWorld();
 	Rigidbody* getBodyByID(uint32_t body_id);
 	std::uint32_t addBody(const Rigidbody& body);
