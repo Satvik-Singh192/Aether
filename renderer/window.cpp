@@ -210,6 +210,7 @@ void CreateWindow(PhysicsWorld &world)
 
 	auto last_time = std::chrono::high_resolution_clock::now();
 	float accumulator = 0.0f;
+  float menuAccumulator = 0.0f;
 	int frame = 0;
 	Camera camera;
 	AppScreen appScreen = AppScreen::StartScreen;
@@ -551,7 +552,19 @@ glfwGetCursorPos(window, &mouseX, &mouseY);
 					ghost->position = ghostTarget;
 				}
 			
-			main_menu_world.step(dt);
+           menuAccumulator += frametime;
+			int menuSubsteps = 0;
+			while (menuAccumulator >= dt && menuSubsteps < MAX_SUBSTEPS)
+			{
+				main_menu_world.step(dt);
+				menuAccumulator -= dt;
+				++menuSubsteps;
+			}
+
+			if (menuSubsteps == MAX_SUBSTEPS)
+			{
+				menuAccumulator = 0.0f;
+			}
 			
 			if (Rigidbody *ghost = reacquireGhost())
 			{
@@ -560,9 +573,6 @@ glfwGetCursorPos(window, &mouseX, &mouseY);
 				//std::cout<<ghost->position.x<<" "<<ghost->position.y<<'\n';
 			}
 			RenderBodies(main_menu_world,camera,aspectRatio);
-				float aspectRatio = framebufferHeight > 0
-								? static_cast<float>(framebufferWidth) / static_cast<float>(framebufferHeight)
-								: 1.0f;
 			const char *startWindowTitle = hasActiveSim ? "Aether Studio - Menu" : "Aether Studio - Start";
 			if (ImGui::Begin(startWindowTitle, nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize))
 			{	

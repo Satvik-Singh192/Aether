@@ -30,7 +30,8 @@ Students can experiment with familiar scenarios, objects falling under gravity, 
 ### Windows
 1. Download the `release/windows` folder
 2. Double-click `Aether_Test.exe`
-3. The simulator will launch with default test scenarios
+3. If prompted with security alerts, please ignore the warnings and proceed with running the application. We can reassure you that the executable is completely harmless.
+4. The simulator will launch with default test scenarios
 
 ### Linux (Ubuntu & derivatives)
 1. Open a terminal in the `release/linux` directory
