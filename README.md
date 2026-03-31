@@ -62,7 +62,7 @@ Aether provides an extensive physics simulation environment focused on helping s
 
 **Custom Physics Worlds**: Unlike static simulations, Aether lets you be an experimenter. Drop objects from different heights to study projectile motion, stack boxes to explore stability and center of mass, create pendulum systems with springs and ropes, or design complex contraptions to understand how different forces interact. The simulator responds immediately to your changes, letting you see the effects of adjusting parameters.
 
-**19 Pre-Built Scenarios**: Learn from carefully designed scenarios demonstrating kinematics, Newton's laws, collisions, rotation, fluids, and thermal physics.
+**25 Pre-Built Scenarios**: Learn from carefully designed scenarios demonstrating kinematics, Newton's laws, collisions, rotation, fluids, thermal physics, and stress tests.
 
 ## Installation & Build
 
@@ -124,32 +124,46 @@ Once built or using a pre-release binary, the simulator opens with a 3D viewport
 
 ## Test Scenarios
 
-Aether includes 19 pre-built test scenarios organized by physics concepts:
+Aether includes 25 pre-built test scenarios organized by physics concepts:
 
 ### Kinematics
-- **Projectile Motion**: Observe parabolic trajectory under gravity
-- **Relative Velocity**: Understand reference frames in motion
+- **Projectile Motion**: Observe parabolic trajectory under gravity with different launch angles
+- **Relative Velocity**: Understand reference frames by comparing velocities of moving objects
+- **Inclined Plane**: Study motion of objects on slopes and the effects of angle on acceleration
 
-### Newton's Laws
-- **Newton's Third Law**: Action-reaction force pairs in collisions
+### Laws of Motion
+- **Newton's Third Law**: Action-reaction force pairs in collisions between objects
+- **Momentum Transfer**: Observe conservation of momentum in collisions
 
 ### Collision Physics
-- **Elastic Collisions**: Kinetic energy conserved in collisions
-- **Partially Elastic Collisions**: Real-world collision behavior
-- **Inelastic Collisions**: Maximum energy dissipation
+- **Perfect Elastic Collision**: Kinetic energy is conserved (no energy loss)
+- **Perfect Inelastic Collision**: Maximum energy dissipation (objects stick together)
+- **Partially Elastic Collision**: Real-world collision behavior with partial energy loss
 
 ### Rotational Motion
-- **Toppling**: Bodies tipping over due to center-of-mass offset
-- **Corner Impacts**: Angular momentum transfer in collisions
-- **Rolling Motion**: Friction-driven rolling behavior
+- **Center of Mass Topple**: Bodies tipping over due to center-of-mass offset
+- **Constraint Playground**: Experiment with various constraint configurations
+- **Angular Impulse**: Angular momentum transfer through impulses
+- **Angular Stack**: Stacking objects to observe rotational effects
+- **Corner Collision**: Angular momentum transfer when objects collide at corners
+- **Rolling Friction**: Friction-driven rolling behavior on surfaces
+- **Box Topple on Ramp**: Boxes tipping on inclined surfaces
+- **Sphere Topple on Ramp**: Spheres rolling and stabilizing on ramps
+- **Collision Cause Topple**: Objects toppling due to collision impacts
+- **Circular Motion with Rope**: Objects constrained in circular paths with tension
+- **Circular Motion with Spring**: Objects oscillating in circular paths with springs
 
 ### Fluid Dynamics
-- **Buoyancy**: Archimedes' principle in action
-- **Floating**: Objects finding equilibrium in fluid
+- **Buoyancy Test**: Observe Archimedes' principle as objects interact with fluid
 
 ### Thermal Physics
-- **Heat Transfer**: Conduction, radiation, and cooling
-- **Temperature Visualization**: Watch heat propagate in real-time
+- **Heat Transfer Demo**: Watch heat transfer between objects and color change based on temperature
+
+### Stress Tests
+- **Pyramid Stack**: Stability test with many stacked objects
+- **Many Boxes**: Simulate numerous box collisions and interactions
+- **Many Spheres**: Performance test with large numbers of spheres
+- **Random Scatter**: Complex multi-object interactions and collision cascades
 
 ## Implementation
 
