@@ -707,11 +707,16 @@ void RenderBodies(PhysicsWorld &world, const Camera &camera, float aspectRatio)
             }
             if (solidVerts.empty())
                 return;
-            glBufferData(GL_ARRAY_BUFFER, solidVerts.size() * sizeof(float), solidVerts.data(), GL_DYNAMIC_DRAW);
-            if (smFloor >= 0)
-                glUniform1f(smFloor, floorFlag);
+
             const bool isSelected = (body.id == GetSelectedBodyId());
-            float cr = ar, cg = ag, cb = ab, ca = aa;
+            float cr = ar;
+            float cg = ag;
+            float cb = ab;
+            float ca = aa;
+            if (ca < 0.0f)
+                ca = 0.0f;
+            if (ca > 1.0f)
+                ca = 1.0f;
             if (isSelected && floorFlag < 0.5f)
             {
                 cr = 1.0f;
@@ -719,6 +724,15 @@ void RenderBodies(PhysicsWorld &world, const Camera &camera, float aspectRatio)
                 cb = 0.35f;
                 ca = 1.0f;
             }
+
+            glColor4f(cr, cg, cb, ca);
+            if (ca <= 0.0f)
+                return;
+
+            glBufferData(GL_ARRAY_BUFFER, solidVerts.size() * sizeof(float), solidVerts.data(), GL_DYNAMIC_DRAW);
+            if (smFloor >= 0)
+                glUniform1f(smFloor, floorFlag);
+
             if (smCol >= 0)
             {
                 glUniform4f(smCol, cr, cg, cb, ca);
@@ -877,7 +891,7 @@ void RenderBodies(PhysicsWorld &world, const Camera &camera, float aspectRatio)
                 b = thermal.b;
             }
             applyBodyTint(r, g, b);
-            drawSolidBody(body, 0.0f, r, g, b, 1.0f);
+            drawSolidBody(body, 0.0f, r, g, b, body.render_alpha);
         }
 
         float tintR, tintG, tintB;
@@ -897,7 +911,7 @@ void RenderBodies(PhysicsWorld &world, const Camera &camera, float aspectRatio)
         {
             if (!looksLikeFloor(body))
                 continue;
-            drawSolidBody(body, 1.0f, 0.26f, 0.28f, 0.31f, 0.78f);
+            drawSolidBody(body, 1.0f, 0.26f, 0.28f, 0.31f, 0.78f * body.render_alpha);
         }
 
         if (world.enable_buoyancy)
@@ -947,6 +961,11 @@ void RenderBodies(PhysicsWorld &world, const Camera &camera, float aspectRatio)
                 continue;
             if (isBuoyancyHelperWallBody(body))
                 continue;
+            if (body.render_alpha <= 0.0f)
+            {
+                glColor4f(0.0f, 0.0f, 0.0f, 0.0f);
+                continue;
+            }
 
             const glm::vec3 c(body.position.x, body.position.y, body.position.z);
             Mat3 R = body.orientation.toMat3();
@@ -1051,11 +1070,15 @@ void RenderBodies(PhysicsWorld &world, const Camera &camera, float aspectRatio)
                     {
                         glEnable(GL_BLEND);
                         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-                        glUniform4f(colorLoc, 0.34f, 0.36f, 0.40f, 0.72f);
+                        float alpha = 0.72f * body.render_alpha;
+                        glUniform4f(colorLoc, 0.34f, 0.36f, 0.40f, alpha);
+                        glColor4f(0.34f, 0.36f, 0.40f, alpha);
                     }
                     else if (isSelected)
                     {
-                        glUniform4f(colorLoc, 1.0f, 1.0f, 0.2f, 1.0f);
+                        float alpha = body.render_alpha;
+                        glUniform4f(colorLoc, 1.0f, 1.0f, 0.2f, alpha);
+                        glColor4f(1.0f, 1.0f, 0.2f, alpha);
                     }
                     else
                     {
@@ -1070,7 +1093,9 @@ void RenderBodies(PhysicsWorld &world, const Camera &camera, float aspectRatio)
                             tb = thermal.b;
                         }
                         applyBodyTint(tr, tg, tb);
-                        glUniform4f(colorLoc, tr, tg, tb, 1.0f);
+                        float alpha = body.render_alpha;
+                        glUniform4f(colorLoc, tr, tg, tb, alpha);
+                        glColor4f(tr, tg, tb, alpha);
                     }
                 }
                 if (looksLikeFloor(body))

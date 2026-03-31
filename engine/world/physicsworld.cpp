@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cmath>
 #include "core/buoyancy.hpp"
+PhysicsWorld::PhysicsWorld(float gravi) : gravity(0.0f, gravi, 0.0f), next_body_id(1) {}
 PhysicsWorld::PhysicsWorld() : gravity(0.0f, PHYSICS_GRAVITY, 0.0f), next_body_id(1) {}
 
 std::uint32_t PhysicsWorld::addBody(const Rigidbody &body)
