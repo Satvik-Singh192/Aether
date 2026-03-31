@@ -13,15 +13,17 @@
 
 std::vector<std::string> chapters = {"Kinematics", "Laws of Motion", "Collision", "Rotation", "Fluids", "Thermal Properties"};
 std::unordered_map<std::string, std::vector<TestCase>> testmap;
+std::vector<std::string> funtests = {"Kinematics", "Laws of Motion", "Collision", "Rotation", "Fluids", "Thermal Properties"};
 
 void InitializeTestMap()
 {
-    testmap["Kinematics"] = {TestCase::ProjectMotion, TestCase::RelativeVelocity};
-    testmap["Laws of Motion"] = {TestCase::NewtonThirdLaw};
+    testmap["Kinematics"] = {TestCase::ProjectMotion, TestCase::RelativeVelocity, TestCase::InclinedPlane};
+    testmap["Laws of Motion"] = {TestCase::NewtonThirdLaw, TestCase::MomentumTransfer};
     testmap["Collision"] = {TestCase::PerfectElasticCollision, TestCase::PerfectInelasticCollision, TestCase::Collision};
-    testmap["Rotation"] = {TestCase::BoxToppleOnRamp, TestCase::SphereToppleOnRamp, TestCase::CollisionCauseTopple};
+    testmap["Rotation"] = {TestCase::CenterOfMassTopple, TestCase::ConstraintPlayground, TestCase::AngularImpulse, TestCase::AngularStack, TestCase::CornerCollision, TestCase::RollingFriction, TestCase::BoxToppleOnRamp, TestCase::SphereToppleOnRamp, TestCase::CollisionCauseTopple, TestCase::CircularMotionRope, TestCase::CircularMotionSpring};
     testmap["Fluids"] = {TestCase::BuoyancyTest};
-    testmap["Thermal Properties"] = {};
+    testmap["Thermal Properties"] = {TestCase::HeatTransferDemo};
+    testmap["Stress Tests"] = {TestCase::PyramidStack, TestCase::ManyBoxes, TestCase::ManySpheres, TestCase::RandomScatter};
 }
 
 
@@ -263,8 +265,14 @@ namespace
             float x = (i % 10) - 4.5f;
             float y = 3.0f + (i / 10) * 0.9f;
             float z = ((i / 5) % 2) * 0.6f;
-            world.addBody(Rigidbody(Vec3(x, y, z), Vec3(), &g_small_sphere, 0.5f));
+            if(i>=50)
+            world.addBody(Rigidbody(Vec3(x, y, z-0.8f), Vec3(), &g_small_sphere, 0.5f));
+            else  {
+                 world.addBody(Rigidbody(Vec3(x, y, z ), Vec3(), &g_small_sphere, 0.5f));
+            }
         }
+     //   world.addBody(Rigidbody(Vec3(0, , z), Vec3(), &g_small_sphere, 0.5f));
+        
     }
 
     void spawn_many_boxes(PhysicsWorld &world)
@@ -718,6 +726,76 @@ namespace
         return Camera().setPosition(glm::vec3(0.0f, 4.8f, 22.0f));
     }
 
+    Camera spawn_circular_motion_rope(PhysicsWorld &world)
+    {
+        Rigidbody fixed_box(Vec3(0.0f, 0.0f, 0.0f), Vec3(), &g_small_box, 0.0f);
+        fixed_box.friction = 0.5f;
+        auto box_id = world.addBody(fixed_box);
+        const float rope_length = 3.0f;
+        const float orbital_speed = 50.0f;
+        Rigidbody orbiting_sphere(
+            Vec3(rope_length, 2.0f, 0.0f), 
+            Vec3(0.0f, 0.0f, orbital_speed),
+            &g_small_sphere,
+            1.0f
+        );
+        orbiting_sphere.friction = 0.1f;
+        orbiting_sphere.restitution = 0.3f;
+        auto sphere_id = world.addBody(orbiting_sphere);
+        world.addDistanceConstraints(box_id, sphere_id, rope_length, DistanceConstraint::ROPE, 0.0f, 0.0f);
+        return Camera().setPosition(glm::vec3(0.0f, 15.0f, 0.0f))
+                       .setYaw(0.0f)
+                       .setPitch(-90.0f);
+    }
+
+    Camera spawn_circular_motion_spring(PhysicsWorld &world)
+    {
+        Rigidbody fixed_box(Vec3(0.0f, 0.0f, 0.0f), Vec3(), &g_small_box, 0.0f);
+        fixed_box.friction = 0.5f;
+        auto box_id = world.addBody(fixed_box);
+        const float spring_length = 3.0f;
+        const float spring_constant = 2.0f;
+        const float damping = 0.5f;
+        const float orbital_speed = 50.0f;
+        Rigidbody orbiting_sphere(
+            Vec3(spring_length, 2.0f, 0.0f), 
+            Vec3(0.0f, 0.0f, orbital_speed),
+            &g_small_sphere,
+            1.0f
+        );
+        orbiting_sphere.friction = 0.1f;
+        orbiting_sphere.restitution = 0.3f;
+        auto sphere_id = world.addBody(orbiting_sphere);
+        world.addDistanceConstraints(box_id, sphere_id, spring_length, DistanceConstraint::SPRING, spring_constant, damping);
+        return Camera().setPosition(glm::vec3(0.0f, 15.0f, 0.0f))
+                       .setYaw(0.0f)
+                       .setPitch(-90.0f);
+    }
+
+    Camera spawn_pyramid_stack_scenario(PhysicsWorld &world)
+    {
+        spawn_pyramid_stack(world);
+        return Camera().setPosition(glm::vec3(0.0f, 5.0f, 25.0f));
+    }
+
+    Camera spawn_many_boxes_scenario(PhysicsWorld &world)
+    {
+        spawn_many_boxes(world);
+        return Camera().setPosition(glm::vec3(0.0f, 5.0f, 25.0f));
+    }
+
+    Camera spawn_many_spheres_scenario(PhysicsWorld &world)
+    {
+        spawn_many_spheres(world);
+        return Camera().setPosition(glm::vec3(0.0f, 5.0f, 25.0f));
+    }
+
+    Camera spawn_random_scatter_scenario(PhysicsWorld &world)
+    {
+        spawn_random_scatter(world);
+        return Camera().setPosition(glm::vec3(0.0f, 5.0f, 30.0f));
+    }
+
 }
 
 Camera LoadSingleTestScenario(PhysicsWorld &world, TestCase test_case)
@@ -782,6 +860,18 @@ Camera LoadSingleTestScenario(PhysicsWorld &world, TestCase test_case)
         return Camera();
     case TestCase::HeatTransferDemo:
         return spawn_heat_transfer_demo(world);
+    case TestCase::CircularMotionRope:
+        return spawn_circular_motion_rope(world);
+    case TestCase::CircularMotionSpring:
+        return spawn_circular_motion_spring(world);
+    case TestCase::PyramidStack:
+        return spawn_pyramid_stack_scenario(world);
+    case TestCase::ManyBoxes:
+        return spawn_many_boxes_scenario(world);
+    case TestCase::ManySpheres:
+        return spawn_many_spheres_scenario(world);
+    case TestCase::RandomScatter:
+        return spawn_random_scatter_scenario(world);
     default:
         return spawn_projectile_demo(world);
         break;

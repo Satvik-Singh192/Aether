@@ -45,7 +45,13 @@ namespace
 		TestCase::NewtonThirdLaw,
 		TestCase::BoxToppleOnRamp,
 		TestCase::SphereToppleOnRamp,
-		TestCase::CollisionCauseTopple
+		TestCase::CollisionCauseTopple,
+		TestCase::CircularMotionRope,
+		TestCase::CircularMotionSpring,
+		TestCase::PyramidStack,
+		TestCase::ManyBoxes,
+		TestCase::ManySpheres,
+		TestCase::RandomScatter
 	};
 
 	constexpr const char *kTestCaseNames[] = {
@@ -67,7 +73,13 @@ namespace
 		"Newton's Third Law",
 		"Box Topple on Ramp",
 		"Sphere Topple on Ramp",
-		"Collision Cause Topple"
+		"Collision Cause Topple",
+		"Circular Motion with Rope",
+		"Circular Motion with Spring",
+		"Pyramid Stack",
+		"Many Boxes",
+		"Many Spheres",
+		"Random Scatter"
 	};
 
 	constexpr const char *kTestCaseDescriptions[] = {
@@ -88,8 +100,13 @@ namespace
 		"",
 		"",
 		"",
-		"",
-		""
+		"","",
+		"A fixed box at the origin is connected to a sphere via a rope constraint, demonstrating circular orbital motion with the box as the center axis.",
+		"A fixed box at the origin is connected to a sphere via a spring constraint, allowing elastic oscillations during circular motion.",
+		"A large pyramid of boxes falling in layers to demonstrate stacking and gravity effects.",
+		"Eighty boxes spawned in a scattered pattern for stress testing physics solver performance.",
+		"Sixty spheres spawned in a scattered pattern to test sphere-sphere collisions and performance.",
+		"One hundred randomly scattered mixed objects (boxes and spheres) for comprehensive stress testing."
 	};
 		
 
