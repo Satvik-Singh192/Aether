@@ -1,11 +1,11 @@
-#include "world/physicsworld.hpp"
+#include "api/AetherAPI.hpp"
 #include "../renderer/window.hpp"
 
 // BoxRamp
 int main()
 {
-    PhysicsWorld world;
+    AetherAPI api;
 
-    CreateWindow(world);
+    CreateWindow(api);
     return 0;
 }
