@@ -1,11 +1,11 @@
 #pragma once
 
-#include "../engine/world/physicsworld.hpp"
+#include "api/AetherAPI.hpp"
 #include <glad/glad.h>
 #include <glm/glm.hpp>
 
 void RenderDistanceConstraintsSolid(
-    PhysicsWorld &world,
+    AetherAPI &api,
     const glm::mat4 &view,
     const glm::mat4 &projection,
     GLuint program,
@@ -18,7 +18,7 @@ void RenderDistanceConstraintsSolid(
     float tintB);
 
 void RenderDistanceConstraintsWire(
-    PhysicsWorld &world,
+    AetherAPI &api,
     const glm::mat4 &model,
     const glm::mat4 &view,
     const glm::mat4 &projection,

@@ -3,7 +3,7 @@
 #include <vector>
 #include <string>
 #include <unordered_map>
-class PhysicsWorld;
+class AetherAPI;
 
 enum class TestCase
 {
@@ -38,4 +38,4 @@ extern std::vector<std::string> chapters;
 extern std::unordered_map<std::string, std::vector<TestCase>> testmap;
 
 void InitializeTestMap();
-Camera LoadSingleTestScenario(PhysicsWorld &world, TestCase test_case);
+Camera LoadSingleTestScenario(AetherAPI &api, TestCase test_case);

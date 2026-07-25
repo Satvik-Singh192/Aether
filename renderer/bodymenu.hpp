@@ -1,10 +1,10 @@
 #pragma once
 
-#include "../engine/world/physicsworld.hpp"
+#include "api/AetherAPI.hpp"
 
-void RenderBodyMenu(PhysicsWorld &world);
-void RenderAddBodyMenuContent(PhysicsWorld &world);
-void RenderConstraintMenuContent(PhysicsWorld &world);
-void RenderWorldMenuContent(PhysicsWorld &world);
-void RenderBodyInspectorContent(PhysicsWorld &world, bool showCloseButton = false);
+void RenderBodyMenu(AetherAPI &api);
+void RenderAddBodyMenuContent(AetherAPI &api);
+void RenderConstraintMenuContent(AetherAPI &api);
+void RenderWorldMenuContent(AetherAPI &api);
+void RenderBodyInspectorContent(AetherAPI &api, bool showCloseButton = false);
 void RenderEnginePopups();

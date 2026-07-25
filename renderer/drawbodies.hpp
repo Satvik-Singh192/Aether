@@ -1,9 +1,9 @@
 #pragma once
-#include "../engine/world/physicsworld.hpp"
+#include "api/AetherAPI.hpp"
 #include "camera.hpp"
 
 void initDrawBodies();
-void RenderBodies(PhysicsWorld &world, const Camera &camera, float aspectRatio);
+void RenderBodies(AetherAPI &api, const Camera &camera, float aspectRatio);
 void SetBodyDrawWireframeMode(bool wireframe);
 bool GetBodyDrawWireframeMode();
 void SetBodyTint(float r, float g, float b);

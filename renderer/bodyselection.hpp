@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../engine/core/bodyid.hpp"
+#include "api/RenderBody.hpp"
 
 inline BodyID g_selected_body_id = 0;
 
